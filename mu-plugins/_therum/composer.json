@@ -1,0 +1,19 @@
+{
+    "name": "therum/therum-os",
+    "description": "Therum OS — a CMS-agnostic operations layer. Currently shipped as a WordPress mu-plugin set; SQLite migration in scope.",
+    "type": "library",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Therum\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable"
+}

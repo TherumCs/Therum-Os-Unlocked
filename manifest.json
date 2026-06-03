@@ -1,0 +1,52 @@
+{
+  "id": "therum-os-unlocked",
+  "name": "Therum OS Unlocked",
+  "version": "1.9.15",
+  "description": "Full Therum OS stack — Bricks builder, plugin suite, native modules.",
+  "wp_version": "latest",
+  "source_site": "/Users/bleon061@cable.comcast.com/Local Sites/therum-os/app/public",
+  "include": {
+    "wp_core": true,
+    "mu_plugins": "all",
+    "plugins": [
+      "agent-to-bricks",
+      "bricks-advanced-themer",
+      "bricksextras",
+      "bricksforge",
+      "bricksultimate",
+      "litespeed-cache",
+      "mailpoet",
+      "max-addons-pro-bricks",
+      "nextbricks",
+      "sqlite-database-integration"
+    ],
+    "themes": [
+      "bricks",
+      "bricks-child"
+    ],
+    "uploads": false
+  },
+  "exclude_files": [
+    "wp-config.php",
+    "wp-content/uploads/*",
+    "wp-content/cache/*",
+    "wp-content/litespeed/*",
+    "wp-content/upgrade/*",
+    "wp-content/debug.log",
+    "wp-content/plugins/*.zip",
+    "wp-content/themes/*.zip",
+    "*.bak",
+    ".DS_Store"
+  ],
+  "default_theme": "bricks-child",
+  "default_therum_theme": "studio",
+  "post_install_actions": [
+    "activate_plugin:sqlite-database-integration",
+    "activate_plugin:bricksultimate",
+    "activate_plugin:bricks-advanced-themer",
+    "activate_plugin:agent-to-bricks",
+    "activate_plugin:bricksextras",
+    "switch_theme:bricks-child",
+    "set_therum_theme:studio"
+  ]
+}

@@ -1,0 +1,17 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Claude / agent state
+.claude/
+
+# Build / temp
+*.bak
+*.tmp
+*.log
+*.zip

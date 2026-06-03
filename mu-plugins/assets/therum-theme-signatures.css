@@ -1,0 +1,1004 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   THERUM OS · SIGNATURE THEME TREATMENTS
+   ──────────────────────────────────────────────────────────────────────────
+   Layers ON TOP OF therum-theme-palettes.css. The palette layer handles
+   color variables (--bg, --tx, --ac, …). This layer adds the bigger,
+   more inspiration-faithful brushstrokes that variables alone can't deliver:
+
+     • Background textures + gradients (Tron grid, Aurora wash, Paper noise)
+     • Sidebar accent rails (Sazabi gold, Aerial cyan glow, Studio hot-pink)
+     • Locked typography per theme (Editorial → Crimson, Brutal → Archivo)
+     • Card chrome variations (Glass → backdrop-blur, Mono → sharp edges)
+     • Accent glow on interactive states (Neon, Tron, Unicorn)
+
+   Each treatment is scoped to `body.theme-<id>` so it never bleeds across
+   themes. Specificity is deliberately conservative — only the chrome rules
+   override; component-level overrides stay opt-in via body classes.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 01 · STUDIO — Bamleon signature. Pitch black, hot-pink pop. ───────── */
+body.theme-studio:not(.light) #wpwrap{
+	background: radial-gradient(ellipse at 0% 0%, rgba(245,56,154,.06) 0%, transparent 50%), #0a0a0a !important;
+}
+body.theme-studio:not(.light) #th-sb{
+	background: #0a0a0a;
+	border-right: 1px solid rgba(255,255,255,.04);
+	box-shadow: inset -1px 0 0 0 rgba(245,56,154,.16);
+}
+body.theme-studio #th-sb .th-logo{ background: #f5389a; box-shadow: 0 0 24px rgba(245,56,154,.45) }
+body.theme-studio .th-sb-item.active{ background: rgba(245,56,154,.08); color: #f5389a }
+body.theme-studio .th-sb-item.active svg{ color: #f5389a }
+
+/* ── 02 · EDITORIAL — Long-form magazine. Crimson serif. Warm paper. ───── */
+body.theme-editorial,
+body.theme-editorial #th-content,
+body.theme-editorial #th-sb,
+body.theme-editorial #th-top{
+	font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif !important;
+}
+body.theme-editorial.light{ --bg:#fdfcf7; --sf:#ffffff; --sf2:#f6f3ea; --tx:#1f2937; --tx2:#4a5568; --tx3:#8a8a8a; --bd:rgba(0,0,0,.06); --ac:#1f2937 }
+body.theme-editorial.light #wpwrap{ background:#fdfcf7 !important }
+body.theme-editorial #th-top{ border-bottom: 1px solid rgba(0,0,0,.12); box-shadow: none }
+body.theme-editorial .th-top-title{ font-size: 17px; font-weight: 600; letter-spacing: .005em; font-style: italic }
+body.theme-editorial .th-sb-section-label{ font-family: 'Crimson Pro', serif !important; text-transform: none !important; font-style: italic; font-size: 13px !important; font-weight: 600; letter-spacing: 0 !important }
+body.theme-editorial .th-card{ border-radius: 4px !important; box-shadow: none !important; border: 1px solid rgba(0,0,0,.08) !important }
+
+/* ── 03 · BRUTAL — Sharp edges. Pure B&W. Archivo Black headers. ──────── */
+body.theme-brutal.light{ --bg:#ffffff; --sf:#ffffff; --sf2:#f0f0f0; --tx:#000000; --tx2:#1a1a1a; --tx3:#666666; --bd:#000000; --bd2:#000000; --ac:#000000 }
+body.theme-brutal:not(.light){ --bg:#000000; --sf:#0a0a0a; --sf2:#1a1a1a; --tx:#ffffff; --tx2:#e0e0e0; --tx3:#999999; --bd:#ffffff; --bd2:#ffffff; --ac:#ffffff }
+body.theme-brutal .th-top-title,
+body.theme-brutal .th-dash-title,
+body.theme-brutal h1,
+body.theme-brutal h2{ font-family: 'Archivo Black', 'Inter Tight', sans-serif !important; letter-spacing: -.02em !important }
+body.theme-brutal .th-card,
+body.theme-brutal #th-top,
+body.theme-brutal #th-sb,
+body.theme-brutal .th-cn-card,
+body.theme-brutal .th-cx-block{ border-radius: 0 !important; box-shadow: none !important; border-width: 2px !important }
+body.theme-brutal .th-sb-item.active{ background: var(--tx); color: var(--bg) }
+body.theme-brutal .th-sb-item.active svg{ color: var(--bg) }
+
+/* ── 04 · TRON — Grid lines. Neon cyan glow. End of line. ──────────────── */
+body.theme-tron:not(.light) #wpwrap{
+	background:
+		linear-gradient(rgba(0,212,255,.06) 1px, transparent 1px) 0 0 / 40px 40px,
+		linear-gradient(90deg, rgba(0,212,255,.06) 1px, transparent 1px) 0 0 / 40px 40px,
+		radial-gradient(ellipse at 50% 0%, rgba(0,212,255,.10) 0%, transparent 60%),
+		#001830 !important;
+}
+body.theme-tron,
+body.theme-tron #th-content,
+body.theme-tron #th-sb,
+body.theme-tron #th-top{ font-family: 'Orbitron', 'Inter Tight', sans-serif !important; letter-spacing: .02em }
+body.theme-tron:not(.light) #th-sb{ background: rgba(0,12,24,.85); backdrop-filter: blur(20px); border-right: 1px solid rgba(0,212,255,.25) }
+body.theme-tron .th-logo{ background: linear-gradient(135deg, #00d4ff, #0088ff); box-shadow: 0 0 24px rgba(0,212,255,.5), inset 0 0 12px rgba(255,255,255,.2) }
+body.theme-tron .th-sb-item:hover{ box-shadow: inset 2px 0 0 0 #00d4ff }
+body.theme-tron .th-sb-item.active{ background: rgba(0,212,255,.10); color: #00d4ff; box-shadow: inset 2px 0 0 0 #00d4ff }
+body.theme-tron .th-sb-item.active svg{ color: #00d4ff; filter: drop-shadow(0 0 6px rgba(0,212,255,.6)) }
+body.theme-tron .th-card{ border: 1px solid rgba(0,212,255,.18) !important; box-shadow: 0 0 0 1px rgba(0,212,255,.06), 0 10px 30px rgba(0,212,255,.08) !important }
+
+/* ── 05 · NEON — Loud. Saturated. Going out tonight. ──────────────────── */
+body.theme-neon:not(.light) #wpwrap{
+	background:
+		radial-gradient(ellipse at 20% 10%, rgba(236,72,153,.12) 0%, transparent 50%),
+		radial-gradient(ellipse at 80% 90%, rgba(168,85,247,.10) 0%, transparent 55%),
+		#0d0d0d !important;
+}
+body.theme-neon,
+body.theme-neon .th-dash-title,
+body.theme-neon .th-top-title{ font-family: 'Bebas Neue', 'Inter Tight', sans-serif !important; letter-spacing: .02em }
+body.theme-neon #th-sb .th-logo{ background: #ec4899; box-shadow: 0 0 32px rgba(236,72,153,.6) }
+body.theme-neon .th-sb-item.active{ background: linear-gradient(90deg, rgba(236,72,153,.15) 0%, transparent 100%); color: #ec4899 }
+body.theme-neon .th-sb-item.active svg{ color: #ec4899; filter: drop-shadow(0 0 8px rgba(236,72,153,.7)) }
+body.theme-neon .th-card{ box-shadow: 0 0 0 1px rgba(236,72,153,.08), 0 12px 36px rgba(236,72,153,.12) !important }
+
+/* ── 06 · MONO — Black, white, one accent. Compact. ────────────────────── */
+body.theme-mono,
+body.theme-mono #th-content,
+body.theme-mono #th-sb,
+body.theme-mono #th-top{ font-family: 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: -.01em }
+body.theme-mono .th-top-title,
+body.theme-mono .th-dash-title{ font-family: 'JetBrains Mono', ui-monospace, monospace !important; font-weight: 700 }
+body.theme-mono .th-card,
+body.theme-mono #th-top,
+body.theme-mono #th-sb,
+body.theme-mono .th-cn-card,
+body.theme-mono .th-cx-block{ border-radius: 0 !important; box-shadow: none !important }
+body.theme-mono .th-sb-section-label{ font-size: 9px !important; letter-spacing: .12em !important }
+
+/* ── 07 · CARBON — Deeper than dark. IBM-grade contrast. ──────────────── */
+body.theme-carbon:not(.light){ --bg:#0a0a0c; --sf:#161618; --sf2:#1f1f22; --tx:#f4f4f4; --tx2:#c6c6c6; --tx3:#8d8d8d; --bd:rgba(255,255,255,.10); --ac:#0f62fe; --ac-h:#4589ff }
+body.theme-carbon,
+body.theme-carbon #th-content,
+body.theme-carbon #th-sb,
+body.theme-carbon #th-top{ font-family: 'IBM Plex Sans', 'Inter', sans-serif !important }
+body.theme-carbon code,
+body.theme-carbon pre{ font-family: 'IBM Plex Mono', monospace !important }
+body.theme-carbon .th-card,
+body.theme-carbon #th-top,
+body.theme-carbon #th-sb{ border-radius: 0 !important }
+body.theme-carbon .th-sb-item.active{ box-shadow: inset 3px 0 0 0 #0f62fe; background: rgba(15,98,254,.10); color: #4589ff; border-radius: 0 }
+
+/* ── 08 · PAPER — Warm minimalist. Manuscript white. Serif. ───────────── */
+body.theme-paper.light{ --bg:#fafaf7; --sf:#ffffff; --sf2:#f3f1ea; --tx:#1c1917; --tx2:#44403c; --tx3:#78716c; --bd:rgba(28,25,23,.08); --ac:#1c1917 }
+body.theme-paper.light #wpwrap{
+	background:
+		radial-gradient(ellipse at 20% 0%, rgba(180,160,120,.06) 0%, transparent 50%),
+		#fafaf7 !important;
+}
+body.theme-paper,
+body.theme-paper #th-content{ font-family: 'Crimson Pro', Georgia, serif !important }
+body.theme-paper .th-top-title{ font-style: italic; font-weight: 600 }
+body.theme-paper .th-card{ background: var(--sf) !important; box-shadow: none !important; border: 1px solid var(--bd) !important; border-radius: 2px !important }
+
+/* ── 09 · AURORA — iOS-style. Vibrant gradients. Apple energy. ────────── */
+body.theme-aurora #wpwrap{
+	background:
+		linear-gradient(135deg, #ffd1dc 0%, #c5e8ff 35%, #d4f4dd 70%, #fff4c5 100%) !important;
+	background-attachment: fixed !important;
+}
+body.theme-aurora #th-sb,
+body.theme-aurora #th-top,
+body.theme-aurora .th-card{ background: rgba(255,255,255,.62) !important; backdrop-filter: blur(40px) saturate(180%) !important; -webkit-backdrop-filter: blur(40px) saturate(180%) !important; border: 1px solid rgba(255,255,255,.6) !important }
+body.theme-aurora .th-logo{ background: linear-gradient(135deg, #0a84ff, #af52de) }
+body.theme-aurora .th-sb-item.active{ background: rgba(10,132,255,.12); color: #0a84ff }
+
+/* ── 10 · GLASS — Frosted surfaces. Dreamy gradients. ─────────────────── */
+body.theme-glass:not(.light) #wpwrap{
+	background:
+		radial-gradient(ellipse at top left, #1e3a8a 0%, transparent 50%),
+		radial-gradient(ellipse at bottom right, #6b21a8 0%, transparent 60%),
+		#0a0a0a !important;
+	background-attachment: fixed !important;
+}
+body.theme-glass #th-sb,
+body.theme-glass #th-top,
+body.theme-glass .th-card{ background: rgba(255,255,255,.04) !important; backdrop-filter: blur(40px) saturate(150%) !important; -webkit-backdrop-filter: blur(40px) saturate(150%) !important; border: 1px solid rgba(255,255,255,.08) !important }
+body.theme-glass .th-sb-item:hover{ background: rgba(255,255,255,.08) }
+body.theme-glass .th-sb-item.active{ background: rgba(6,182,212,.18); color: #06b6d4 }
+
+/* ── 11 · MIDNIGHT — Deep ocean. Glass. After-hours. ──────────────────── */
+body.theme-midnight:not(.light) #wpwrap{
+	background:
+		radial-gradient(ellipse at 50% 0%, #0c1e3d 0%, transparent 60%),
+		radial-gradient(ellipse at 50% 100%, rgba(20,184,166,.18) 0%, transparent 50%),
+		#050a17 !important;
+	background-attachment: fixed !important;
+}
+body.theme-midnight,
+body.theme-midnight .th-dash-title,
+body.theme-midnight .th-top-title{ font-family: 'Space Grotesk', 'Inter', sans-serif !important }
+body.theme-midnight:not(.light) #th-sb{ background: rgba(8,16,32,.72); backdrop-filter: blur(20px); border-right: 1px solid rgba(94,234,212,.10) }
+body.theme-midnight .th-logo{ background: linear-gradient(135deg, #5eead4, #14b8a6); box-shadow: 0 0 24px rgba(94,234,212,.4) }
+
+/* ── 12 · FAMILIAR · VERCEL — Strict greyscale. Geist energy. ─────────── */
+body.theme-familiar-vercel.light{ --bg:#fafafa; --sf:#ffffff; --sf2:#f5f5f5; --tx:#000000; --tx2:#525252; --tx3:#a3a3a3; --bd:#eaeaea; --ac:#000000 }
+body.theme-familiar-vercel:not(.light){ --bg:#000000; --sf:#0a0a0a; --sf2:#111111; --tx:#ffffff; --tx2:#a1a1aa; --tx3:#71717a; --bd:#262626; --ac:#ffffff }
+body.theme-familiar-vercel,
+body.theme-familiar-vercel #th-content,
+body.theme-familiar-vercel #th-sb,
+body.theme-familiar-vercel #th-top{ font-family: 'Inter', -apple-system, sans-serif !important; letter-spacing: -.014em }
+body.theme-familiar-vercel .th-top-title,
+body.theme-familiar-vercel .th-dash-title{ letter-spacing: -.032em; font-weight: 700 }
+body.theme-familiar-vercel .th-card{ border-radius: 8px !important; box-shadow: none !important; border: 1px solid var(--bd) !important }
+body.theme-familiar-vercel .th-sb-item.active{ background: var(--sf2); color: var(--tx); border-radius: 6px }
+
+/* ── 13 · FAMILIAR · LINEAR — Premium dark. Refined purple. ───────────── */
+body.theme-familiar-linear:not(.light){ --bg:#08090a; --sf:#101113; --sf2:#1a1b1f; --tx:#f7f8f8; --tx2:#9ea2a8; --tx3:#62666d; --bd:rgba(255,255,255,.06); --ac:#5e6ad2; --ac-h:#8089e3 }
+body.theme-familiar-linear,
+body.theme-familiar-linear #th-content,
+body.theme-familiar-linear #th-sb,
+body.theme-familiar-linear #th-top{ font-family: 'Inter', -apple-system, sans-serif !important; letter-spacing: -.014em }
+body.theme-familiar-linear:not(.light) #wpwrap{ background: radial-gradient(ellipse at 100% 0%, rgba(94,106,210,.06) 0%, transparent 40%), #08090a !important }
+body.theme-familiar-linear .th-sb-item.active{ background: rgba(94,106,210,.10); color: #b4bbf8 }
+body.theme-familiar-linear .th-logo{ background: #5e6ad2; box-shadow: 0 0 24px rgba(94,106,210,.35) }
+body.theme-familiar-linear .th-card{ background: var(--sf) !important; border: 1px solid var(--bd) !important; border-radius: 12px !important; box-shadow: none !important }
+
+/* ── 14 · FAMILIAR · NOTION — Warm beige. Friendly. ──────────────────── */
+body.theme-familiar-notion.light{ --bg:#ffffff; --sf:#ffffff; --sf2:#f7f6f3; --tx:#37352f; --tx2:#787774; --tx3:#9b9a97; --bd:rgba(55,53,47,.09); --ac:#37352f; --ac-s:rgba(55,53,47,.06) }
+body.theme-familiar-notion.light #wpwrap{ background:#ffffff !important }
+body.theme-familiar-notion .th-card{ background: var(--sf2) !important; border: 1px solid var(--bd) !important; border-radius: 4px !important; box-shadow: none !important }
+body.theme-familiar-notion .th-sb-item.active{ background: rgba(55,53,47,.08); color: var(--tx); border-radius: 4px }
+
+/* ── 15 · FAMILIAR · macOS — Light glassy. Sequoia energy. ────────────── */
+body.theme-familiar-macos.light{ --bg:#f5f5f7; --sf:#ffffff; --sf2:#fafafa; --tx:#1d1d1f; --tx2:#515154; --tx3:#86868b; --bd:rgba(0,0,0,.10); --ac:#0071e3 }
+body.theme-familiar-macos.light #th-sb{ background: rgba(255,255,255,.72) !important; backdrop-filter: blur(40px) saturate(180%) !important; -webkit-backdrop-filter: blur(40px) saturate(180%) !important; border-right: 1px solid rgba(0,0,0,.08) }
+body.theme-familiar-macos.light #th-top{ background: rgba(255,255,255,.72) !important; backdrop-filter: blur(40px) saturate(180%) !important; -webkit-backdrop-filter: blur(40px) saturate(180%) !important }
+body.theme-familiar-macos .th-card{ border-radius: 10px !important; background: var(--sf) !important; border: 1px solid var(--bd) !important; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 0 0 .5px rgba(0,0,0,.04) !important }
+body.theme-familiar-macos .th-sb-item.active{ background: rgba(0,113,227,.10); color: #0071e3 }
+
+/* ── 16 · FAMILIAR · SPOTIFY — Music. Green-on-black. ─────────────────── */
+body.theme-familiar-spotify:not(.light){ --bg:#121212; --sf:#181818; --sf2:#282828; --tx:#ffffff; --tx2:#b3b3b3; --tx3:#a7a7a7; --bd:rgba(255,255,255,.08); --ac:#1db954; --ac-h:#1ed760 }
+body.theme-familiar-spotify .th-logo{ background: #1db954; border-radius: 50% !important }
+body.theme-familiar-spotify .th-sb-item.active{ background: #282828; color: #ffffff }
+body.theme-familiar-spotify .th-sb-item.active::before{ content:''; position: absolute; left: 0; top: 30%; bottom: 30%; width: 3px; background: #1db954; border-radius: 0 2px 2px 0 }
+body.theme-familiar-spotify .th-card{ border-radius: 8px !important; background: #181818 !important; border: 0 !important }
+
+/* ── 17 · CYBERPUNK — Magenta + yellow + neon. ─────────────────────────── */
+body.theme-cyberpunk:not(.light){ --bg:#0a0014; --sf:#15001f; --sf2:#1f0030; --tx:#fcee0c; --tx2:#ffe8e8; --tx3:#ff6ad5; --bd:rgba(252,238,12,.15); --ac:#ff007a; --ac-h:#ff3399 }
+body.theme-cyberpunk:not(.light) #wpwrap{
+	background:
+		linear-gradient(0deg, rgba(252,238,12,.04) 1px, transparent 1px) 0 0 / 100% 4px,
+		radial-gradient(ellipse at 20% 0%, rgba(255,0,122,.12) 0%, transparent 50%),
+		#0a0014 !important;
+}
+body.theme-cyberpunk,
+body.theme-cyberpunk .th-dash-title,
+body.theme-cyberpunk .th-top-title{ font-family: 'Audiowide', 'Inter Tight', sans-serif !important; letter-spacing: .02em }
+body.theme-cyberpunk .th-logo{ background: linear-gradient(135deg, #ff007a, #fcee0c); box-shadow: 0 0 24px rgba(255,0,122,.5) }
+body.theme-cyberpunk .th-sb-item.active{ background: rgba(255,0,122,.10); color: #fcee0c; box-shadow: inset 2px 0 0 0 #ff007a }
+
+/* ── 18 · VAPORWAVE — Pink + cyan + grid. 80s sunset. ─────────────────── */
+body.theme-vaporwave #wpwrap{
+	background:
+		linear-gradient(180deg, #ff71ce 0%, #b967ff 25%, #01cdfe 50%, #05ffa1 100%) !important;
+	background-attachment: fixed !important;
+}
+body.theme-vaporwave,
+body.theme-vaporwave .th-dash-title,
+body.theme-vaporwave .th-top-title{ font-family: 'VT323', 'Audiowide', monospace !important; letter-spacing: .04em }
+body.theme-vaporwave #th-sb,
+body.theme-vaporwave #th-top,
+body.theme-vaporwave .th-card{ background: rgba(0,0,40,.5) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; color: #ffffff }
+
+/* ── 19 · GUNDAM · RX-78-2 — Federation prototype. White, red, blue. ──── */
+body.theme-gundam-rx78.light{ --bg:#ffffff; --sf:#f5f5f5; --sf2:#e8e8e8; --tx:#1a1a1a; --tx2:#4a4a4a; --tx3:#8a8a8a; --bd:#1a1a1a; --bd2:#fb2f38; --ac:#fb2f38 }
+body.theme-gundam-rx78,
+body.theme-gundam-rx78 .th-top-title,
+body.theme-gundam-rx78 .th-dash-title{ font-family: 'Audiowide', 'Inter Tight', sans-serif !important; letter-spacing: .015em }
+body.theme-gundam-rx78.light #th-sb{ background: #ffffff; border-right: 4px solid #fb2f38 }
+body.theme-gundam-rx78 .th-logo{ background: #fb2f38; border-radius: 0 !important }
+body.theme-gundam-rx78 .th-sb-item.active{ background: rgba(251,47,56,.10); color: #fb2f38; border-radius: 0 !important; box-shadow: inset 4px 0 0 0 #fb2f38 }
+body.theme-gundam-rx78 .th-card{ border: 2px solid #1a1a1a !important; border-radius: 0 !important; box-shadow: 4px 4px 0 0 #fb2f38 !important }
+
+/* ── 20 · GUNDAM · SAZABI — Char's parade red. Ornate gold. ─────────────── */
+body.theme-gundam-sazabi:not(.light){ --bg:#1a0a0c; --sf:#2a1014; --sf2:#3a1820; --tx:#f8e8c8; --tx2:#d4af37; --tx3:#a08a4a; --bd:rgba(212,175,55,.20); --bd2:#d4af37; --ac:#d4af37; --ac-h:#f4c542 }
+body.theme-gundam-sazabi,
+body.theme-gundam-sazabi .th-top-title,
+body.theme-gundam-sazabi .th-dash-title{ font-family: 'Playfair Display', Georgia, serif !important; letter-spacing: -.005em }
+body.theme-gundam-sazabi:not(.light) #wpwrap{
+	background:
+		radial-gradient(ellipse at 50% 0%, rgba(212,175,55,.10) 0%, transparent 60%),
+		linear-gradient(135deg, #1a0a0c 0%, #2a1014 100%) !important;
+}
+body.theme-gundam-sazabi:not(.light) #th-sb{ background: #1a0a0c; border-right: 1px solid rgba(212,175,55,.30) }
+body.theme-gundam-sazabi .th-logo{ background: linear-gradient(135deg, #d4af37, #f4c542); color: #1a0a0c; box-shadow: 0 0 20px rgba(212,175,55,.45) }
+body.theme-gundam-sazabi .th-sb-item.active{ background: rgba(212,175,55,.10); color: #f4c542; box-shadow: inset 3px 0 0 0 #d4af37 }
+body.theme-gundam-sazabi .th-card{ border: 1px solid rgba(212,175,55,.18) !important; box-shadow: 0 0 0 1px rgba(212,175,55,.06), 0 12px 36px rgba(212,175,55,.08) !important; background: linear-gradient(135deg, var(--sf), rgba(58,24,32,.6)) !important }
+
+/* ── 21 · GUNDAM · AERIAL — XVX-016. Permet score 8. Cyan glow. ─────────── */
+body.theme-gundam-aerial.light{ --bg:#f0fbff; --sf:#ffffff; --sf2:#e0f4fa; --tx:#062c4a; --tx2:#0e4d7a; --tx3:#5a85a8; --bd:rgba(6,182,212,.18); --ac:#06b6d4; --ac-h:#22d3ee }
+body.theme-gundam-aerial.light #wpwrap{
+	background:
+		radial-gradient(ellipse at 50% 100%, rgba(6,182,212,.18) 0%, transparent 50%),
+		linear-gradient(180deg, #f0fbff 0%, #e6f7fc 100%) !important;
+}
+body.theme-gundam-aerial,
+body.theme-gundam-aerial #th-content,
+body.theme-gundam-aerial #th-sb,
+body.theme-gundam-aerial #th-top{ font-family: 'DM Sans', 'Inter', sans-serif !important; letter-spacing: -.008em }
+body.theme-gundam-aerial #th-sb .th-logo{ background: linear-gradient(135deg, #06b6d4, #67e8f9); box-shadow: 0 0 20px rgba(6,182,212,.4) }
+body.theme-gundam-aerial .th-sb-item.active{ background: rgba(6,182,212,.10); color: #0891b2 }
+body.theme-gundam-aerial .th-card{ border-radius: 16px !important; background: rgba(255,255,255,.85) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(6,182,212,.12) !important; box-shadow: 0 4px 24px rgba(6,182,212,.06) !important }
+
+/* ── 22 · GUNDAM · UNICORN — RX-0. NT-D destroy mode. ──────────────────── */
+body.theme-gundam-unicorn:not(.light){ --bg:#0d0408; --sf:#1a0810; --sf2:#26101a; --tx:#fafafa; --tx2:#e0c0c8; --tx3:#a06878; --bd:rgba(255,45,85,.18); --ac:#ff2d55; --ac-h:#ff6080 }
+body.theme-gundam-unicorn,
+body.theme-gundam-unicorn .th-top-title,
+body.theme-gundam-unicorn .th-dash-title{ font-family: 'Audiowide', 'Inter Tight', sans-serif !important }
+body.theme-gundam-unicorn:not(.light) #wpwrap{
+	background:
+		linear-gradient(180deg, rgba(255,45,85,.12) 0%, transparent 30%),
+		radial-gradient(ellipse at 50% 100%, rgba(255,45,85,.18) 0%, transparent 50%),
+		linear-gradient(135deg, #0d0408 0%, #1a0810 100%) !important;
+}
+body.theme-gundam-unicorn .th-logo{ background: #ff2d55; box-shadow: 0 0 28px rgba(255,45,85,.6), inset 0 0 12px rgba(255,255,255,.2) }
+body.theme-gundam-unicorn .th-sb-item.active{ background: rgba(255,45,85,.12); color: #ff6080; box-shadow: inset 3px 0 0 0 #ff2d55 }
+body.theme-gundam-unicorn .th-card{ box-shadow: 0 0 0 1px rgba(255,45,85,.10), 0 16px 48px rgba(255,45,85,.16) !important }
+
+/* ── 23 · GUNDAM · EXIA — GN-001. Celestial Being electric cyan. ───────── */
+body.theme-gundam-exia:not(.light){ --bg:#001428; --sf:#001f3a; --sf2:#002a4d; --tx:#e0faff; --tx2:#80d8f0; --tx3:#508aa8; --bd:rgba(0,229,255,.16); --ac:#00e5ff; --ac-h:#22f0ff }
+body.theme-gundam-exia,
+body.theme-gundam-exia #th-content,
+body.theme-gundam-exia #th-sb{ font-family: 'JetBrains Mono', monospace !important; letter-spacing: -.01em }
+body.theme-gundam-exia:not(.light) #wpwrap{
+	background:
+		radial-gradient(ellipse at 50% 50%, rgba(0,229,255,.08) 0%, transparent 60%),
+		#001428 !important;
+}
+body.theme-gundam-exia .th-logo{ background: linear-gradient(135deg, #00e5ff, #80d8f0); box-shadow: 0 0 28px rgba(0,229,255,.55) }
+body.theme-gundam-exia .th-sb-item.active{ background: rgba(0,229,255,.10); color: #00e5ff; box-shadow: inset 2px 0 0 0 #00e5ff }
+body.theme-gundam-exia .th-sb-item.active svg{ color: #00e5ff; filter: drop-shadow(0 0 6px rgba(0,229,255,.6)) }
+
+/* ── 24 · THERUM STUDIO — Studio's daylight workhorse. ─────────────────── */
+body.theme-therum-studio.light{ --bg:#f7f5f0; --sf:#ffffff; --sf2:#efece4; --tx:#1a1a1a; --tx2:#4a4a4a; --tx3:#8a8a8a; --bd:rgba(26,26,26,.08); --ac:#1a1a1a }
+body.theme-therum-studio,
+body.theme-therum-studio #th-content{ font-family: 'Crimson Pro', Georgia, serif !important }
+body.theme-therum-studio .th-top-title,
+body.theme-therum-studio .th-dash-title{ font-style: italic; font-weight: 600; letter-spacing: -.015em }
+body.theme-therum-studio .th-card{ background: var(--sf) !important; border: 1px solid var(--bd) !important; border-radius: 6px !important; box-shadow: 0 1px 0 rgba(0,0,0,.02) !important }
+
+/* ── 25 · THERUM OS — After-hours. Premium tech. ──────────────────────── */
+body.theme-therum-os:not(.light){ --bg:#0a0a0c; --sf:#141418; --sf2:#1c1c22; --tx:#fafafa; --tx2:#b0b0b8; --tx3:#70707a; --bd:rgba(255,255,255,.06); --ac:#3672ff; --ac-h:#5a8aff }
+body.theme-therum-os,
+body.theme-therum-os #th-content,
+body.theme-therum-os #th-sb,
+body.theme-therum-os #th-top{ font-family: 'Space Grotesk', 'Inter', sans-serif !important; letter-spacing: -.012em }
+body.theme-therum-os:not(.light) #wpwrap{ background: radial-gradient(ellipse at 0% 0%, rgba(54,114,255,.04) 0%, transparent 40%), #0a0a0c !important }
+body.theme-therum-os:not(.light) #th-sb{ background: rgba(10,10,12,.85); backdrop-filter: blur(20px); border-right: 1px solid rgba(255,255,255,.04) }
+body.theme-therum-os .th-logo{ background: linear-gradient(135deg, #3672ff, #5a8aff); box-shadow: 0 0 20px rgba(54,114,255,.35) }
+body.theme-therum-os .th-sb-item.active{ background: rgba(54,114,255,.08); color: #5a8aff }
+body.theme-therum-os .th-card{ background: var(--sf) !important; border: 1px solid var(--bd) !important; border-radius: 12px !important; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.12) !important }
+
+/* ════════════════════════════════════════════════════════════════════════ */
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TIER 2 · OVER-THE-TOP POLISH
+   ──────────────────────────────────────────────────────────────────────────
+   The 80% was palette + bg + font. This is the 20% that gives each theme
+   PERSONALITY:
+     • Custom scrollbars (themed colors + widths)
+     • ::selection that matches the theme's accent
+     • Theme-specific focus rings
+     • Hover micro-interactions (lift, glow, scan, pulse)
+     • Decorative pseudo-elements (Tron corners, Sazabi ornaments, RX-78 rivets)
+     • Ambient motion (Aurora gradient drift, Tron grid pulse, Unicorn NT-D glow)
+     • Logo animations on the sidebar logo
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ───────────────────────── STUDIO · Bamleon ───────────────────────── */
+body.theme-studio ::selection{ background: rgba(245,56,154,.35); color: #ffffff }
+body.theme-studio :focus-visible{ outline: 2px solid #f5389a; outline-offset: 2px; border-radius: 4px }
+body.theme-studio ::-webkit-scrollbar{ width: 8px; height: 8px }
+body.theme-studio ::-webkit-scrollbar-thumb{ background: rgba(245,56,154,.4); border-radius: 4px }
+body.theme-studio ::-webkit-scrollbar-thumb:hover{ background: rgba(245,56,154,.7) }
+body.theme-studio .th-card{ transition: transform .32s cubic-bezier(.32,.72,0,1), box-shadow .32s ease, border-color .32s ease }
+body.theme-studio .th-card:hover{ transform: translateY(-2px); border-color: rgba(245,56,154,.3); box-shadow: 0 0 0 1px rgba(245,56,154,.12), 0 18px 48px rgba(245,56,154,.12) }
+
+/* ───────────────────────── EDITORIAL · Magazine ───────────────────────── */
+body.theme-editorial ::selection{ background: rgba(31,41,55,.18); color: #1f2937 }
+body.theme-editorial :focus-visible{ outline: 1px solid #1f2937; outline-offset: 3px }
+body.theme-editorial ::-webkit-scrollbar{ width: 14px }
+body.theme-editorial ::-webkit-scrollbar-thumb{ background: #d4cdb8; border: 4px solid var(--bg, #fdfcf7); border-radius: 999px }
+body.theme-editorial .th-dash-title::first-letter,
+body.theme-editorial .th-top-title{ font-feature-settings: "onum" 1, "lnum" 0 } /* old-style figures */
+body.theme-editorial .th-card{ position: relative }
+body.theme-editorial .th-card::before{
+	content:''; position:absolute; left:18px; top:18px; bottom:18px; width:1px; background:rgba(0,0,0,.08);
+}
+body.theme-editorial .th-card .th-card-head,
+body.theme-editorial .th-card .th-stat-val,
+body.theme-editorial .th-card .th-stat-sub{ padding-left: 14px }
+
+/* ───────────────────────── BRUTAL · Sharp ───────────────────────── */
+body.theme-brutal ::selection{ background: var(--tx); color: var(--bg) }
+body.theme-brutal :focus-visible{ outline: 3px solid var(--ac); outline-offset: 3px; border-radius: 0 }
+body.theme-brutal ::-webkit-scrollbar{ width: 16px; height: 16px }
+body.theme-brutal ::-webkit-scrollbar-track{ background: var(--bg) }
+body.theme-brutal ::-webkit-scrollbar-thumb{ background: var(--tx); border: 4px solid var(--bg); border-radius: 0 }
+body.theme-brutal .th-card{ transition: transform .08s steps(1), box-shadow .08s steps(1) } /* hard, no-easing snap */
+body.theme-brutal .th-card:hover{ transform: translate(-3px,-3px); box-shadow: 6px 6px 0 0 var(--tx) }
+body.theme-brutal .th-sb-item{ transition: none !important }
+body.theme-brutal .th-card-label{ font-family: 'Archivo Black', sans-serif !important; font-size: 9px !important; letter-spacing: .14em !important; text-transform: uppercase }
+
+/* ───────────────────────── TRON · Grid ───────────────────────── */
+body.theme-tron ::selection{ background: rgba(0,212,255,.45); color: #001830; text-shadow: 0 0 8px rgba(0,212,255,.8) }
+body.theme-tron :focus-visible{ outline: 1px solid #00d4ff; outline-offset: 3px; box-shadow: 0 0 0 4px rgba(0,212,255,.18) }
+body.theme-tron ::-webkit-scrollbar{ width: 8px; height: 8px }
+body.theme-tron ::-webkit-scrollbar-track{ background: rgba(0,212,255,.04) }
+body.theme-tron ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #00d4ff, #0088ff); border-radius: 0; box-shadow: 0 0 8px rgba(0,212,255,.5) }
+/* Schematic corner brackets on cards */
+body.theme-tron .th-card{ position: relative; overflow: visible !important }
+body.theme-tron .th-card::before,
+body.theme-tron .th-card::after{
+	content:''; position:absolute; width:10px; height:10px; border: 1px solid #00d4ff; opacity: 0; transition: opacity .25s ease;
+}
+body.theme-tron .th-card::before{ top:-1px; left:-1px; border-right: 0; border-bottom: 0 }
+body.theme-tron .th-card::after{ bottom:-1px; right:-1px; border-left: 0; border-top: 0 }
+body.theme-tron .th-card:hover::before,
+body.theme-tron .th-card:hover::after{ opacity: 1 }
+body.theme-tron .th-card:hover{ box-shadow: 0 0 0 1px rgba(0,212,255,.4), 0 0 24px rgba(0,212,255,.18) !important }
+
+/* ───────────────────────── NEON · Loud ───────────────────────── */
+body.theme-neon ::selection{ background: rgba(236,72,153,.45); color: #ffffff }
+body.theme-neon :focus-visible{ outline: 2px solid #ec4899; outline-offset: 2px; box-shadow: 0 0 0 6px rgba(236,72,153,.16) }
+body.theme-neon ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #ec4899, #a855f7); border-radius: 999px }
+body.theme-neon .th-card{ transition: transform .3s ease, box-shadow .3s ease }
+body.theme-neon .th-card:hover{ transform: translateY(-3px); box-shadow: 0 0 0 1px rgba(236,72,153,.18), 0 24px 64px rgba(236,72,153,.24) !important }
+
+/* ───────────────────────── MONO · Monospace ───────────────────────── */
+body.theme-mono ::selection{ background: var(--ac); color: var(--bg) }
+body.theme-mono :focus-visible{ outline: 1px solid var(--tx); outline-offset: 2px }
+body.theme-mono ::-webkit-scrollbar{ width: 6px }
+body.theme-mono ::-webkit-scrollbar-thumb{ background: var(--tx2); border-radius: 0 }
+body.theme-mono .th-card{ transition: none }
+body.theme-mono .th-card:hover{ border-color: var(--tx) }
+
+/* ───────────────────────── CARBON · IBM ───────────────────────── */
+body.theme-carbon ::selection{ background: #0f62fe; color: #ffffff }
+body.theme-carbon :focus-visible{ outline: 2px solid #0f62fe; outline-offset: 1px }
+body.theme-carbon ::-webkit-scrollbar{ width: 14px }
+body.theme-carbon ::-webkit-scrollbar-track{ background: #161618 }
+body.theme-carbon ::-webkit-scrollbar-thumb{ background: #393939; border: 4px solid #161618 }
+body.theme-carbon ::-webkit-scrollbar-thumb:hover{ background: #525252 }
+body.theme-carbon .th-card{ transition: background .15s ease, border-color .15s ease }
+body.theme-carbon .th-card:hover{ background: #1f1f22 !important }
+
+/* ───────────────────────── PAPER · Manuscript ───────────────────────── */
+body.theme-paper ::selection{ background: rgba(28,25,23,.18); color: #1c1917 }
+body.theme-paper :focus-visible{ outline: 1px solid #1c1917; outline-offset: 4px; box-shadow: none }
+body.theme-paper ::-webkit-scrollbar{ width: 12px }
+body.theme-paper ::-webkit-scrollbar-thumb{ background: #d6cfb8; border: 4px solid var(--bg, #fafaf7); border-radius: 999px }
+body.theme-paper .th-card{ transition: box-shadow .35s ease }
+body.theme-paper .th-card:hover{ box-shadow: 0 8px 28px rgba(28,25,23,.06) !important }
+
+/* ───────────────────────── AURORA · iOS gradient ───────────────────────── */
+body.theme-aurora ::selection{ background: rgba(10,132,255,.30); color: #062c4a }
+body.theme-aurora :focus-visible{ outline: 2px solid #0a84ff; outline-offset: 3px; border-radius: 8px; box-shadow: 0 0 0 6px rgba(10,132,255,.16) }
+body.theme-aurora ::-webkit-scrollbar{ width: 10px }
+body.theme-aurora ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.5); border: 2px solid transparent; background-clip: padding-box; border-radius: 999px }
+body.theme-aurora ::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.75); background-clip: padding-box }
+/* Slow drifting gradient — peaceful Apple-style motion */
+body.theme-aurora .th-card{ transition: transform .5s cubic-bezier(.32,.72,0,1), box-shadow .5s ease }
+body.theme-aurora .th-card:hover{ transform: translateY(-4px) scale(1.005); box-shadow: 0 24px 64px rgba(10,132,255,.16) !important }
+
+/* ───────────────────────── GLASS · Frosted ───────────────────────── */
+body.theme-glass ::selection{ background: rgba(6,182,212,.30); color: #ffffff }
+body.theme-glass :focus-visible{ outline: 1px solid rgba(6,182,212,.6); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(6,182,212,.12) }
+body.theme-glass ::-webkit-scrollbar{ width: 8px }
+body.theme-glass ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.18); border-radius: 999px }
+body.theme-glass ::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.35) }
+body.theme-glass .th-card{ transition: backdrop-filter .4s ease, background .4s ease, transform .4s ease }
+body.theme-glass .th-card:hover{ background: rgba(255,255,255,.08) !important; transform: translateY(-2px) }
+
+/* ───────────────────────── MIDNIGHT · After-hours ───────────────────────── */
+body.theme-midnight ::selection{ background: rgba(94,234,212,.32); color: #050a17 }
+body.theme-midnight :focus-visible{ outline: 1px solid #5eead4; outline-offset: 3px }
+body.theme-midnight ::-webkit-scrollbar-thumb{ background: rgba(94,234,212,.30); border-radius: 999px }
+
+/* ───────────────────────── VERCEL · Geist ───────────────────────── */
+body.theme-familiar-vercel ::selection{ background: var(--tx); color: var(--bg) }
+body.theme-familiar-vercel :focus-visible{ outline: 1px solid var(--tx); outline-offset: 2px; border-radius: 6px }
+body.theme-familiar-vercel ::-webkit-scrollbar{ width: 12px }
+body.theme-familiar-vercel ::-webkit-scrollbar-thumb{ background: var(--bd); border: 3px solid var(--bg); border-radius: 999px }
+body.theme-familiar-vercel ::-webkit-scrollbar-thumb:hover{ background: var(--tx3) }
+body.theme-familiar-vercel .th-card{ transition: border-color .12s ease, transform .12s ease }
+body.theme-familiar-vercel .th-card:hover{ border-color: var(--tx2) !important; transform: translateY(-1px) }
+
+/* ───────────────────────── LINEAR · Premium dark ───────────────────────── */
+body.theme-familiar-linear ::selection{ background: rgba(94,106,210,.35); color: #ffffff }
+body.theme-familiar-linear :focus-visible{ outline: 1px solid #5e6ad2; outline-offset: 2px; border-radius: 6px; box-shadow: 0 0 0 4px rgba(94,106,210,.14) }
+body.theme-familiar-linear ::-webkit-scrollbar{ width: 10px }
+body.theme-familiar-linear ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.08); border-radius: 999px }
+body.theme-familiar-linear ::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.16) }
+body.theme-familiar-linear .th-card{ transition: border-color .15s ease, background .15s ease }
+body.theme-familiar-linear .th-card:hover{ border-color: rgba(94,106,210,.32) !important; background: #15171a !important }
+
+/* ───────────────────────── NOTION · Friendly ───────────────────────── */
+body.theme-familiar-notion ::selection{ background: rgba(35,131,226,.22); color: #37352f }
+body.theme-familiar-notion :focus-visible{ outline: 2px solid #2383e2; outline-offset: 1px; border-radius: 3px }
+body.theme-familiar-notion ::-webkit-scrollbar-thumb{ background: rgba(55,53,47,.18); border-radius: 999px }
+body.theme-familiar-notion .th-card{ transition: background .12s ease }
+body.theme-familiar-notion .th-card:hover{ background: #ebebe9 !important }
+
+/* ───────────────────────── macOS · Sequoia ───────────────────────── */
+body.theme-familiar-macos ::selection{ background: rgba(0,113,227,.28); color: #1d1d1f }
+body.theme-familiar-macos :focus-visible{ outline: 3px solid #0071e3; outline-offset: 1px; border-radius: 6px }
+body.theme-familiar-macos ::-webkit-scrollbar{ width: 12px }
+body.theme-familiar-macos ::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.18); border: 3px solid transparent; background-clip: padding-box; border-radius: 999px }
+body.theme-familiar-macos .th-card{ transition: transform .35s cubic-bezier(.32,.72,0,1), box-shadow .35s ease }
+body.theme-familiar-macos .th-card:hover{ transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 1px 0 rgba(0,0,0,.04), 0 0 0 .5px rgba(0,0,0,.06) !important }
+
+/* ───────────────────────── SPOTIFY · Music ───────────────────────── */
+body.theme-familiar-spotify ::selection{ background: rgba(29,185,84,.36); color: #ffffff }
+body.theme-familiar-spotify :focus-visible{ outline: 2px solid #1db954; outline-offset: 2px; border-radius: 4px }
+body.theme-familiar-spotify ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.18); border-radius: 999px }
+body.theme-familiar-spotify ::-webkit-scrollbar-thumb:hover{ background: #1db954 }
+body.theme-familiar-spotify .th-card{ transition: background .25s ease, transform .25s ease }
+body.theme-familiar-spotify .th-card:hover{ background: #282828 !important; transform: translateY(-1px) }
+body.theme-familiar-spotify .th-logo:hover{ animation-play-state: running }
+
+/* ───────────────────────── CYBERPUNK · Night City ───────────────────────── */
+body.theme-cyberpunk ::selection{ background: rgba(252,238,12,.4); color: #ff007a; text-shadow: 0 0 8px rgba(252,238,12,.6) }
+body.theme-cyberpunk :focus-visible{ outline: 2px solid #fcee0c; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(255,0,122,.18) }
+body.theme-cyberpunk ::-webkit-scrollbar{ width: 6px }
+body.theme-cyberpunk ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #ff007a, #fcee0c); border-radius: 0 }
+/* Static yellow rule under the topbar — Cyberpunk 2077's "tagged" panel chrome */
+body.theme-cyberpunk #th-top{ border-bottom: 1px solid #fcee0c !important }
+body.theme-cyberpunk .th-card{ transition: border-color .2s ease, box-shadow .2s ease }
+body.theme-cyberpunk .th-card:hover{ border-color: rgba(252,238,12,.4) !important; box-shadow: 0 0 0 1px rgba(252,238,12,.18) !important }
+
+/* ───────────────────────── VAPORWAVE · Retro ───────────────────────── */
+body.theme-vaporwave ::selection{ background: rgba(255,113,206,.5); color: #ffffff }
+body.theme-vaporwave :focus-visible{ outline: 2px solid #ff71ce; outline-offset: 2px }
+body.theme-vaporwave ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #ff71ce, #01cdfe, #05ffa1); border-radius: 0 }
+body.theme-vaporwave .th-card{ transition: background .25s ease }
+body.theme-vaporwave .th-card:hover{ background: rgba(0,0,40,.65) !important }
+
+/* ───────────────────────── GUNDAM · RX-78-2 ───────────────────────── */
+body.theme-gundam-rx78 ::selection{ background: #fb2f38; color: #ffffff }
+body.theme-gundam-rx78 :focus-visible{ outline: 3px solid #fb2f38; outline-offset: 2px; border-radius: 0 }
+body.theme-gundam-rx78 ::-webkit-scrollbar{ width: 14px }
+body.theme-gundam-rx78 ::-webkit-scrollbar-track{ background: #f5f5f5 }
+body.theme-gundam-rx78 ::-webkit-scrollbar-thumb{ background: #fb2f38; border: 4px solid #f5f5f5; border-radius: 0 }
+/* Federation rivets — small dots at each card corner */
+body.theme-gundam-rx78 .th-card{ position: relative }
+body.theme-gundam-rx78 .th-card::before,
+body.theme-gundam-rx78 .th-card::after{
+	content:''; position:absolute; width:5px; height:5px; background: #1a1a1a; border-radius: 50%;
+}
+body.theme-gundam-rx78 .th-card::before{ top:6px; left:6px; box-shadow: calc(100% - 11px + 6px) 0 0 0 #1a1a1a }
+body.theme-gundam-rx78 .th-card::after{ bottom:6px; left:6px; box-shadow: calc(100% - 11px + 6px) 0 0 0 #1a1a1a }
+body.theme-gundam-rx78 .th-card{ transition: transform .12s ease, box-shadow .12s ease }
+body.theme-gundam-rx78 .th-card:hover{ transform: translate(-2px,-2px); box-shadow: 6px 6px 0 0 #fb2f38 !important }
+
+/* ───────────────────────── GUNDAM · SAZABI ───────────────────────── */
+body.theme-gundam-sazabi ::selection{ background: rgba(212,175,55,.5); color: #1a0a0c }
+body.theme-gundam-sazabi :focus-visible{ outline: 2px solid #d4af37; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(212,175,55,.16) }
+body.theme-gundam-sazabi ::-webkit-scrollbar{ width: 12px }
+body.theme-gundam-sazabi ::-webkit-scrollbar-track{ background: rgba(212,175,55,.06) }
+body.theme-gundam-sazabi ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #f4c542, #d4af37, #a08a3a); border-radius: 0 }
+/* Ornate gold corners on cards — Char's ceremonial filigree */
+body.theme-gundam-sazabi .th-card{ position: relative; overflow: visible !important }
+body.theme-gundam-sazabi .th-card::before,
+body.theme-gundam-sazabi .th-card::after{
+	content:''; position:absolute; width:14px; height:14px; border: 1.5px solid #d4af37; opacity: .5; transition: opacity .3s ease;
+}
+body.theme-gundam-sazabi .th-card::before{ top:-1px; left:-1px; border-right: 0; border-bottom: 0 }
+body.theme-gundam-sazabi .th-card::after{ bottom:-1px; right:-1px; border-left: 0; border-top: 0 }
+body.theme-gundam-sazabi .th-card:hover::before,
+body.theme-gundam-sazabi .th-card:hover::after{ opacity: 1 }
+body.theme-gundam-sazabi .th-card:hover{ box-shadow: 0 0 0 1px rgba(212,175,55,.3), 0 24px 60px rgba(212,175,55,.16) !important }
+
+/* ───────────────────────── GUNDAM · AERIAL ───────────────────────── */
+body.theme-gundam-aerial ::selection{ background: rgba(6,182,212,.30); color: #062c4a }
+body.theme-gundam-aerial :focus-visible{ outline: 2px solid #06b6d4; outline-offset: 3px; border-radius: 12px; box-shadow: 0 0 0 6px rgba(6,182,212,.14) }
+body.theme-gundam-aerial ::-webkit-scrollbar-thumb{ background: rgba(6,182,212,.35); border-radius: 999px }
+body.theme-gundam-aerial .th-card{ transition: transform .45s cubic-bezier(.32,.72,0,1), box-shadow .45s ease }
+body.theme-gundam-aerial .th-card:hover{ transform: translateY(-3px); box-shadow: 0 16px 48px rgba(6,182,212,.18) !important }
+
+/* ───────────────────────── GUNDAM · UNICORN ───────────────────────── */
+body.theme-gundam-unicorn ::selection{ background: rgba(255,45,85,.4); color: #ffffff; text-shadow: 0 0 6px rgba(255,45,85,.8) }
+body.theme-gundam-unicorn :focus-visible{ outline: 2px solid #ff2d55; outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255,45,85,.18) }
+body.theme-gundam-unicorn ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #ff2d55, #ff6080); border-radius: 0 }
+body.theme-gundam-unicorn .th-card{ transition: transform .2s ease, box-shadow .2s ease }
+body.theme-gundam-unicorn .th-card:hover{ transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(255,45,85,.3), 0 24px 60px rgba(255,45,85,.24) !important }
+/* NT-D pulse on the logo — the destroy-mode "psycoframe" glow */
+
+/* ───────────────────────── GUNDAM · EXIA ───────────────────────── */
+body.theme-gundam-exia ::selection{ background: rgba(0,229,255,.4); color: #001428; text-shadow: 0 0 8px rgba(0,229,255,.6) }
+body.theme-gundam-exia :focus-visible{ outline: 1px solid #00e5ff; outline-offset: 3px; box-shadow: 0 0 0 4px rgba(0,229,255,.18) }
+body.theme-gundam-exia ::-webkit-scrollbar{ width: 6px }
+body.theme-gundam-exia ::-webkit-scrollbar-thumb{ background: #00e5ff; border-radius: 0; box-shadow: 0 0 6px rgba(0,229,255,.5) }
+body.theme-gundam-exia .th-card{ transition: box-shadow .3s ease, border-color .3s ease }
+body.theme-gundam-exia .th-card:hover{ border-color: rgba(0,229,255,.4) !important; box-shadow: 0 0 0 1px rgba(0,229,255,.18), 0 8px 32px rgba(0,229,255,.16) !important }
+
+/* ───────────────────────── THERUM STUDIO ───────────────────────── */
+body.theme-therum-studio ::selection{ background: rgba(26,26,26,.18); color: #1a1a1a }
+body.theme-therum-studio :focus-visible{ outline: 1px solid #1a1a1a; outline-offset: 3px }
+body.theme-therum-studio ::-webkit-scrollbar{ width: 12px }
+body.theme-therum-studio ::-webkit-scrollbar-thumb{ background: #c8c2b0; border: 4px solid var(--bg); border-radius: 999px }
+body.theme-therum-studio .th-card{ transition: box-shadow .3s ease }
+body.theme-therum-studio .th-card:hover{ box-shadow: 0 8px 24px rgba(26,26,26,.06) !important }
+
+/* ───────────────────────── THERUM OS ───────────────────────── */
+body.theme-therum-os ::selection{ background: rgba(54,114,255,.35); color: #ffffff }
+body.theme-therum-os :focus-visible{ outline: 1px solid #3672ff; outline-offset: 2px; border-radius: 8px; box-shadow: 0 0 0 4px rgba(54,114,255,.14) }
+body.theme-therum-os ::-webkit-scrollbar{ width: 10px }
+body.theme-therum-os ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.08); border-radius: 999px }
+body.theme-therum-os ::-webkit-scrollbar-thumb:hover{ background: rgba(54,114,255,.4) }
+body.theme-therum-os .th-card{ transition: border-color .2s ease, transform .2s ease }
+body.theme-therum-os .th-card:hover{ border-color: rgba(54,114,255,.25) !important; transform: translateY(-1px) }
+
+/* ════════════════════════════════════════════════════════════════════════ */
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PARITY PASS · the remaining 29 themes lifted to the same standard
+   Same structure per theme:
+     • palette refinement where the base layer was weak
+     • bg treatment (gradient / pattern / wash / texture)
+     • locked typography where the inspiration calls for it
+     • themed scrollbar · selection · focus ring
+     • hover micro-interaction on cards
+     • optional decorative element / ambient animation for the iconic ones
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── CALM · soft sage green, spa-like ──────────────────────────────────── */
+body.theme-calm.light{ --bg:#f7f9f6; --sf:#ffffff; --sf2:#edf2ec; --tx:#1a2e1a; --tx2:#456655; --tx3:#7e9788; --bd:rgba(16,185,129,.10); --ac:#10b981 }
+body.theme-calm,
+body.theme-calm #th-content{ font-family: 'DM Sans', 'Inter', sans-serif !important; letter-spacing: -.008em }
+body.theme-calm.light #wpwrap{ background: radial-gradient(ellipse at 100% 100%, rgba(16,185,129,.05) 0%, transparent 50%), #f7f9f6 !important }
+body.theme-calm ::selection{ background: rgba(16,185,129,.22); color: #0f3a25 }
+body.theme-calm :focus-visible{ outline: 2px solid #10b981; outline-offset: 3px; border-radius: 999px; box-shadow: 0 0 0 6px rgba(16,185,129,.12) }
+body.theme-calm ::-webkit-scrollbar-thumb{ background: rgba(16,185,129,.22); border-radius: 999px }
+body.theme-calm .th-card{ border-radius: 16px !important; transition: transform .6s cubic-bezier(.25,.1,.25,1), box-shadow .6s ease }
+body.theme-calm .th-card:hover{ transform: translateY(-1px); box-shadow: 0 8px 24px rgba(16,185,129,.10) !important }
+
+/* ── SLATE · cool neutral, Apple workhorse ─────────────────────────────── */
+body.theme-slate:not(.light){ --bg:#1e293b; --sf:#283447; --sf2:#334155; --tx:#f1f5f9; --tx2:#cbd5e1; --tx3:#94a3b8; --bd:rgba(255,255,255,.06); --ac:#3b82f6; --ac-h:#60a5fa }
+body.theme-slate,
+body.theme-slate #th-content{ font-family: 'Inter', -apple-system, sans-serif !important; letter-spacing: -.014em }
+body.theme-slate:not(.light) #wpwrap{ background: radial-gradient(ellipse at 50% 0%, rgba(59,130,246,.06) 0%, transparent 50%), #1e293b !important }
+body.theme-slate ::selection{ background: rgba(59,130,246,.32); color: #ffffff }
+body.theme-slate :focus-visible{ outline: 1px solid #3b82f6; outline-offset: 2px; border-radius: 6px; box-shadow: 0 0 0 4px rgba(59,130,246,.18) }
+body.theme-slate ::-webkit-scrollbar-thumb{ background: rgba(148,163,184,.30); border-radius: 999px }
+body.theme-slate .th-card{ transition: border-color .2s ease, background .2s ease }
+body.theme-slate .th-card:hover{ border-color: rgba(59,130,246,.30) !important }
+
+/* ── STUDIO PRO · dense pro tool ───────────────────────────────────────── */
+body.theme-studio-pro:not(.light){ --bg:#161821; --sf:#1d212e; --sf2:#252a3a; --tx:#f4f4f4; --tx2:#a8b0c0; --tx3:#6c7488; --bd:rgba(6,182,212,.10); --ac:#06b6d4 }
+body.theme-studio-pro,
+body.theme-studio-pro #th-content,
+body.theme-studio-pro #th-sb,
+body.theme-studio-pro #th-top{ font-family: 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: -.01em }
+body.theme-studio-pro:not(.light) #wpwrap{ background: linear-gradient(180deg, #161821 0%, #1a1d28 100%) !important }
+body.theme-studio-pro ::selection{ background: rgba(6,182,212,.35); color: #ffffff }
+body.theme-studio-pro :focus-visible{ outline: 1px solid #06b6d4; outline-offset: 1px; border-radius: 2px; box-shadow: 0 0 0 3px rgba(6,182,212,.15) }
+body.theme-studio-pro ::-webkit-scrollbar{ width: 6px }
+body.theme-studio-pro ::-webkit-scrollbar-thumb{ background: #06b6d4; border-radius: 0 }
+body.theme-studio-pro .th-card{ border-radius: 4px !important; transition: border-color .15s ease }
+body.theme-studio-pro .th-card:hover{ border-color: rgba(6,182,212,.40) !important }
+
+/* ── WIREFRAME · schematic, dotted lines, monospace ────────────────────── */
+body.theme-wireframe.light{ --bg:#fafafa; --sf:#ffffff; --sf2:#f0f0f0; --tx:#000000; --tx2:#404040; --tx3:#a0a0a0; --bd:#000000; --ac:#ff0000 }
+body.theme-wireframe,
+body.theme-wireframe #th-content,
+body.theme-wireframe #th-sb,
+body.theme-wireframe #th-top{ font-family: 'JetBrains Mono', ui-monospace, monospace !important }
+body.theme-wireframe.light #wpwrap{
+	background:
+		linear-gradient(rgba(0,0,0,.04) 1px, transparent 1px) 0 0 / 20px 20px,
+		linear-gradient(90deg, rgba(0,0,0,.04) 1px, transparent 1px) 0 0 / 20px 20px,
+		#fafafa !important;
+}
+body.theme-wireframe ::selection{ background: #ff0000; color: #ffffff }
+body.theme-wireframe :focus-visible{ outline: 1px dashed #ff0000; outline-offset: 4px; border-radius: 0 }
+body.theme-wireframe ::-webkit-scrollbar{ width: 8px }
+body.theme-wireframe ::-webkit-scrollbar-thumb{ background: #000000; border-radius: 0 }
+body.theme-wireframe .th-card,
+body.theme-wireframe #th-top,
+body.theme-wireframe #th-sb,
+body.theme-wireframe .th-cn-card{ border-style: dashed !important; border-width: 1px !important; border-radius: 0 !important; box-shadow: none !important }
+body.theme-wireframe .th-card-label,
+body.theme-wireframe .th-sb-section-label{ font-family: 'JetBrains Mono', monospace !important }
+body.theme-wireframe .th-card-label::before{ content:'/* '; color:#a0a0a0 }
+body.theme-wireframe .th-card-label::after{  content:' */'; color:#a0a0a0 }
+
+/* ── GRAPHITE · Apple Pro cool greys + purple ──────────────────────────── */
+body.theme-graphite:not(.light){ --bg:#1c1c1e; --sf:#28282b; --sf2:#3a3a3d; --tx:#f5f5f7; --tx2:#a8a8ad; --tx3:#6e6e73; --bd:rgba(255,255,255,.06); --ac:#a78bfa; --ac-h:#c4b5fd }
+body.theme-graphite:not(.light) #wpwrap{ background: linear-gradient(180deg, #2c2c2e 0%, #1c1c1e 100%) !important }
+body.theme-graphite:not(.light) #th-sb{ background: rgba(28,28,30,.72) !important; backdrop-filter: blur(40px) saturate(180%) !important; -webkit-backdrop-filter: blur(40px) saturate(180%) !important }
+body.theme-graphite ::selection{ background: rgba(167,139,250,.35); color: #ffffff }
+body.theme-graphite :focus-visible{ outline: 2px solid #a78bfa; outline-offset: 2px; border-radius: 8px }
+body.theme-graphite ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.16); border-radius: 999px }
+body.theme-graphite .th-card{ background: rgba(255,255,255,.04) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border-radius: 12px !important; transition: background .3s ease }
+body.theme-graphite .th-card:hover{ background: rgba(255,255,255,.08) !important }
+body.theme-graphite .th-logo{ background: linear-gradient(135deg, #a78bfa, #c4b5fd); box-shadow: 0 0 16px rgba(167,139,250,.35) }
+
+/* ── VELVET · deep maroon luxe, ornate serif ───────────────────────────── */
+body.theme-velvet:not(.light){ --bg:#1a0a0c; --sf:#2a1014; --sf2:#3a181c; --tx:#f8e8c8; --tx2:#d4a878; --tx3:#9a7a58; --bd:rgba(212,175,55,.15); --ac:#a08040; --ac-h:#d4a878 }
+body.theme-velvet,
+body.theme-velvet .th-top-title,
+body.theme-velvet .th-dash-title{ font-family: 'Playfair Display', Georgia, serif !important }
+body.theme-velvet:not(.light) #wpwrap{ background: radial-gradient(ellipse at 50% 0%, rgba(160,128,64,.06) 0%, transparent 60%), linear-gradient(135deg, #1a0a0c 0%, #2a1014 100%) !important }
+body.theme-velvet ::selection{ background: rgba(212,168,120,.32); color: #1a0a0c }
+body.theme-velvet :focus-visible{ outline: 1px solid #a08040; outline-offset: 3px; box-shadow: 0 0 0 5px rgba(160,128,64,.12) }
+body.theme-velvet ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #d4a878, #a08040); border-radius: 999px }
+body.theme-velvet .th-card{ border: 1px solid rgba(212,175,55,.12) !important; transition: box-shadow .4s ease }
+body.theme-velvet .th-card:hover{ box-shadow: 0 12px 36px rgba(212,168,120,.10) !important }
+
+/* ── FAMILIAR · APPLE MUSIC ────────────────────────────────────────────── */
+body.theme-familiar-apple-music:not(.light){ --bg:#000000; --sf:#1c1c1e; --sf2:#2c2c2e; --tx:#ffffff; --tx2:#a8a8ad; --tx3:#6e6e73; --bd:rgba(255,255,255,.06); --ac:#fc3c44; --ac-h:#fe5c63 }
+body.theme-familiar-apple-music{ font-family: 'Inter', -apple-system, 'SF Pro Display', sans-serif !important; letter-spacing: -.022em }
+body.theme-familiar-apple-music:not(.light) #wpwrap{ background: linear-gradient(135deg, #1a0408 0%, #000000 60%) !important }
+body.theme-familiar-apple-music .th-logo{ background: linear-gradient(135deg, #fc3c44, #fe5c63); box-shadow: 0 0 24px rgba(252,60,68,.4) }
+body.theme-familiar-apple-music ::selection{ background: rgba(252,60,68,.35); color: #ffffff }
+body.theme-familiar-apple-music :focus-visible{ outline: 2px solid #fc3c44; outline-offset: 2px; border-radius: 8px }
+body.theme-familiar-apple-music ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.18); border-radius: 999px }
+body.theme-familiar-apple-music .th-card{ background: linear-gradient(180deg, #1c1c1e 0%, #161616 100%) !important; border-radius: 14px !important; transition: transform .35s cubic-bezier(.32,.72,0,1), box-shadow .35s ease }
+body.theme-familiar-apple-music .th-card:hover{ transform: translateY(-2px); box-shadow: 0 16px 48px rgba(252,60,68,.16) !important }
+
+/* ── FAMILIAR · LUCID · bright cheerful yellow ─────────────────────────── */
+body.theme-familiar-lucid.light{ --bg:#fffbeb; --sf:#ffffff; --sf2:#fef3c7; --tx:#1f2937; --tx2:#4a5568; --tx3:#92837a; --bd:rgba(251,191,36,.20); --ac:#fbbf24; --ac-h:#f59e0b }
+body.theme-familiar-lucid,
+body.theme-familiar-lucid #th-content{ font-family: 'DM Sans', 'Inter', sans-serif !important; letter-spacing: -.008em }
+body.theme-familiar-lucid.light #wpwrap{ background: radial-gradient(ellipse at 20% 0%, rgba(251,191,36,.18) 0%, transparent 50%), #fffbeb !important }
+body.theme-familiar-lucid .th-logo{ background: linear-gradient(135deg, #fbbf24, #f59e0b) }
+body.theme-familiar-lucid ::selection{ background: rgba(251,191,36,.35); color: #1f2937 }
+body.theme-familiar-lucid :focus-visible{ outline: 2px solid #f59e0b; outline-offset: 2px; border-radius: 12px; box-shadow: 0 0 0 4px rgba(251,191,36,.20) }
+body.theme-familiar-lucid ::-webkit-scrollbar-thumb{ background: rgba(251,191,36,.40); border-radius: 999px }
+body.theme-familiar-lucid .th-card{ border-radius: 18px !important; transition: transform .3s ease, box-shadow .3s ease }
+body.theme-familiar-lucid .th-card:hover{ transform: translateY(-2px); box-shadow: 0 12px 36px rgba(251,191,36,.18) !important }
+
+/* ── FAMILIAR · TESLA · clean tech ─────────────────────────────────────── */
+body.theme-familiar-tesla:not(.light){ --bg:#000000; --sf:#0a0a0a; --sf2:#161616; --tx:#ffffff; --tx2:#a3a3a3; --tx3:#737373; --bd:rgba(255,255,255,.08); --ac:#cc0000; --ac-h:#e60000 }
+body.theme-familiar-tesla,
+body.theme-familiar-tesla #th-content,
+body.theme-familiar-tesla #th-sb,
+body.theme-familiar-tesla #th-top{ font-family: 'Inter', -apple-system, sans-serif !important; letter-spacing: -.02em; font-weight: 400 }
+body.theme-familiar-tesla:not(.light) #wpwrap{ background: #000000 !important }
+body.theme-familiar-tesla .th-logo{ background: #cc0000 }
+body.theme-familiar-tesla ::selection{ background: #cc0000; color: #ffffff }
+body.theme-familiar-tesla :focus-visible{ outline: 1px solid #cc0000; outline-offset: 2px; border-radius: 0 }
+body.theme-familiar-tesla ::-webkit-scrollbar{ width: 4px }
+body.theme-familiar-tesla ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.20); border-radius: 0 }
+body.theme-familiar-tesla .th-card{ background: #0a0a0a !important; border: 1px solid rgba(255,255,255,.06) !important; border-radius: 4px !important; box-shadow: none !important; transition: border-color .2s ease }
+body.theme-familiar-tesla .th-card:hover{ border-color: rgba(204,0,0,.50) !important }
+
+/* ── FAMILIAR · WINDOWS · Fluent ───────────────────────────────────────── */
+body.theme-familiar-windows.light{ --bg:#fafafa; --sf:#ffffff; --sf2:#f3f3f3; --tx:#202020; --tx2:#5c5c5c; --tx3:#8d8d8d; --bd:rgba(0,0,0,.06); --ac:#0078d4; --ac-h:#106ebe }
+body.theme-familiar-windows.light #wpwrap{ background: linear-gradient(180deg, #f3f3f3 0%, #ebebeb 100%) !important }
+body.theme-familiar-windows #th-sb,
+body.theme-familiar-windows.light #th-top{ background: rgba(255,255,255,.65) !important; backdrop-filter: blur(60px) saturate(180%) !important; -webkit-backdrop-filter: blur(60px) saturate(180%) !important }
+body.theme-familiar-windows ::selection{ background: rgba(0,120,212,.25); color: #202020 }
+body.theme-familiar-windows :focus-visible{ outline: 2px solid #0078d4; outline-offset: 2px; border-radius: 8px }
+body.theme-familiar-windows ::-webkit-scrollbar{ width: 12px }
+body.theme-familiar-windows ::-webkit-scrollbar-thumb{ background: #c0c0c0; border: 3px solid transparent; background-clip: padding-box; border-radius: 999px }
+body.theme-familiar-windows .th-card{ background: rgba(255,255,255,.75) !important; backdrop-filter: blur(40px) !important; -webkit-backdrop-filter: blur(40px) !important; border-radius: 8px !important; border: 1px solid rgba(0,0,0,.06) !important; box-shadow: 0 2px 4px rgba(0,0,0,.02), 0 0 0 1px rgba(0,0,0,.02) !important }
+body.theme-familiar-windows .th-logo{ background: #0078d4 }
+
+/* ── GUNDAM · NU · Amuro's RX-93 white & navy ──────────────────────────── */
+body.theme-gundam-nu.light{ --bg:#ffffff; --sf:#f8f9fb; --sf2:#e8eaf0; --tx:#0f172a; --tx2:#475569; --tx3:#94a3b8; --bd:rgba(15,23,42,.10); --ac:#0f172a; --ac-h:#1e293b }
+body.theme-gundam-nu,
+body.theme-gundam-nu #th-content{ font-family: 'Space Grotesk', 'Inter', sans-serif !important; letter-spacing: -.014em }
+body.theme-gundam-nu.light #wpwrap{ background: linear-gradient(180deg, #ffffff 0%, #f4f6fa 100%) !important }
+body.theme-gundam-nu .th-logo{ background: #0f172a; border-radius: 6px !important }
+body.theme-gundam-nu ::selection{ background: rgba(15,23,42,.20); color: #0f172a }
+body.theme-gundam-nu :focus-visible{ outline: 2px solid #0f172a; outline-offset: 2px; border-radius: 8px }
+body.theme-gundam-nu ::-webkit-scrollbar-thumb{ background: rgba(15,23,42,.20); border-radius: 999px }
+body.theme-gundam-nu .th-card{ border-radius: 10px !important; transition: transform .25s ease, box-shadow .25s ease }
+body.theme-gundam-nu .th-card:hover{ transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,23,42,.08) !important }
+
+/* ── GUNDAM · HI-NU · purple Amuro custom ──────────────────────────────── */
+body.theme-gundam-hinu.light{ --bg:#fbfaff; --sf:#ffffff; --sf2:#f0eaff; --tx:#1e1b4b; --tx2:#4c1d95; --tx3:#7c3aed; --bd:rgba(124,58,237,.15); --ac:#7c3aed; --ac-h:#a855f7 }
+body.theme-gundam-hinu,
+body.theme-gundam-hinu #th-content{ font-family: 'Space Grotesk', 'Inter', sans-serif !important }
+body.theme-gundam-hinu.light #wpwrap{ background: radial-gradient(ellipse at 100% 0%, rgba(124,58,237,.08) 0%, transparent 50%), #fbfaff !important }
+body.theme-gundam-hinu .th-logo{ background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: 0 0 20px rgba(124,58,237,.35) }
+body.theme-gundam-hinu ::selection{ background: rgba(124,58,237,.30); color: #ffffff }
+body.theme-gundam-hinu :focus-visible{ outline: 2px solid #7c3aed; outline-offset: 3px; border-radius: 999px; box-shadow: 0 0 0 5px rgba(124,58,237,.15) }
+body.theme-gundam-hinu ::-webkit-scrollbar-thumb{ background: rgba(124,58,237,.30); border-radius: 999px }
+body.theme-gundam-hinu .th-card{ border-radius: 18px !important; transition: transform .4s cubic-bezier(.32,.72,0,1), box-shadow .4s ease }
+body.theme-gundam-hinu .th-card:hover{ transform: translateY(-3px); box-shadow: 0 16px 48px rgba(124,58,237,.14) !important }
+
+/* ── GUNDAM · CALIBARN · Suletta transcended ─────────────────────────── */
+body.theme-gundam-calibarn.light{ --bg:#fdfbf3; --sf:#ffffff; --sf2:#f5efe0; --tx:#2c1f0e; --tx2:#6b5a3a; --tx3:#a09375; --bd:rgba(212,175,55,.20); --ac:#d4af37; --ac-h:#f4c542 }
+body.theme-gundam-calibarn,
+body.theme-gundam-calibarn .th-top-title,
+body.theme-gundam-calibarn .th-dash-title{ font-family: 'Crimson Pro', Georgia, serif !important }
+body.theme-gundam-calibarn.light #wpwrap{ background: radial-gradient(ellipse at 50% 0%, rgba(212,175,55,.10) 0%, transparent 60%), #fdfbf3 !important }
+body.theme-gundam-calibarn .th-logo{ background: linear-gradient(135deg, #d4af37, #f4c542); color: #2c1f0e; box-shadow: 0 0 20px rgba(212,175,55,.30) }
+body.theme-gundam-calibarn ::selection{ background: rgba(212,175,55,.35); color: #2c1f0e }
+body.theme-gundam-calibarn :focus-visible{ outline: 1.5px solid #d4af37; outline-offset: 3px; box-shadow: 0 0 0 5px rgba(212,175,55,.15) }
+body.theme-gundam-calibarn ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #d4af37, #b8973d); border-radius: 999px }
+body.theme-gundam-calibarn .th-card{ border-radius: 4px !important; box-shadow: 0 1px 0 rgba(212,175,55,.10) !important; transition: box-shadow .4s ease }
+body.theme-gundam-calibarn .th-card:hover{ box-shadow: 0 8px 28px rgba(212,175,55,.16) !important }
+
+/* ── GUNDAM · EPYON · OZ-13MS night beam ───────────────────────────────── */
+body.theme-gundam-epyon:not(.light){ --bg:#0d0303; --sf:#1a0606; --sf2:#240a0a; --tx:#f8e8e8; --tx2:#c08080; --tx3:#805050; --bd:rgba(185,28,28,.18); --ac:#b91c1c; --ac-h:#dc2626 }
+body.theme-gundam-epyon,
+body.theme-gundam-epyon .th-top-title,
+body.theme-gundam-epyon .th-dash-title{ font-family: 'Orbitron', 'Inter Tight', sans-serif !important; letter-spacing: .015em }
+body.theme-gundam-epyon:not(.light) #wpwrap{ background: radial-gradient(ellipse at 50% 100%, rgba(185,28,28,.18) 0%, transparent 50%), linear-gradient(135deg, #0d0303 0%, #1a0606 100%) !important }
+body.theme-gundam-epyon .th-logo{ background: #b91c1c; box-shadow: 0 0 28px rgba(185,28,28,.6) }
+body.theme-gundam-epyon ::selection{ background: rgba(185,28,28,.4); color: #ffffff; text-shadow: 0 0 6px rgba(185,28,28,.8) }
+body.theme-gundam-epyon :focus-visible{ outline: 2px solid #b91c1c; outline-offset: 2px; box-shadow: 0 0 0 5px rgba(185,28,28,.18) }
+body.theme-gundam-epyon ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #b91c1c, #7f1d1d); border-radius: 0 }
+body.theme-gundam-epyon .th-card{ border-radius: 0 !important; transition: box-shadow .25s ease }
+body.theme-gundam-epyon .th-card:hover{ box-shadow: 0 0 0 1px rgba(185,28,28,.3), 0 16px 48px rgba(185,28,28,.20) !important }
+
+/* ── GUNDAM · SINANJU · MSN-06S crimson + gold ─────────────────────────── */
+body.theme-gundam-sinanju:not(.light){ --bg:#1a0608; --sf:#2a0a0c; --sf2:#3a1010; --tx:#fef3c7; --tx2:#f4c542; --tx3:#a08832; --bd:rgba(244,197,66,.15); --ac:#f4c542; --ac-h:#fde68a }
+body.theme-gundam-sinanju,
+body.theme-gundam-sinanju .th-top-title,
+body.theme-gundam-sinanju .th-dash-title{ font-family: 'Playfair Display', Georgia, serif !important }
+body.theme-gundam-sinanju:not(.light) #wpwrap{ background: radial-gradient(ellipse at 50% 0%, rgba(244,197,66,.08) 0%, transparent 60%), linear-gradient(135deg, #1a0608 0%, #2a0a0c 100%) !important }
+body.theme-gundam-sinanju .th-logo{ background: linear-gradient(135deg, #f4c542, #d4a832); color: #1a0608; box-shadow: 0 0 24px rgba(244,197,66,.5) }
+body.theme-gundam-sinanju ::selection{ background: rgba(244,197,66,.4); color: #1a0608 }
+body.theme-gundam-sinanju :focus-visible{ outline: 1px solid #f4c542; outline-offset: 3px; box-shadow: 0 0 0 5px rgba(244,197,66,.18) }
+body.theme-gundam-sinanju ::-webkit-scrollbar-thumb{ background: linear-gradient(180deg, #fde68a, #f4c542, #a08832); border-radius: 0 }
+body.theme-gundam-sinanju .th-card{ position: relative; border: 1px solid rgba(244,197,66,.15) !important; transition: box-shadow .4s ease }
+body.theme-gundam-sinanju .th-card::before,
+body.theme-gundam-sinanju .th-card::after{ content:''; position:absolute; width:10px; height:10px; border: 1px solid #f4c542; opacity:0; transition: opacity .3s ease }
+body.theme-gundam-sinanju .th-card::before{ top:-1px; left:-1px; border-right:0; border-bottom:0 }
+body.theme-gundam-sinanju .th-card::after{ bottom:-1px; right:-1px; border-left:0; border-top:0 }
+body.theme-gundam-sinanju .th-card:hover::before,
+body.theme-gundam-sinanju .th-card:hover::after{ opacity:1 }
+body.theme-gundam-sinanju .th-card:hover{ box-shadow: 0 0 0 1px rgba(244,197,66,.25), 0 16px 48px rgba(244,197,66,.15) !important }
+
+/* ── GUNDAM · PENELOPE · Hathaway's white-and-green ────────────────────── */
+body.theme-gundam-penelope.light{ --bg:#f7faf6; --sf:#ffffff; --sf2:#e8f0e4; --tx:#1a2918; --tx2:#3d5a36; --tx3:#7a9070; --bd:rgba(34,77,28,.12); --ac:#22c55e; --ac-h:#16a34a }
+body.theme-gundam-penelope,
+body.theme-gundam-penelope #th-content{ font-family: 'Space Grotesk', 'Inter', sans-serif !important; letter-spacing: -.012em }
+body.theme-gundam-penelope.light #wpwrap{ background: linear-gradient(180deg, #f7faf6 0%, #ecf2e8 100%) !important }
+body.theme-gundam-penelope .th-logo{ background: linear-gradient(135deg, #22c55e, #16a34a) }
+body.theme-gundam-penelope ::selection{ background: rgba(34,197,94,.25); color: #1a2918 }
+body.theme-gundam-penelope :focus-visible{ outline: 2px solid #22c55e; outline-offset: 2px; border-radius: 10px }
+body.theme-gundam-penelope ::-webkit-scrollbar-thumb{ background: rgba(34,197,94,.30); border-radius: 999px }
+body.theme-gundam-penelope .th-card{ border-radius: 12px !important; transition: transform .3s ease, box-shadow .3s ease }
+body.theme-gundam-penelope .th-card:hover{ transform: translateY(-2px); box-shadow: 0 12px 32px rgba(34,197,94,.10) !important }
+
+/* ── GUNDAM · TALLGEESE · OZ steel + yellow ────────────────────────────── */
+body.theme-gundam-tallgeese:not(.light){ --bg:#1a1a1f; --sf:#252530; --sf2:#30303d; --tx:#f5f5f7; --tx2:#b8b8c0; --tx3:#80808c; --bd:rgba(250,204,21,.12); --ac:#facc15; --ac-h:#fde047 }
+body.theme-gundam-tallgeese,
+body.theme-gundam-tallgeese .th-top-title,
+body.theme-gundam-tallgeese .th-dash-title{ font-family: 'Audiowide', 'Inter Tight', sans-serif !important }
+body.theme-gundam-tallgeese:not(.light) #wpwrap{ background: linear-gradient(180deg, #1a1a1f 0%, #14141a 100%) !important }
+body.theme-gundam-tallgeese .th-logo{ background: linear-gradient(135deg, #facc15, #f59e0b); color: #1a1a1f; box-shadow: 0 0 20px rgba(250,204,21,.30) }
+body.theme-gundam-tallgeese ::selection{ background: rgba(250,204,21,.30); color: #1a1a1f }
+body.theme-gundam-tallgeese :focus-visible{ outline: 2px solid #facc15; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(250,204,21,.16) }
+body.theme-gundam-tallgeese ::-webkit-scrollbar-thumb{ background: #facc15; border-radius: 0 }
+body.theme-gundam-tallgeese .th-card{ border-radius: 2px !important; transition: border-color .2s ease, box-shadow .2s ease }
+body.theme-gundam-tallgeese .th-card:hover{ border-color: rgba(250,204,21,.40) !important; box-shadow: 0 0 0 1px rgba(250,204,21,.16), 0 12px 32px rgba(0,0,0,.4) !important }
+
+/* ── GUNDAM · KSHATRIYA · Neo Zeon green ───────────────────────────────── */
+body.theme-gundam-kshatriya:not(.light){ --bg:#0a1410; --sf:#101e18; --sf2:#162820; --tx:#e8f5ec; --tx2:#a0c8b0; --tx3:#608078; --bd:rgba(34,197,94,.15); --ac:#22c55e; --ac-h:#4ade80 }
+body.theme-gundam-kshatriya,
+body.theme-gundam-kshatriya .th-top-title,
+body.theme-gundam-kshatriya .th-dash-title{ font-family: 'Orbitron', 'Inter Tight', sans-serif !important; letter-spacing: .015em }
+body.theme-gundam-kshatriya:not(.light) #wpwrap{ background: radial-gradient(ellipse at 80% 80%, rgba(34,197,94,.10) 0%, transparent 55%), #0a1410 !important }
+body.theme-gundam-kshatriya .th-logo{ background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 0 24px rgba(34,197,94,.40) }
+body.theme-gundam-kshatriya ::selection{ background: rgba(34,197,94,.35); color: #0a1410; text-shadow: 0 0 6px rgba(34,197,94,.6) }
+body.theme-gundam-kshatriya :focus-visible{ outline: 1px solid #22c55e; outline-offset: 3px; box-shadow: 0 0 0 4px rgba(34,197,94,.18) }
+body.theme-gundam-kshatriya ::-webkit-scrollbar-thumb{ background: #22c55e; border-radius: 0; box-shadow: 0 0 6px rgba(34,197,94,.5) }
+body.theme-gundam-kshatriya .th-card{ transition: box-shadow .3s ease }
+body.theme-gundam-kshatriya .th-card:hover{ box-shadow: 0 0 0 1px rgba(34,197,94,.22), 0 12px 36px rgba(34,197,94,.16) !important }
+
+/* ── GUNDAM · XI · sleek federation blue ────────────────────────────────── */
+body.theme-gundam-xi.light{ --bg:#f5f8fc; --sf:#ffffff; --sf2:#e6edf7; --tx:#0c2756; --tx2:#1e4585; --tx3:#5a7aa8; --bd:rgba(30,69,133,.12); --ac:#2563eb; --ac-h:#3b82f6 }
+body.theme-gundam-xi,
+body.theme-gundam-xi #th-content{ font-family: 'Space Grotesk', 'Inter', sans-serif !important; letter-spacing: -.014em }
+body.theme-gundam-xi.light #wpwrap{ background: linear-gradient(180deg, #f5f8fc 0%, #e6edf7 100%) !important }
+body.theme-gundam-xi .th-logo{ background: linear-gradient(135deg, #2563eb, #1e40af); box-shadow: 0 0 20px rgba(37,99,235,.30) }
+body.theme-gundam-xi ::selection{ background: rgba(37,99,235,.28); color: #ffffff }
+body.theme-gundam-xi :focus-visible{ outline: 2px solid #2563eb; outline-offset: 2px; border-radius: 8px; box-shadow: 0 0 0 4px rgba(37,99,235,.16) }
+body.theme-gundam-xi ::-webkit-scrollbar-thumb{ background: rgba(37,99,235,.30); border-radius: 999px }
+body.theme-gundam-xi .th-card{ border-radius: 12px !important; transition: transform .3s ease, box-shadow .3s ease }
+body.theme-gundam-xi .th-card:hover{ transform: translateY(-2px); box-shadow: 0 12px 36px rgba(37,99,235,.12) !important }
+
+/* ── GUNDAM · REBORNS · Celestial Being dark ───────────────────────────── */
+body.theme-gundam-reborns:not(.light){ --bg:#050a14; --sf:#0a1428; --sf2:#101e3a; --tx:#e0e8ff; --tx2:#9ab0e0; --tx3:#5870a0; --bd:rgba(96,165,250,.15); --ac:#60a5fa; --ac-h:#93c5fd }
+body.theme-gundam-reborns,
+body.theme-gundam-reborns .th-top-title,
+body.theme-gundam-reborns .th-dash-title{ font-family: 'Orbitron', 'Inter Tight', sans-serif !important; letter-spacing: .01em }
+body.theme-gundam-reborns:not(.light) #wpwrap{ background: radial-gradient(ellipse at 50% 0%, rgba(96,165,250,.10) 0%, transparent 55%), #050a14 !important }
+body.theme-gundam-reborns .th-logo{ background: linear-gradient(135deg, #60a5fa, #3b82f6); box-shadow: 0 0 28px rgba(96,165,250,.45) }
+body.theme-gundam-reborns ::selection{ background: rgba(96,165,250,.35); color: #050a14 }
+body.theme-gundam-reborns :focus-visible{ outline: 1px solid #60a5fa; outline-offset: 3px; box-shadow: 0 0 0 5px rgba(96,165,250,.18) }
+body.theme-gundam-reborns ::-webkit-scrollbar-thumb{ background: #60a5fa; border-radius: 999px; box-shadow: 0 0 6px rgba(96,165,250,.4) }
+body.theme-gundam-reborns .th-card{ transition: box-shadow .3s ease, border-color .3s ease }
+body.theme-gundam-reborns .th-card:hover{ border-color: rgba(96,165,250,.40) !important; box-shadow: 0 0 0 1px rgba(96,165,250,.18), 0 16px 48px rgba(96,165,250,.12) !important }
+
+/* ── GUNDAM · VIDAR · Iron-Blooded steel ────────────────────────────────── */
+body.theme-gundam-vidar:not(.light){ --bg:#0a0a0a; --sf:#151515; --sf2:#1f1f1f; --tx:#e8e8e8; --tx2:#b0b0b0; --tx3:#707070; --bd:rgba(120,120,120,.18); --ac:#737373; --ac-h:#a3a3a3 }
+body.theme-gundam-vidar,
+body.theme-gundam-vidar .th-top-title,
+body.theme-gundam-vidar .th-dash-title{ font-family: 'Archivo Black', 'Inter Tight', sans-serif !important; letter-spacing: -.015em }
+body.theme-gundam-vidar:not(.light) #wpwrap{ background: linear-gradient(180deg, #0a0a0a 0%, #000000 100%) !important }
+body.theme-gundam-vidar .th-logo{ background: linear-gradient(135deg, #525252, #262626); border: 1px solid #525252 }
+body.theme-gundam-vidar ::selection{ background: #525252; color: #ffffff }
+body.theme-gundam-vidar :focus-visible{ outline: 2px solid #a3a3a3; outline-offset: 2px; border-radius: 0 }
+body.theme-gundam-vidar ::-webkit-scrollbar{ width: 8px }
+body.theme-gundam-vidar ::-webkit-scrollbar-thumb{ background: #525252; border-radius: 0 }
+body.theme-gundam-vidar .th-card{ background: #151515 !important; border: 1px solid rgba(120,120,120,.18) !important; border-radius: 2px !important; box-shadow: none !important; transition: border-color .2s ease }
+body.theme-gundam-vidar .th-card:hover{ border-color: rgba(120,120,120,.40) !important }
+
+/* ── MECHA · BIG O · black + yellow brutalist ──────────────────────────── */
+body.theme-mecha-big-o:not(.light){ --bg:#0a0a0a; --sf:#151515; --sf2:#1f1f1f; --tx:#fef9c3; --tx2:#fde047; --tx3:#facc15; --bd:#facc15; --ac:#facc15; --ac-h:#fde047 }
+body.theme-mecha-big-o,
+body.theme-mecha-big-o .th-top-title,
+body.theme-mecha-big-o .th-dash-title{ font-family: 'Archivo Black', 'Inter Tight', sans-serif !important; letter-spacing: -.025em; text-transform: uppercase }
+body.theme-mecha-big-o:not(.light) #wpwrap{ background: #0a0a0a !important }
+body.theme-mecha-big-o .th-logo{ background: #facc15; color: #0a0a0a; border-radius: 0 !important }
+body.theme-mecha-big-o ::selection{ background: #facc15; color: #0a0a0a }
+body.theme-mecha-big-o :focus-visible{ outline: 3px solid #facc15; outline-offset: 2px; border-radius: 0 }
+body.theme-mecha-big-o ::-webkit-scrollbar{ width: 14px }
+body.theme-mecha-big-o ::-webkit-scrollbar-thumb{ background: #facc15; border: 4px solid #0a0a0a; border-radius: 0 }
+body.theme-mecha-big-o .th-card{ background: #151515 !important; border: 2px solid #facc15 !important; border-radius: 0 !important; box-shadow: none !important; transition: transform .1s steps(1) }
+body.theme-mecha-big-o .th-card:hover{ transform: translate(-3px,-3px); box-shadow: 6px 6px 0 0 #facc15 !important }
+
+/* ── MECHA · BIG O FINAL · darker variation ────────────────────────────── */
+body.theme-mecha-big-o-final:not(.light){ --bg:#000000; --sf:#0a0a0a; --sf2:#151515; --tx:#f5f5f5; --tx2:#facc15; --tx3:#a3a3a3; --bd:rgba(250,204,21,.30); --ac:#dc2626; --ac-h:#ef4444 }
+body.theme-mecha-big-o-final,
+body.theme-mecha-big-o-final .th-top-title,
+body.theme-mecha-big-o-final .th-dash-title{ font-family: 'Archivo Black', 'Inter Tight', sans-serif !important; text-transform: uppercase }
+body.theme-mecha-big-o-final:not(.light) #wpwrap{ background: radial-gradient(ellipse at 50% 100%, rgba(220,38,38,.15) 0%, transparent 55%), #000000 !important }
+body.theme-mecha-big-o-final .th-logo{ background: #dc2626; color: #ffffff; border-radius: 0 !important; box-shadow: 0 0 28px rgba(220,38,38,.5) }
+body.theme-mecha-big-o-final ::selection{ background: #dc2626; color: #ffffff }
+body.theme-mecha-big-o-final :focus-visible{ outline: 3px solid #dc2626; outline-offset: 2px; border-radius: 0 }
+body.theme-mecha-big-o-final ::-webkit-scrollbar-thumb{ background: #dc2626; border-radius: 0 }
+body.theme-mecha-big-o-final .th-card{ background: #0a0a0a !important; border: 2px solid #dc2626 !important; border-radius: 0 !important; box-shadow: none !important; transition: transform .1s steps(1), box-shadow .1s steps(1) }
+body.theme-mecha-big-o-final .th-card:hover{ transform: translate(-3px,-3px); box-shadow: 6px 6px 0 0 #dc2626 !important }
+
+/* ── EXPERIMENTAL · ASCII · terminal green ─────────────────────────────── */
+body.theme-exp-ascii:not(.light){ --bg:#000000; --sf:#000000; --sf2:#0a0a0a; --tx:#00ff00; --tx2:#00cc00; --tx3:#008800; --bd:#00ff00; --ac:#00ff00; --ac-h:#33ff33 }
+body.theme-exp-ascii,
+body.theme-exp-ascii #th-content,
+body.theme-exp-ascii #th-sb,
+body.theme-exp-ascii #th-top{ font-family: 'VT323', 'JetBrains Mono', monospace !important; font-size: 16px !important; letter-spacing: 0 }
+body.theme-exp-ascii .th-top-title,
+body.theme-exp-ascii .th-dash-title{ font-family: 'VT323', 'JetBrains Mono', monospace !important; text-transform: uppercase }
+body.theme-exp-ascii:not(.light) #wpwrap{ background: #000000 !important }
+body.theme-exp-ascii .th-logo{ background: #00ff00; color: #000000; border-radius: 0 !important; box-shadow: 0 0 12px rgba(0,255,0,.6) }
+body.theme-exp-ascii ::selection{ background: #00ff00; color: #000000 }
+body.theme-exp-ascii :focus-visible{ outline: 2px solid #00ff00; outline-offset: 0; border-radius: 0; box-shadow: 0 0 0 4px rgba(0,255,0,.2) }
+body.theme-exp-ascii ::-webkit-scrollbar{ width: 6px }
+body.theme-exp-ascii ::-webkit-scrollbar-thumb{ background: #00ff00; border-radius: 0 }
+body.theme-exp-ascii .th-card{ background: #000000 !important; border: 1px solid #00ff00 !important; border-radius: 0 !important; box-shadow: none !important }
+
+/* ── EXPERIMENTAL · CRAYON · playful colorful ──────────────────────────── */
+body.theme-exp-crayon.light{ --bg:#fff9eb; --sf:#ffffff; --sf2:#fef3c7; --tx:#1f2937; --tx2:#374151; --tx3:#6b7280; --bd:#1f2937; --ac:#ec4899; --ac-h:#f472b6 }
+body.theme-exp-crayon,
+body.theme-exp-crayon .th-top-title,
+body.theme-exp-crayon .th-dash-title{ font-family: 'Caveat', cursive !important; letter-spacing: 0; font-weight: 700 }
+body.theme-exp-crayon.light #wpwrap{ background: #fff9eb !important }
+body.theme-exp-crayon .th-logo{ background: linear-gradient(135deg, #ec4899, #f59e0b, #06b6d4); border-radius: 8px !important }
+body.theme-exp-crayon ::selection{ background: #fde047; color: #1f2937 }
+body.theme-exp-crayon :focus-visible{ outline: 3px dashed #ec4899; outline-offset: 4px }
+body.theme-exp-crayon ::-webkit-scrollbar-thumb{ background: #ec4899; border-radius: 999px }
+body.theme-exp-crayon .th-card{ border: 2px solid #1f2937 !important; border-radius: 18px !important; box-shadow: 4px 4px 0 0 #1f2937 !important; transition: box-shadow .25s ease }
+body.theme-exp-crayon .th-card:hover{ box-shadow: 6px 6px 0 0 #ec4899 !important }
+
+/* ── EXPERIMENTAL · HOLOGRAPHIC · animated rainbow ─────────────────────── */
+body.theme-exp-holographic:not(.light){ --bg:#0a0a0a; --sf:#141414; --sf2:#1f1f1f; --tx:#ffffff; --tx2:#d0d0d0; --tx3:#909090; --bd:rgba(255,255,255,.12); --ac:#ec4899 }
+body.theme-exp-holographic:not(.light) #wpwrap{
+	background: linear-gradient(135deg, #ff71ce 0%, #b967ff 28%, #01cdfe 52%, #05ffa1 76%, #fffb96 100%) !important;
+	background-attachment: fixed !important;
+}
+body.theme-exp-holographic #th-sb,
+body.theme-exp-holographic #th-top,
+body.theme-exp-holographic .th-card{ background: rgba(10,10,10,.55) !important; backdrop-filter: blur(40px) saturate(180%) !important; -webkit-backdrop-filter: blur(40px) saturate(180%) !important; border: 1px solid rgba(255,255,255,.18) !important }
+body.theme-exp-holographic .th-logo{ background: linear-gradient(135deg, #ff71ce, #01cdfe, #05ffa1); box-shadow: 0 0 28px rgba(255,113,206,.5) }
+body.theme-exp-holographic ::selection{ background: rgba(255,255,255,.32); color: #0a0a0a }
+body.theme-exp-holographic :focus-visible{ outline: 2px solid #ffffff; outline-offset: 2px; border-radius: 12px; box-shadow: 0 0 0 4px rgba(255,255,255,.20) }
+body.theme-exp-holographic ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.30); border-radius: 999px }
+
+/* ── EXPERIMENTAL · MARKER · sharpie handwritten ───────────────────────── */
+body.theme-exp-marker.light{ --bg:#fdfdf9; --sf:#ffffff; --sf2:#fafaf3; --tx:#1f2937; --tx2:#3f4756; --tx3:#6b7280; --bd:#1f2937; --ac:#dc2626; --ac-h:#ef4444 }
+body.theme-exp-marker,
+body.theme-exp-marker #th-content,
+body.theme-exp-marker .th-top-title,
+body.theme-exp-marker .th-dash-title{ font-family: 'Caveat', cursive !important; font-weight: 600; letter-spacing: 0 }
+body.theme-exp-marker.light #wpwrap{ background: #fdfdf9 !important }
+body.theme-exp-marker .th-logo{ background: #dc2626; border-radius: 4px !important }
+body.theme-exp-marker ::selection{ background: rgba(252,238,12,.5); color: #1f2937 }
+body.theme-exp-marker :focus-visible{ outline: 3px solid #dc2626; outline-offset: 3px; border-radius: 0 }
+body.theme-exp-marker ::-webkit-scrollbar-thumb{ background: #1f2937; border-radius: 999px }
+body.theme-exp-marker .th-card{ border: 2px solid #1f2937 !important; border-radius: 6px !important; box-shadow: 3px 3px 0 0 #1f2937 !important; transition: transform .2s ease }
+body.theme-exp-marker .th-card:hover{ transform: translate(-2px,-2px); box-shadow: 5px 5px 0 0 #dc2626 !important }
+
+/* ── EXPERIMENTAL · NEWSPAPER · yellowed paper, ink ────────────────────── */
+body.theme-exp-newspaper.light{ --bg:#f5efd6; --sf:#fbf6e3; --sf2:#ebe4c8; --tx:#1c1917; --tx2:#3f3a36; --tx3:#78716c; --bd:rgba(28,25,23,.20); --ac:#1c1917 }
+body.theme-exp-newspaper,
+body.theme-exp-newspaper .th-top-title,
+body.theme-exp-newspaper .th-dash-title{ font-family: 'Playfair Display', Georgia, 'Times New Roman', serif !important; letter-spacing: -.005em }
+body.theme-exp-newspaper.light #wpwrap{
+	background:
+		radial-gradient(ellipse at 20% 0%, rgba(180,160,120,.10) 0%, transparent 60%),
+		radial-gradient(ellipse at 80% 100%, rgba(160,140,100,.08) 0%, transparent 60%),
+		#f5efd6 !important;
+}
+body.theme-exp-newspaper #th-content{ font-family: 'Crimson Pro', Georgia, serif !important }
+body.theme-exp-newspaper .th-logo{ background: #1c1917; color: #f5efd6; border-radius: 0 !important; font-family: 'Playfair Display', serif !important }
+body.theme-exp-newspaper ::selection{ background: rgba(28,25,23,.20); color: #1c1917 }
+body.theme-exp-newspaper :focus-visible{ outline: 1px solid #1c1917; outline-offset: 3px; border-radius: 0 }
+body.theme-exp-newspaper ::-webkit-scrollbar-thumb{ background: rgba(28,25,23,.40); border-radius: 0 }
+body.theme-exp-newspaper .th-card{ background: #fbf6e3 !important; border: 1px solid rgba(28,25,23,.20) !important; border-radius: 0 !important; box-shadow: none !important; position: relative }
+body.theme-exp-newspaper .th-card::before{ content:''; position:absolute; left:18px; top:18px; bottom:18px; width:1px; background: rgba(28,25,23,.15) }
+body.theme-exp-newspaper .th-card > *{ padding-left: 14px }
+
+/* ── FACENOTE · Notion + a hint of warmth ──────────────────────────────── */
+body.theme-facenote.light{ --bg:#ffffff; --sf:#ffffff; --sf2:#f7f6f3; --tx:#37352f; --tx2:#787774; --tx3:#9b9a97; --bd:rgba(55,53,47,.09); --ac:#5e72e4; --ac-h:#7e8de8 }
+body.theme-facenote,
+body.theme-facenote #th-content{ font-family: 'Inter', -apple-system, sans-serif !important; letter-spacing: -.012em }
+body.theme-facenote.light #wpwrap{ background: #ffffff !important }
+body.theme-facenote .th-logo{ background: linear-gradient(135deg, #5e72e4, #7e8de8) }
+body.theme-facenote ::selection{ background: rgba(94,114,228,.25); color: #37352f }
+body.theme-facenote :focus-visible{ outline: 2px solid #5e72e4; outline-offset: 2px; border-radius: 6px }
+body.theme-facenote ::-webkit-scrollbar-thumb{ background: rgba(55,53,47,.18); border-radius: 999px }
+body.theme-facenote .th-card{ background: var(--sf2) !important; border: 1px solid var(--bd) !important; border-radius: 6px !important; box-shadow: none !important; transition: background .15s ease }
+body.theme-facenote .th-card:hover{ background: #f0eee9 !important }
+
+/* ════════════════════════════════════════════════════════════════════════ */
