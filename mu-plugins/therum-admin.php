@@ -814,30 +814,16 @@ add_action( 'admin_init', function() {
 //  Also skip shell on plugin settings pages that have their own admin UI.
 // ─────────────────────────────────────────────────────────────────────────────
 function th_is_frame(): bool {
+	// `?th_frame=1` lets the shell iframe itself (preview, sub-render) without
+	// recursing into another full chrome. This stays.
 	if ( isset( $_GET['th_frame'] ) ) return true;
 
-	// Skip shell on plugin settings pages whose UI fights the shell.
-	$page = $_GET['page'] ?? '';
-	$skip_pages = [
-		'nextbricks',           // NextBricks settings
-		'bricksforge',          // BricksForge settings
-		'bricks-extras',        // Bricks Extras settings
-		'max-addons-settings',  // Max Addons settings
-		'wc-setup',             // WooCommerce setup wizard (full-page React flow)
-	];
-	if ( in_array( $page, $skip_pages, true ) ) return true;
-
-	// WooCommerce wc-admin uses path-routed React (?page=wc-admin&path=/setup-wizard,
-	// /onboarding, /customize-store, etc.). Those flows are full-page apps and
-	// hang inside our shell. Bypass for any wc-admin "wizard"-ish path.
-	if ( $page === 'wc-admin' ) {
-		$path = isset( $_GET['path'] ) ? (string) $_GET['path'] : '';
-		if ( $path && preg_match( '~^/(setup|onboarding|customize-store|launch-store)~', $path ) ) {
-			return true;
-		}
-	}
-
-	return false;
+	// Per product directive: every admin page wraps in the Therum shell.
+	// No more page-slug skip list. If a third-party plugin's full-page React
+	// app misbehaves inside the shell, the user can request bypass per-page
+	// via the `therum_admin_shell_bypass` filter below.
+	$page = isset( $_GET['page'] ) ? (string) $_GET['page'] : '';
+	return (bool) apply_filters( 'therum_admin_shell_bypass', false, $page );
 }
 
 // Allow self-framing
@@ -3828,7 +3814,14 @@ class Therum_Plugins_Page {
 			<div class="th-lp-card-meta">
 			  <div class="th-lp-card-title-row">
 				<div class="th-lp-card-title"><?php echo esc_html($p['name']); ?></div>
-				<span class="th-lp-status th-lp-status-<?php echo esc_attr($status); ?>"><?php echo esc_html($status==='must-use'?'Core':ucfirst($status)); ?></span>
+				<div class="th-lp-status-group">
+				  <span class="th-lp-status th-lp-status-<?php echo esc_attr($status); ?>"><?php echo esc_html($status==='must-use'?'Core':ucfirst($status)); ?></span>
+				  <?php if ($status === 'inactive'): ?>
+				  <button type="button" class="th-lp-status-x" data-action="delete" aria-label="Delete plugin" title="Delete plugin">
+					<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+				  </button>
+				  <?php endif; ?>
+				</div>
 			  </div>
 			  <div class="th-lp-card-excerpt"><?php echo esc_html(wp_trim_words($p['desc'], 22)); ?></div>
 			  <div class="th-lp-card-sub">v<?php echo esc_html($p['version']); ?> · <?php echo esc_html($p['author']); ?></div>
@@ -3846,9 +3839,10 @@ class Therum_Plugins_Page {
 			<?php endif; ?>
 			<?php if ($p['is_active']): ?>
 			<button type="button" class="th-plugin-action" data-action="deactivate">Deactivate</button>
+			<a class="th-plugin-action" href="<?php echo esc_url($detail_url . '#version-history'); ?>" data-no-row-click>Rollback</a>
 			<?php else: ?>
 			<button type="button" class="th-plugin-action th-plugin-action-primary" data-action="activate">Activate</button>
-			<button type="button" class="th-plugin-action th-plugin-action-danger" data-action="delete">Remove</button>
+			<button type="button" class="th-plugin-action th-plugin-action-danger" data-action="delete">Delete</button>
 			<?php endif; ?>
 		  </div>
 		  <?php endif; ?>
@@ -7237,6 +7231,9 @@ function thd_render(): void {
 
 <!-- Shortcut picker panel -->
 <?php
+// Quick-shortcuts picker — only surface destinations that actually resolve on
+// this install. Adding e.g. "WooCommerce" when Woo isn't installed dumps the
+// user at a WP "Sorry, you are not allowed to access this page." screen.
 $thd_available = [
 	[ 'label' => 'Dashboard',    'url' => admin_url(),                                  'color' => '#6366f1' ],
 	[ 'label' => 'Posts',        'url' => admin_url( 'edit.php' ),                      'color' => '#0891b2' ],
@@ -7250,11 +7247,20 @@ $thd_available = [
 	[ 'label' => 'Settings',     'url' => admin_url( 'options-general.php' ),           'color' => '#64748b' ],
 	[ 'label' => 'Therum OS',    'url' => admin_url( 'admin.php?page=therum' ),         'color' => '#0891b2' ],
 	[ 'label' => 'Dock settings','url' => admin_url( 'admin.php?page=therum-settings&section=admin-dock' ), 'color' => '#475569' ],
-	[ 'label' => 'Case Studies', 'url' => admin_url( 'edit.php?post_type=case_study' ),'color' => '#9333ea' ],
-	[ 'label' => 'WooCommerce',  'url' => admin_url( 'admin.php?page=wc-admin' ),       'color' => '#7c3aed' ],
 	[ 'label' => 'Menus',        'url' => admin_url( 'nav-menus.php' ),                 'color' => '#b45309' ],
-	[ 'label' => 'Bricks',       'url' => admin_url( 'admin.php?page=bricks' ),         'color' => '#dc5a12' ],
 ];
+if ( post_type_exists( 'case_study' ) ) {
+	$thd_available[] = [ 'label' => 'Case Studies', 'url' => admin_url( 'edit.php?post_type=case_study' ), 'color' => '#9333ea' ];
+}
+if ( class_exists( 'WooCommerce' ) ) {
+	$thd_available[] = [ 'label' => 'WooCommerce', 'url' => admin_url( 'admin.php?page=wc-admin' ), 'color' => '#7c3aed' ];
+}
+if ( defined( 'BRICKS_VERSION' ) ) {
+	$thd_available[] = [ 'label' => 'Bricks', 'url' => admin_url( 'admin.php?page=bricks' ), 'color' => '#dc5a12' ];
+}
+if ( function_exists( 'is_plugin_active' ) && is_plugin_active( 'litespeed-cache/litespeed-cache.php' ) ) {
+	$thd_available[] = [ 'label' => 'LiteSpeed Cache', 'url' => admin_url( 'admin.php?page=litespeed' ), 'color' => '#0ea5e9' ];
+}
 ?>
 <div id="thd-picker" role="dialog" aria-modal="true" aria-label="Add shortcut" aria-hidden="true">
 	<div class="thd-picker-head">
@@ -9757,12 +9763,57 @@ function th_render_performance() {
 		th_setting_row( 'Minify HTML', 'Strip comments and whitespace from page output.', th_toggle( 'th_perf_min_html', $min_html ) );
 	});
 
-	if ( is_plugin_active( 'litespeed-cache/litespeed-cache.php' ) ) {
-		th_settings_group( 'LiteSpeed Cache', 'Detected. Therum settings yield to LSCache when active.', function() {
+	// ─── PURGE — universal multi-layer cache bust ───────────────────────
+	$purge_nonce = wp_create_nonce( 'therum_purge_all' );
+	$layers_now  = [];
+	$layers_now[] = 'WP object cache';
+	if ( function_exists( 'is_plugin_active' ) && is_plugin_active( 'litespeed-cache/litespeed-cache.php' ) ) $layers_now[] = 'LiteSpeed';
+	if ( defined( 'BRICKS_VERSION' ) )                                                                       $layers_now[] = 'Bricks';
+	$layers_now[] = 'Therum transients';
+	th_settings_group( 'Purge caches', 'Flush every cache layer Therum can reach on this install.', function() use ( $purge_nonce, $layers_now ) {
+		?>
+		<div class="th-purge-wrap" data-th-purge-nonce="<?php echo esc_attr( $purge_nonce ); ?>" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+			<button type="button" class="button button-primary" data-th-purge-btn style="background:var(--ac);border-color:var(--ac);">Purge all caches</button>
+			<span style="font-size:12px;color:var(--tx3);">Will flush: <?php echo esc_html( implode( ' · ', $layers_now ) ); ?></span>
+			<span data-th-purge-status style="font-size:12px;font-weight:500;"></span>
+		</div>
+		<script>
+		(function(){
+			var wrap = document.currentScript.closest('.th-purge-wrap');
+			if (!wrap) return;
+			var btn = wrap.querySelector('[data-th-purge-btn]');
+			var status = wrap.querySelector('[data-th-purge-status]');
+			var nonce = wrap.getAttribute('data-th-purge-nonce');
+			var ajaxUrl = (window.ajaxurl) || '/wp-admin/admin-ajax.php';
+			btn.addEventListener('click', function(){
+				btn.disabled = true; status.textContent = 'Purging…'; status.style.color = 'var(--tx3)';
+				var fd = new FormData();
+				fd.append('action', 'therum_purge_all_caches');
+				fd.append('nonce', nonce);
+				fetch(ajaxUrl, { method:'POST', credentials:'same-origin', body: fd })
+					.then(function(r){ return r.json(); })
+					.then(function(res){
+						btn.disabled = false;
+						if (res && res.success) { status.textContent = (res.data && res.data.msg) || 'Purged'; status.style.color = 'var(--ok)'; }
+						else                    { status.textContent = (res && res.data && res.data.msg) || 'Failed'; status.style.color = 'var(--err)'; }
+						setTimeout(function(){ status.textContent = ''; }, 4000);
+					})
+					.catch(function(){ btn.disabled = false; status.textContent = 'Network error'; status.style.color = 'var(--err)'; });
+			});
+		})();
+		</script>
+		<?php
+	});
+
+	if ( function_exists( 'is_plugin_active' ) && is_plugin_active( 'litespeed-cache/litespeed-cache.php' ) ) {
+		$lscache_ver = defined( 'LSCWP_V' ) ? LSCWP_V : ( class_exists( 'LiteSpeed\\Core' ) ? 'detected' : '—' );
+		th_settings_group( 'LiteSpeed Cache', 'Detected v' . $lscache_ver . '. Therum settings yield to LSCache when active.', function() {
 			?>
-			<div style="font-size:13px;color:var(--tx2);line-height:1.5;">
+			<div style="font-size:13px;color:var(--tx2);line-height:1.55;">
 				LiteSpeed Cache is handling caching, image optimization, and minification.
-				Adjust granular settings in <a href="<?php echo esc_url( admin_url('admin.php?page=litespeed') ); ?>" style="color:var(--ac);">LSCache dashboard</a>.
+				Use <strong>Purge caches</strong> above to flush LSCache from here, or open the
+				<a href="<?php echo esc_url( admin_url('admin.php?page=litespeed') ); ?>" style="color:var(--ac);">LSCache dashboard</a>
+				for granular settings.
 			</div>
 			<?php
 		});

@@ -756,6 +756,21 @@ final class Therum_Cache_Bust {
 
 endif;
 
+// ─── AJAX: manual purge from Settings > Performance ─────────────────────────
+add_action( 'wp_ajax_therum_purge_all_caches', function() {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( [ 'msg' => 'forbidden' ], 403 );
+	check_ajax_referer( 'therum_purge_all', 'nonce' );
+	if ( class_exists( 'Therum_Cache_Bust' ) ) {
+		Therum_Cache_Bust::purge_all( 'manual:settings' );
+	}
+	$layers = [];
+	if ( function_exists( 'wp_cache_flush' ) )       $layers[] = 'WP object cache';
+	if ( has_action( 'litespeed_purge_all' ) )       $layers[] = 'LiteSpeed';
+	if ( class_exists( '\\Bricks\\Helpers' ) )       $layers[] = 'Bricks';
+	$layers[] = 'Therum transients';
+	wp_send_json_success( [ 'msg' => 'Purged: ' . implode( ', ', $layers ), 'layers' => $layers ] );
+} );
+
 // ═════════════════════════════════════════════════════════════════════════════
 //  TRIGGERS — events where we always want a multi-layer purge
 // ═════════════════════════════════════════════════════════════════════════════

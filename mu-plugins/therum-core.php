@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.1' );
+define( 'THERUM_OS_VERSION', '1.9.16' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
@@ -141,6 +141,116 @@ add_action( 'wp_login', function() {
 if ( ! defined( 'DISALLOW_FILE_EDIT' ) ) {
 	define( 'DISALLOW_FILE_EDIT', true );
 }
+
+// ─── SELF-HEAL: rotate placeholder auth salts ────────────────────────────────
+// Older Therum installs (and any install that skipped the wizard) shipped
+// wp-config.php with placeholder salts like 'th-k1-put-something-long-...'.
+// These are weak HMAC keys for auth/nonce cookies — known to cause both
+// security exposure AND sporadic auth-cookie validation failures (the user-
+// visible symptom is random logouts on refresh).
+//
+// On any admin page load by an admin user, if ALL 8 salts still match the
+// placeholder pattern AND wp-config.php is writable, we rotate them once,
+// snapshot the old file to wp-config.php.therum-salts.bak, set a sentinel
+// option so we never re-rotate, then redirect the user to login (their
+// cookie was signed with the old salt and is now invalid — one-time
+// re-login, then stable forever).
+add_action( 'admin_init', function() {
+	if ( wp_doing_ajax() ) return;
+	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) return;
+	if ( defined( 'DOING_CRON' ) && DOING_CRON ) return;
+	if ( defined( 'WP_CLI' ) && WP_CLI ) return;
+	if ( ! current_user_can( 'manage_options' ) ) return;
+	if ( get_option( '_therum_salts_rotated' ) ) return;
+
+	$keys = [ 'AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY',
+	          'AUTH_SALT', 'SECURE_AUTH_SALT', 'LOGGED_IN_SALT', 'NONCE_SALT' ];
+
+	// Detection: ALL 8 must look like a placeholder for us to act. We refuse
+	// to touch wp-config.php if even one salt has been customised — that
+	// signals the operator chose their own keys and we should respect them.
+	$all_placeholder = true;
+	foreach ( $keys as $k ) {
+		if ( ! defined( $k ) ) { $all_placeholder = false; break; }
+		$v = constant( $k );
+		// Match the exact "put-something-long-and-random-here" pattern we shipped.
+		$is_placeholder = is_string( $v )
+			&& strlen( $v ) < 60
+			&& strpos( $v, 'put-something' ) !== false;
+		if ( ! $is_placeholder ) { $all_placeholder = false; break; }
+	}
+
+	if ( ! $all_placeholder ) {
+		// Real salts in place — mark done so we stop checking.
+		update_option( '_therum_salts_rotated', 1, true );
+		return;
+	}
+
+	$path = ABSPATH . 'wp-config.php';
+	if ( ! is_readable( $path ) || ! is_writable( $path ) ) return; // retry next admin load
+
+	$src = (string) @file_get_contents( $path );
+	if ( strlen( $src ) < 200 ) return;
+
+	// Try the WordPress.org salt service first; fall back to local random_bytes.
+	$new_block = '';
+	$body = @file_get_contents(
+		'https://api.wordpress.org/secret-key/1.1/salt/',
+		false,
+		stream_context_create( [ 'http' => [ 'timeout' => 5 ] ] )
+	);
+	if ( $body !== false && strlen( $body ) > 400 && strpos( $body, 'AUTH_KEY' ) !== false ) {
+		$new_block = rtrim( $body );
+	} else {
+		$lines = [];
+		foreach ( $keys as $k ) {
+			$lines[] = "define( '" . $k . "', '" . bin2hex( random_bytes( 32 ) ) . "' );";
+		}
+		$new_block = implode( "\n", $lines );
+	}
+
+	// Replace the existing AUTH_KEY → NONCE_SALT define block in one regex.
+	$out = preg_replace(
+		"/define\(\s*'AUTH_KEY'[^)]+\);.*?define\(\s*'NONCE_SALT'[^)]+\);/s",
+		$new_block,
+		$src,
+		1
+	);
+	if ( ! is_string( $out ) || strlen( $out ) < strlen( $src ) - 1000 || strpos( $out, "define( 'NONCE_SALT'" ) === false ) {
+		// Patch didn't land cleanly — bail without writing. Operator can rotate manually.
+		return;
+	}
+
+	// Snapshot the current file before writing.
+	@copy( $path, $path . '.therum-salts.bak' );
+
+	// Atomic write: temp file, then rename.
+	$tmp = $path . '.therum-salts.tmp';
+	if ( @file_put_contents( $tmp, $out ) === false ) return;
+	if ( ! @rename( $tmp, $path ) ) { @unlink( $tmp ); return; }
+
+	// Mark rotated permanently. Even if a future install accidentally
+	// re-introduces placeholders, this sentinel prevents double-rotation
+	// on a healthy install.
+	update_option( '_therum_salts_rotated', 1, true );
+	update_option( '_therum_salts_rotated_at', time(), true );
+
+	// The current user's auth cookie was signed with the OLD salts and will
+	// not validate on the next request. Log them out cleanly here, then
+	// redirect to the login screen with a notice so the re-auth isn't a
+	// silent surprise.
+	wp_logout();
+	$login = add_query_arg( 'therum_salts_rotated', '1', wp_login_url( admin_url( 'admin.php?page=therum' ) ) );
+	wp_safe_redirect( $login );
+	exit;
+}, 3 );
+
+// One-time notice on the login screen explaining why the user got bounced.
+add_action( 'login_message', function( $message ) {
+	if ( empty( $_GET['therum_salts_rotated'] ) ) return $message;
+	$notice = '<p class="message" style="border-left-color:#10b981;">Therum security update: auth keys were rotated. Sign in once to continue — you won\'t see this again.</p>';
+	return $notice . $message;
+} );
 
 // ── Gutenberg off ─────────────────────────────────────────────────────────────
 add_filter( 'use_block_editor_for_post',      '__return_false', 100 );

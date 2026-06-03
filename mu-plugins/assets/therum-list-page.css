@@ -200,3 +200,8 @@ body .th-lp .th-lp-card.th-lp-card-plugin .th-lp-status{flex-shrink:0!important;
 body .th-lp .th-lp-card.th-lp-card-plugin .th-plugin-card-actions{display:flex!important;gap:8px!important;padding:0 18px 14px!important;flex-wrap:wrap!important}
 
 button.th-lp-kebab-item{background:transparent;border:0;width:100%;text-align:left;cursor:pointer;font:inherit}
+
+.th-lp-status-group{display:inline-flex;align-items:center;gap:4px}
+.th-lp-status-x{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:0;border-radius:50%;background:rgba(239,68,68,.12);color:var(--err);cursor:pointer;line-height:0;transition:background 0.12s ease,transform 0.12s ease}
+.th-lp-status-x:hover{background:var(--err);color:#fff;transform:scale(1.08)}
+.th-lp-status-x svg{display:block}

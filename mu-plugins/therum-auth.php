@@ -43,16 +43,25 @@ add_filter( 'login_headertext', function() {
 //  3. BODY CLASSES — mirror the admin theme classes onto the login page
 // ═════════════════════════════════════════════════════════════════════════════
 add_filter( 'login_body_class', function( $classes ) {
-	if ( ! class_exists( 'Therum_Themes' ) ) {
-		return $classes;
+	// CRITICAL: the entire login skin is CSS-scoped to `body.login.therum-login`.
+	// Earlier versions returned $classes unchanged when Therum_Themes wasn't
+	// available — that produced a fully-unstyled "raw WP" login. Always tag
+	// the body so the inline style block at login_head applies even with no
+	// theme state loaded.
+	$add = [ 'therum-login', 'therum-themed' ];
+
+	if ( class_exists( 'Therum_Themes' ) ) {
+		$state = Therum_Themes::get_state();
+		$add[] = 'theme-' . sanitize_html_class( $state['palette'] ?? 'studio' );
+		if ( ($state['mode'] ?? 'dark') === 'light' ) $add[] = 'light';
+		if ( ! empty( $state['glass'] ) )              $add[] = 'glass';
+		if ( ! empty( $state['radius'] ) )             $add[] = 'radius-' . sanitize_html_class( $state['radius'] );
+		if ( ! empty( $state['shadow'] ) )             $add[] = 'shadow-' . sanitize_html_class( $state['shadow'] );
+		if ( ! empty( $state['font'] ) )               $add[] = 'font-' . sanitize_html_class( $state['font'] );
+	} else {
+		// Defaults so the cascade still matches the .theme-studio rules.
+		$add[] = 'theme-studio';
 	}
-	$state = Therum_Themes::get_state();
-	$add = [ 'therum-login', 'therum-themed', 'theme-' . sanitize_html_class( $state['palette'] ?? 'studio' ) ];
-	if ( ($state['mode'] ?? 'dark') === 'light' ) $add[] = 'light';
-	if ( ! empty( $state['glass'] ) )              $add[] = 'glass';
-	if ( ! empty( $state['radius'] ) )             $add[] = 'radius-' . sanitize_html_class( $state['radius'] );
-	if ( ! empty( $state['shadow'] ) )             $add[] = 'shadow-' . sanitize_html_class( $state['shadow'] );
-	if ( ! empty( $state['font'] ) )               $add[] = 'font-' . sanitize_html_class( $state['font'] );
 
 	$bg_type = get_option( 'th_login_bg_type', 'theme' );
 	$add[] = 'login-bg-' . sanitize_html_class( $bg_type );
