@@ -3839,7 +3839,7 @@ class Therum_Plugins_Page {
 			<?php endif; ?>
 			<?php if ($p['is_active']): ?>
 			<button type="button" class="th-plugin-action" data-action="deactivate">Deactivate</button>
-			<a class="th-plugin-action" href="<?php echo esc_url($detail_url . '#version-history'); ?>" data-no-row-click>Rollback</a>
+			<button type="button" class="th-plugin-action" data-rollback-href="<?php echo esc_url($detail_url . '#version-history'); ?>">Rollback</button>
 			<?php else: ?>
 			<button type="button" class="th-plugin-action th-plugin-action-primary" data-action="activate">Activate</button>
 			<button type="button" class="th-plugin-action th-plugin-action-danger" data-action="delete">Delete</button>
@@ -6900,6 +6900,18 @@ add_action('admin_footer', function() {
 		if (pdp) return pdp.getAttribute('data-plugin-file');
 		return '';
 	}
+
+	// Rollback button on the active-plugin card navigates to the PDP's
+	// version-history section so the user picks which version to install.
+	// Rendered as a <button> (to match Deactivate's chrome) — needs JS to
+	// navigate since it's not an <a>.
+	document.addEventListener('click', function(e) {
+		var rb = e.target.closest('[data-rollback-href]');
+		if (!rb) return;
+		e.preventDefault();
+		e.stopPropagation();
+		window.location.href = rb.getAttribute('data-rollback-href');
+	});
 
 	document.addEventListener('click', function(e) {
 		var btn = e.target.closest('[data-action]');
