@@ -109,6 +109,15 @@ else el.removeAttribute('draggable');
 });
 };
 editBtn.addEventListener('click', () => setEdit(!document.body.classList.contains('th-edit-sb')));
+if (doneBtn) doneBtn.addEventListener('click', () => setEdit(false));
+// Escape exits sidebar edit mode — users were getting stuck unable to click
+// nav links because edit mode preventDefault's them. Escape is the universal
+// "get me out" affordance.
+document.addEventListener('keydown', e => {
+if (e.key === 'Escape' && document.body.classList.contains('th-edit-sb')) {
+setEdit(false);
+}
+});
 nav.addEventListener('click', e => {
 if (!document.body.classList.contains('th-edit-sb')) return;
 if (e.target.closest('[data-sb-grip]')) { e.preventDefault(); e.stopPropagation(); return; }
@@ -321,11 +330,20 @@ const editReset = document.getElementById('th-edit-reset');
 const bento = document.getElementById('th-bento');
 if (editBtn && bento) {
 editBtn.addEventListener('click', () => document.body.classList.add('th-edit-layout'));
-if (editDone) editDone.addEventListener('click', () => {
+const exitLayout = () => {
 document.body.classList.remove('th-edit-layout');
 document.querySelectorAll('.th-size-picker.open').forEach(p => p.classList.remove('open'));
 saveLayout();
+};
+// Escape exits dashboard edit mode — same reason as sidebar above.
+// `pointer-events:none` on card contents in edit mode means a stuck mode
+// looks identical to a broken dashboard. Escape is the bail.
+document.addEventListener('keydown', e => {
+if (e.key === 'Escape' && document.body.classList.contains('th-edit-layout')) {
+exitLayout();
+}
 });
+if (editDone) editDone.addEventListener('click', exitLayout);
 if (editReset) editReset.addEventListener('click', () => {
 if (!confirm('Reset dashboard to default layout?')) return;
 bento.querySelectorAll('.th-card').forEach(c => {

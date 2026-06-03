@@ -2859,6 +2859,17 @@ function therum_cx_saved_themes(): array {
  * Phase 2 ships the UI; saves wire up to Therum_Themes::set_state() in Phase 5/6.
  */
 function therum_cx_render_quick_controls( string $current_mode ): void {
+	// Read the actual saved state so each control reflects what's persisted,
+	// not the hardcoded markup defaults. Previously every render emitted the
+	// same literal values (e.g. Density="breathing") regardless of what the
+	// user had saved — making it look like settings weren't sticking. They
+	// were, but the panel UI lied about the current value on every reload.
+	$state = class_exists( 'Therum_Themes' ) ? Therum_Themes::get_state() : [];
+	$s = function( string $key, $default ) use ( $state ) {
+		return array_key_exists( $key, $state ) && $state[ $key ] !== '' && $state[ $key ] !== null
+			? $state[ $key ]
+			: $default;
+	};
 	?>
 	<div class="th-cx-panel-head">
 		<h3 class="th-cx-panel-title">Quick controls</h3>
@@ -2869,29 +2880,29 @@ function therum_cx_render_quick_controls( string $current_mode ): void {
 
 		<?php therum_cx_panel_group( 'Appearance', [
 			[ 'seg', 'Mode', strtolower( $current_mode ), [ 'light' => 'Light', 'dark' => 'Dark', 'auto' => 'Auto' ], 'mode' ],
-			[ 'swatch', 'Accent', '#f5389a', [ '#f5389a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', 'custom' ], 'accent' ],
+			[ 'swatch', 'Accent', $s( 'accent', '#e83b3b' ), [ '#f5389a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', 'custom' ], 'accent' ],
 			[ 'seg', 'Intensity', 'standard', [ 'subtle' => 'Subtle', 'standard' => 'Standard', 'vivid' => 'Vivid' ] ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Layout', [
-			[ 'seg', 'Density',     'breathing', [ 'compact' => 'Compact', 'comfortable' => 'Comfortable', 'breathing' => 'Breathing' ], 'density' ],
-			[ 'seg', 'Sidebar',     'full',      [ 'full' => 'Full', 'icons' => 'Icons', 'text' => 'Text' ], 'sidebar' ],
-			[ 'seg', 'Variant',     'floating',  [ 'default' => 'Default', 'floating' => 'Floating', 'minimal' => 'Minimal' ], 'sidebarStyle' ],
+			[ 'seg', 'Density',     $s( 'density', 'breathing' ),    [ 'compact' => 'Compact', 'comfortable' => 'Comfortable', 'breathing' => 'Breathing' ], 'density' ],
+			[ 'seg', 'Sidebar',     $s( 'sidebar', 'full' ),         [ 'full' => 'Full', 'icons' => 'Icons', 'text' => 'Text' ], 'sidebar' ],
+			[ 'seg', 'Variant',     $s( 'sidebarStyle', 'floating' ),[ 'default' => 'Default', 'floating' => 'Floating', 'minimal' => 'Minimal' ], 'sidebarStyle' ],
 			[ 'seg', 'Topbar',      'sticky',    [ 'static' => 'Static', 'sticky' => 'Sticky', 'hide' => 'Hide' ] ],
 			[ 'seg', 'Content',     'full',      [ 'narrow' => 'Narrow', 'wide' => 'Wide', 'full' => 'Full' ] ],
 			[ 'slider', 'Bento gap', 16, 8, 32 ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Surfaces', [
-			[ 'toggle', 'Glass surfaces', true, 'glass' ],
-			[ 'seg', 'Glass tint', 'dark', [ 'light' => 'Light', 'dark' => 'Dark', 'colored' => 'Colored' ], 'glassTint' ],
-			[ 'slider', 'Blur strength', 40, 0, 60, 'blur' ],
-			[ 'seg', 'Background', 'none', [ 'none' => 'None', 'gradient' => 'Gradient', 'pattern' => 'Pattern', 'image' => 'Image' ], 'bgImage' ],
-			[ 'seg', 'Shadow', 'soft', [ 'flat' => 'Flat', 'soft' => 'Soft', 'heavy' => 'Heavy' ], 'shadow' ],
+			[ 'toggle', 'Glass surfaces', (bool) $s( 'glass', false ), 'glass' ],
+			[ 'seg', 'Glass tint', $s( 'glassTint', 'dark' ), [ 'light' => 'Light', 'dark' => 'Dark', 'colored' => 'Colored' ], 'glassTint' ],
+			[ 'slider', 'Blur strength', (int) ( is_numeric( $s( 'blur', 40 ) ) ? $s( 'blur', 40 ) : 40 ), 0, 60, 'blur' ],
+			[ 'seg', 'Background', $s( 'bgImage', 'none' ), [ 'none' => 'None', 'gradient' => 'Gradient', 'pattern' => 'Pattern', 'image' => 'Image' ], 'bgImage' ],
+			[ 'seg', 'Shadow', $s( 'shadow', 'soft' ), [ 'flat' => 'Flat', 'soft' => 'Soft', 'heavy' => 'Heavy' ], 'shadow' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Typography', [
-			[ 'select', 'Body font',    'inter',      [ 'inter' => 'Inter', 'inter-tight' => 'Inter Tight', 'space-grotesk' => 'Space Grotesk', 'dm-sans' => 'DM Sans', 'ibm-plex' => 'IBM Plex Sans', 'crimson' => 'Crimson Pro', 'playfair' => 'Playfair Display', 'halyard' => 'Halyard Display', 'system' => 'System UI' ], 'font' ],
+			[ 'select', 'Body font',    $s( 'font', 'system' ), [ 'inter' => 'Inter', 'inter-tight' => 'Inter Tight', 'space-grotesk' => 'Space Grotesk', 'dm-sans' => 'DM Sans', 'ibm-plex' => 'IBM Plex Sans', 'crimson' => 'Crimson Pro', 'playfair' => 'Playfair Display', 'halyard' => 'Halyard Display', 'system' => 'System UI' ], 'font' ],
 			[ 'select', 'Display font', 'inter-tight', [ 'inter-tight' => 'Inter Tight', 'archivo-black' => 'Archivo Black', 'bebas' => 'Bebas Neue', 'halyard' => 'Halyard Display', 'audiowide' => 'Audiowide', 'orbitron' => 'Orbitron', 'caveat' => 'Caveat' ] ],
 			[ 'select', 'Mono font',    'jetbrains',  [ 'jetbrains' => 'JetBrains Mono', 'ibm-plex-mono' => 'IBM Plex Mono', 'sf-mono' => 'SF Mono', 'vt323' => 'VT323' ] ],
 			[ 'slider', 'Base size',    14, 12, 18 ],
@@ -2900,9 +2911,9 @@ function therum_cx_render_quick_controls( string $current_mode ): void {
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Shapes', [
-			[ 'seg', 'Radius',        'round',    [ 'sharp' => 'Sharp', 'medium' => 'Medium', 'round' => 'Round' ], 'radius' ],
+			[ 'seg', 'Radius',        $s( 'radius', 'medium' ),    [ 'sharp' => 'Sharp', 'medium' => 'Medium', 'round' => 'Round' ], 'radius' ],
 			[ 'seg', 'Border weight', 'standard', [ 'hairline' => 'Hairline', 'standard' => 'Standard', 'bold' => 'Bold' ] ],
-			[ 'seg', 'Card style',    'elevated', [ 'flat' => 'Flat', 'outline' => 'Outline', 'elevated' => 'Elevated' ], 'cardStyle' ],
+			[ 'seg', 'Card style',    $s( 'cardStyle', 'default' ), [ 'flat' => 'Flat', 'outline' => 'Outline', 'elevated' => 'Elevated', 'default' => 'Default' ], 'cardStyle' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Motion', [
