@@ -572,6 +572,29 @@ add_action( 'wp_ajax_therum_save_layout', function() {
 	wp_send_json_success();
 } );
 
+/**
+ * Drag-to-sort persistence for any Therum_List_Page (Pages/Posts/Media/Users/
+ * Plugins/etc.). Saves an ordered array of item IDs to user meta keyed by
+ * `therum_list_order_{page_id}`. apply_saved_order() reads it at render time.
+ */
+add_action( 'wp_ajax_therum_save_list_order', function() {
+	$page_id = isset( $_POST['page_id'] ) ? sanitize_key( $_POST['page_id'] ) : '';
+	if ( ! $page_id ) wp_send_json_error( [ 'message' => 'missing page_id' ] );
+	check_ajax_referer( 'therum_list_order_' . $page_id, 'nonce' );
+	$raw = $_POST['order'] ?? '';
+	if ( ! is_string( $raw ) ) wp_send_json_error();
+	$decoded = json_decode( wp_unslash( $raw ), true );
+	if ( ! is_array( $decoded ) ) wp_send_json_error();
+	// Cap at a sensible upper bound + coerce every entry to a short string.
+	$ids = array_slice( $decoded, 0, 5000 );
+	$ids = array_values( array_filter( array_map( function( $v ) {
+		$s = is_scalar( $v ) ? (string) $v : '';
+		return strlen( $s ) > 0 && strlen( $s ) <= 256 ? $s : null;
+	}, $ids ) ) );
+	update_user_meta( get_current_user_id(), 'therum_list_order_' . $page_id, $ids );
+	wp_send_json_success( [ 'count' => count( $ids ) ] );
+} );
+
 function th_get_layout(): array {
 	$raw = get_user_meta( get_current_user_id(), 'therum_bento_layout', true );
 	if ( ! $raw ) return [];
@@ -1946,6 +1969,49 @@ class Therum_List_Page {
 	 * card_renderer (callable), row_renderer (callable),
 	 * table_columns (array of header labels), empty_state.
 	 */
+	/**
+	 * Pull a stable item ID from any of the shapes a list page passes through:
+	 * WP_Post (->ID), WP_User (->ID), WP_Term (->term_id), or the plugin/array
+	 * shape used by Therum_Plugins_Page where 'file' is the canonical id.
+	 */
+	public static function item_id($item): string {
+		if (is_object($item)) {
+			if (isset($item->ID))      return (string) $item->ID;
+			if (isset($item->term_id)) return (string) $item->term_id;
+		}
+		if (is_array($item)) {
+			return (string) ($item['id'] ?? $item['ID'] ?? $item['file'] ?? $item['slug'] ?? '');
+		}
+		return '';
+	}
+
+	/**
+	 * Reorder $items to match the user's saved drag-drop order for $page_id,
+	 * preserving any items that aren't in the saved order (appended at the end
+	 * so newly-added items show up at the bottom without being lost).
+	 */
+	public static function apply_saved_order(array $items, string $page_id): array {
+		$uid = get_current_user_id();
+		if (!$uid) return $items;
+		$order = (array) get_user_meta($uid, 'therum_list_order_' . $page_id, true);
+		if (!$order) return $items;
+		$by_id = [];
+		foreach ($items as $it) {
+			$id = self::item_id($it);
+			if ($id !== '') $by_id[$id] = $it;
+		}
+		$out = [];
+		foreach ($order as $id) {
+			if (isset($by_id[$id])) {
+				$out[] = $by_id[$id];
+				unset($by_id[$id]);
+			}
+		}
+		// Append anything not in the saved order — new items land at the end.
+		foreach ($by_id as $it) $out[] = $it;
+		return $out;
+	}
+
 	public static function render(array $cfg): void {
 		$title             = $cfg['title']             ?? 'List';
 		$subtitle          = $cfg['subtitle']          ?? '';
@@ -1966,8 +2032,16 @@ class Therum_List_Page {
 		$extra_views       = $cfg['extra_views']       ?? [];        // [ ['key'=>'masonry','label'=>'Masonry','svg'=>'<svg…'], … ]
 		$density_slider    = ! empty( $cfg['density_slider'] );
 		$density_default   = (int) ( $cfg['density_default'] ?? 5 );
+		// Drag-to-sort persists per-user order keyed by page_id. Defaults to on.
+		// Pages can opt out with 'sortable' => false (e.g. Plugins, which has
+		// its own active/inactive grouping that should not be drag-reordered).
+		$sortable          = $cfg['sortable'] ?? true;
+		if ($sortable) {
+			$items = self::apply_saved_order($items, $page_id);
+		}
+		$sort_nonce        = $sortable ? wp_create_nonce('therum_list_order_' . $page_id) : '';
 		?>
-		<div class="th-lp" data-page-id="<?php echo esc_attr($page_id); ?>">
+		<div class="th-lp" data-page-id="<?php echo esc_attr($page_id); ?>"<?php if ($sortable): ?> data-th-sortable="1" data-th-sort-nonce="<?php echo esc_attr($sort_nonce); ?>"<?php endif; ?>>
 
 		  <div class="th-lp-header">
 			<div class="th-lp-header-left">
@@ -2140,7 +2214,28 @@ class Therum_List_Page {
 		  <?php else: ?>
 
 		  <div class="th-lp-view th-lp-view-grid<?php echo $view_default==='grid'?' active':''; ?>" data-view-pane="grid"<?php echo $density_slider ? ' data-density="' . (int) $density_default . '"' : ''; ?>>
-			<?php if (is_callable($card_renderer)): foreach ($items as $item) call_user_func($card_renderer, $item); endif; ?>
+			<?php if (is_callable($card_renderer)) {
+				foreach ($items as $item) {
+					$_iid = $sortable ? self::item_id($item) : '';
+					if ($_iid !== '') {
+						// Wrap card markup so we can stamp data-th-item-id +
+						// draggable onto the outer card without touching every
+						// renderer. Uses output-buffering + a one-shot regex
+						// patch on the first <div class="th-lp-card ...">.
+						ob_start();
+						call_user_func($card_renderer, $item);
+						$_html = ob_get_clean();
+						$_html = preg_replace(
+							'/<div\s+class="(th-lp-card[^"]*)"/',
+							'<div data-th-item-id="' . esc_attr($_iid) . '" draggable="true" class="$1"',
+							$_html, 1
+						);
+						echo $_html;
+					} else {
+						call_user_func($card_renderer, $item);
+					}
+				}
+			} ?>
 		  </div>
 
 		  <?php
@@ -2153,7 +2248,24 @@ class Therum_List_Page {
 		    if ( $key === '' ) continue;
 		  ?>
 		  <div class="th-lp-view th-lp-view-<?php echo esc_attr( $key ); ?><?php echo $view_default === $key ? ' active' : ''; ?>" data-view-pane="<?php echo esc_attr( $key ); ?>">
-			<?php if (is_callable($card_renderer)): foreach ($items as $item) call_user_func($card_renderer, $item); endif; ?>
+			<?php if (is_callable($card_renderer)) {
+				foreach ($items as $item) {
+					$_iid = $sortable ? self::item_id($item) : '';
+					if ($_iid !== '') {
+						ob_start();
+						call_user_func($card_renderer, $item);
+						$_html = ob_get_clean();
+						$_html = preg_replace(
+							'/<div\s+class="(th-lp-card[^"]*)"/',
+							'<div data-th-item-id="' . esc_attr($_iid) . '" draggable="true" class="$1"',
+							$_html, 1
+						);
+						echo $_html;
+					} else {
+						call_user_func($card_renderer, $item);
+					}
+				}
+			} ?>
 		  </div>
 		  <?php endforeach; ?>
 
@@ -2174,12 +2286,24 @@ class Therum_List_Page {
 			  <?php endif; ?>
 			  <tbody>
 				<?php foreach ($items as $item):
+					$_iid = $sortable ? self::item_id($item) : '';
+					$_buffer = $_iid !== '';
+					if ($_buffer) ob_start();
 					if ($row_actions) {
-						// Renderer is expected to omit closing </tr> when actions are wanted
 						$actions = call_user_func($row_actions, $item);
 						call_user_func($row_renderer, $item, $actions);
 					} else {
 						call_user_func($row_renderer, $item);
+					}
+					if ($_buffer) {
+						$_html = ob_get_clean();
+						// Stamp data-th-item-id + draggable onto the <tr>.
+						$_html = preg_replace(
+							'/<tr\s+class="(th-lp-row[^"]*)"/',
+							'<tr data-th-item-id="' . esc_attr($_iid) . '" draggable="true" class="$1"',
+							$_html, 1
+						);
+						echo $_html;
 					}
 				endforeach; ?>
 			  </tbody>
@@ -9263,8 +9387,49 @@ add_action('init', function() {
 	// API & Webhooks merged into Connections > Manage > 'rest' tab (see therum-connections.php).
 	Therum_Settings::register('updates',        ['label'=>'Updates',        'icon'=>'import',   'desc'=>'Auto-update plugins, themes, core.','priority'=>120, 'render'=>'th_render_updates']);
 	Therum_Settings::register('backup',         ['label'=>'Backup',         'icon'=>'db',       'desc'=>'Schedule + restore.',              'priority'=>130, 'render'=>'th_render_backup']);
+	Therum_Settings::register('experiments',    ['label'=>'Experiments',    'icon'=>'plugins',  'desc'=>'Opt-in surfaces and modes.',       'priority'=>135, 'render'=>'th_render_experiments']);
 	Therum_Settings::register('about',          ['label'=>'About',          'icon'=>'info',   'desc'=>'Version, credits, system info.',   'priority'=>140, 'render'=>['Therum_Settings', 'render_about']]);
 });
+
+function th_render_experiments(): void {
+	$dm_active = function_exists( 'is_plugin_active' ) && is_plugin_active( 'desktop-mode/desktop-mode.php' );
+	$dm_user   = function_exists( 'therum_desktop_mode_active_for_user' ) && therum_desktop_mode_active_for_user();
+	$install_url = wp_nonce_url(
+		admin_url( 'update.php?action=install-plugin&plugin=desktop-mode' ),
+		'install-plugin_desktop-mode'
+	);
+	$search_url  = admin_url( 'plugin-install.php?s=desktop-mode&tab=search&type=term' );
+	$activate_url = wp_nonce_url(
+		admin_url( 'plugins.php?action=activate&plugin=desktop-mode/desktop-mode.php' ),
+		'activate-plugin_desktop-mode/desktop-mode.php'
+	);
+
+	th_settings_group( 'Desktop Mode', 'Run wp-admin as a windowed desktop OS — draggable windows, a left-edge dock, virtual desktops. Per-user opt-in; Therum\'s shell yields automatically when active. Built by Automattic.', function() use ( $dm_active, $dm_user, $install_url, $search_url, $activate_url ) {
+		?>
+		<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;font-size:13px;color:var(--tx2);line-height:1.55;">
+			<div style="flex:1;min-width:280px;">
+				<?php if ( ! $dm_active ): ?>
+					<p style="margin:0 0 10px 0;"><strong style="color:var(--tx);">Not installed.</strong> Install the official <code>desktop-mode</code> plugin from the WordPress directory to enable.</p>
+					<div style="display:flex;gap:8px;flex-wrap:wrap;">
+						<a class="th-btn th-btn-primary" href="<?php echo esc_url( $install_url ); ?>">Install Desktop Mode</a>
+						<a class="th-btn" href="<?php echo esc_url( $search_url ); ?>">View in plugin directory</a>
+						<a class="th-btn" href="https://wordpress.org/plugins/desktop-mode/" target="_blank" rel="noopener">Plugin homepage ↗</a>
+					</div>
+				<?php elseif ( ! $dm_user ): ?>
+					<p style="margin:0 0 10px 0;"><strong style="color:var(--ok);">Installed + active.</strong> Toggle Desktop Mode on for your account from the admin-bar desktop icon (top-right) — Therum's shell will yield automatically.</p>
+					<a class="th-btn" href="<?php echo esc_url( admin_url() ); ?>">Open dashboard to toggle</a>
+				<?php else: ?>
+					<p style="margin:0;"><strong style="color:var(--ok);">Active for your account.</strong> Therum's chrome is yielding to Desktop Mode. Toggle the desktop icon in the admin bar to switch back to Therum's classic shell.</p>
+				<?php endif; ?>
+			</div>
+			<div style="flex:0 0 200px;padding:12px;background:var(--sf2);border-radius:8px;font-size:12px;color:var(--tx3);">
+				<div style="font-weight:600;color:var(--tx2);margin-bottom:6px;">How it works</div>
+				Therum's <code>therum_admin_shell_bypass</code> filter checks each request — when Desktop Mode is enabled for the current user, Therum's sidebar + topbar don't render, leaving the screen to DM.
+			</div>
+		</div>
+		<?php
+	});
+}
 
 // Register the page itself + repoint sidebar Settings nav at it.
 add_action('admin_menu', function() {

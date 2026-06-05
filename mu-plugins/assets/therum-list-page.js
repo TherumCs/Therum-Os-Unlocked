@@ -189,3 +189,104 @@ if (e.key === 'Escape') closeOpenKebab();
 });
 window.addEventListener('resize', closeOpenKebab);
 })();
+// ─── DRAG-TO-SORT ─────────────────────────────────────────────────────────────
+// Persists per-user order for any Therum_List_Page with data-th-sortable="1".
+// Works in grid + masonry/metro + table views. ID stamped via PHP wrap on each
+// card / row (data-th-item-id). AJAX endpoint: therum_save_list_order.
+(function thListSort() {
+  var ajaxUrl = (window.ajaxurl) || '/wp-admin/admin-ajax.php';
+  document.querySelectorAll('.th-lp[data-th-sortable]').forEach(function (lp) {
+    var pageId = lp.getAttribute('data-page-id') || '';
+    var nonce  = lp.getAttribute('data-th-sort-nonce') || '';
+    if (!pageId || !nonce) return;
+
+    var dragEl = null;
+
+    lp.addEventListener('dragstart', function (e) {
+      var src = e.target.closest('[data-th-item-id]');
+      if (!src || !lp.contains(src)) return;
+      dragEl = src;
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', src.getAttribute('data-th-item-id') || ''); } catch (_) {}
+      requestAnimationFrame(function () { if (dragEl) dragEl.classList.add('th-lp-dragging'); });
+    });
+
+    lp.addEventListener('dragend', function () {
+      if (dragEl) dragEl.classList.remove('th-lp-dragging');
+      lp.querySelectorAll('.th-lp-drop-before, .th-lp-drop-after').forEach(function (el) {
+        el.classList.remove('th-lp-drop-before', 'th-lp-drop-after');
+      });
+      dragEl = null;
+    });
+
+    lp.addEventListener('dragover', function (e) {
+      if (!dragEl) return;
+      var over = e.target.closest('[data-th-item-id]');
+      if (!over || over === dragEl) return;
+      // Only reorder within the same view pane to avoid cross-pane confusion.
+      if (over.closest('[data-view-pane]') !== dragEl.closest('[data-view-pane]')) return;
+      e.preventDefault();
+      var rect = over.getBoundingClientRect();
+      var horizontal = (over.tagName === 'DIV'); // grid card = horizontal flow; table row = vertical
+      var mid = horizontal
+        ? rect.left + rect.width / 2
+        : rect.top + rect.height / 2;
+      var pos = horizontal ? e.clientX : e.clientY;
+      var before = pos < mid;
+      lp.querySelectorAll('.th-lp-drop-before, .th-lp-drop-after').forEach(function (el) {
+        el.classList.remove('th-lp-drop-before', 'th-lp-drop-after');
+      });
+      over.classList.add(before ? 'th-lp-drop-before' : 'th-lp-drop-after');
+    });
+
+    lp.addEventListener('drop', function (e) {
+      if (!dragEl) return;
+      var over = e.target.closest('[data-th-item-id]');
+      if (!over || over === dragEl) return;
+      if (over.closest('[data-view-pane]') !== dragEl.closest('[data-view-pane]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var pane = over.parentNode;
+      var rect = over.getBoundingClientRect();
+      var horizontal = (over.tagName === 'DIV');
+      var mid = horizontal ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+      var pos = horizontal ? e.clientX : e.clientY;
+      var before = pos < mid;
+      pane.insertBefore(dragEl, before ? over : over.nextSibling);
+      // Mirror the move into every other view-pane (grid/masonry/metro/table)
+      // so all views stay in sync.
+      var id = dragEl.getAttribute('data-th-item-id');
+      var anchorId = over.getAttribute('data-th-item-id');
+      lp.querySelectorAll('[data-view-pane]').forEach(function (otherPane) {
+        if (otherPane === pane) return;
+        var moving = otherPane.querySelector('[data-th-item-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+        var anchor = otherPane.querySelector('[data-th-item-id="' + (window.CSS && CSS.escape ? CSS.escape(anchorId) : anchorId) + '"]');
+        if (moving && anchor) {
+          // For <tbody> children we need to use the table's tbody as the parent.
+          var parent = anchor.parentNode;
+          parent.insertBefore(moving, before ? anchor : anchor.nextSibling);
+        }
+      });
+      // Save the new order using whichever pane is currently active.
+      saveOrder();
+    });
+
+    function saveOrder() {
+      // Read from the first non-table pane (grid), falling back to whatever exists.
+      var pane = lp.querySelector('[data-view-pane="grid"]')
+              || lp.querySelector('[data-view-pane]:not([data-view-pane="table"])')
+              || lp.querySelector('[data-view-pane]');
+      if (!pane) return;
+      var ids = Array.prototype.map.call(
+        pane.querySelectorAll('[data-th-item-id]'),
+        function (el) { return el.getAttribute('data-th-item-id'); }
+      );
+      var fd = new FormData();
+      fd.append('action', 'therum_save_list_order');
+      fd.append('page_id', pageId);
+      fd.append('nonce', nonce);
+      fd.append('order', JSON.stringify(ids));
+      fetch(ajaxUrl, { method: 'POST', credentials: 'same-origin', body: fd, keepalive: true })
+        .catch(function () { /* best-effort; next save will retry */ });
+    }
+  });
+})();

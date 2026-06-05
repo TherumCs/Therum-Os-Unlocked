@@ -205,3 +205,12 @@ button.th-lp-kebab-item{background:transparent;border:0;width:100%;text-align:le
 .th-lp-status-x{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:0;border-radius:50%;background:rgba(239,68,68,.12);color:var(--err);cursor:pointer;line-height:0;transition:background 0.12s ease,transform 0.12s ease}
 .th-lp-status-x:hover{background:var(--err);color:#fff;transform:scale(1.08)}
 .th-lp-status-x svg{display:block}
+
+/* Drag-to-sort affordances */
+.th-lp[data-th-sortable] [data-th-item-id]{cursor:grab}
+.th-lp[data-th-sortable] [data-th-item-id]:active{cursor:grabbing}
+.th-lp [data-th-item-id].th-lp-dragging{opacity:.45}
+.th-lp .th-lp-card[data-th-item-id].th-lp-drop-before{box-shadow:-3px 0 0 0 var(--ac)}
+.th-lp .th-lp-card[data-th-item-id].th-lp-drop-after{box-shadow:3px 0 0 0 var(--ac)}
+.th-lp .th-lp-row[data-th-item-id].th-lp-drop-before>td:first-child{box-shadow:inset 0 2px 0 0 var(--ac)}
+.th-lp .th-lp-row[data-th-item-id].th-lp-drop-after>td:first-child{box-shadow:inset 0 -2px 0 0 var(--ac)}

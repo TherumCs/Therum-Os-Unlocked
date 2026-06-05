@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.18' );
+define( 'THERUM_OS_VERSION', '1.9.19' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
@@ -141,6 +141,38 @@ add_action( 'wp_login', function() {
 if ( ! defined( 'DISALLOW_FILE_EDIT' ) ) {
 	define( 'DISALLOW_FILE_EDIT', true );
 }
+
+// ─── DESKTOP MODE INTEGRATION ────────────────────────────────────────────────
+// Optional companion plugin: https://wordpress.org/plugins/desktop-mode/ by
+// Automattic. Renders /wp-admin as a windowed desktop OS. When the user has
+// it active for themselves, Therum's shell yields so the two UIs don't fight
+// — DM's per-user toggle is the single source of truth.
+//
+// Helper: detect "is DM running for this user right now?"
+if ( ! function_exists( 'therum_desktop_mode_active_for_user' ) ) {
+	function therum_desktop_mode_active_for_user(): bool {
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			// Pull WP's plugin helpers in early-hook contexts.
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		if ( ! is_plugin_active( 'desktop-mode/desktop-mode.php' ) ) return false;
+		$uid = get_current_user_id();
+		if ( ! $uid ) return false;
+		// DM's per-user opt-in flag — checked across known meta keys so
+		// minor naming differences across DM versions don't break detection.
+		foreach ( [ 'desktop_mode_enabled', '_desktop_mode_enabled', 'desktop_mode' ] as $key ) {
+			if ( get_user_meta( $uid, $key, true ) ) return true;
+		}
+		return false;
+	}
+}
+
+// Yield Therum's shell on every admin page when DM is active for the user.
+// Hooks into the existing escape hatch in therum-admin.php's th_is_frame().
+add_filter( 'therum_admin_shell_bypass', function( $bypass ) {
+	if ( $bypass ) return $bypass;
+	return therum_desktop_mode_active_for_user();
+}, 10, 1 );
 
 // ─── SELF-HEAL: rotate placeholder auth salts ────────────────────────────────
 // Older Therum installs (and any install that skipped the wizard) shipped
