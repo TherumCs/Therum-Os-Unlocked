@@ -183,6 +183,10 @@ function th_nav(): array {
 
 	$s[] = [ 'id' => 'design', 'label' => 'Design', 'icon' => 'design', 'desc' => 'Front-end design system, themes, navigation.', 'items' => $design_items ];
 
+	$s[] = [ 'id' => 'studio', 'label' => 'Studio', 'icon' => 'therum', 'desc' => 'Custom modules from Therum Creative Studios.', 'items' => [
+		[ 'label' => 'From the Studio', 'icon' => 'therum', 'url' => 'admin.php?page=therum-studio', 'match' => 'page=therum-studio' ],
+	] ];
+
 	$s[] = [ 'id' => 'admin', 'label' => 'Admin', 'icon' => 'admin', 'desc' => 'Plugins, users, admin theme, connections.', 'items' => [
 		[ 'label' => 'Plugins',       'icon' => 'plugins',  'url' => 'admin.php?page=therum-plugins',       'match' => 'page=therum-plugins' ],
 		[ 'label' => 'Users',         'icon' => 'users',    'url' => 'admin.php?page=therum-users',         'match' => 'page=therum-users' ],
@@ -6471,7 +6475,231 @@ add_action('admin_menu', function() {
 	add_submenu_page('', 'Plugin',        'Plugin',        'activate_plugins','therum-plugin-detail',['Therum_Plugin_Detail_Page', 'render']);
 	add_submenu_page('', 'Updates',       'Updates',       'manage_options',  'therum-updates',      ['Therum_Updates_Page',       'render']);
 	add_submenu_page('', 'Connections',   'Connections',   'manage_options',  'therum-connections',  ['Therum_Connections_Page',   'render']);
+	add_submenu_page('', 'Studio',        'Studio',        'manage_options',  'therum-studio',       ['Therum_Studio_Page',         'render']);
 });
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * THERUM STUDIO — discovery surface for Therum-built modules / spin-off plugins
+ *
+ * Curated showcase for plugins built by Therum Creative Studios. Each "app" is
+ * either:
+ *   - BUILT-IN: ships inside Therum OS itself (e.g. Nexus, the Connections
+ *     layer). Renders with an "Included" badge and an Open CTA.
+ *   - INSTALLABLE: a standalone plugin available from a TherumCs/* GitHub repo.
+ *     Renders with status (Not installed / Installed / Active / Update
+ *     available) and a contextual CTA (Install / Activate / Update / Open).
+ *
+ * Registry is hardcoded for now (small, audited list, edits in source). When
+ * the list outgrows that, this lifts to a JSON in TherumCs/registry that the
+ * page fetches + caches.
+ * ───────────────────────────────────────────────────────────────────────── */
+class Therum_Studio_Page {
+
+	/**
+	 * Curated app registry. Each entry:
+	 *   slug       — display slug (lowercase, hyphenated)
+	 *   name       — display name
+	 *   tagline    — one-liner shown on the card
+	 *   description— longer paragraph in the expanded card
+	 *   color      — accent color for the card hero
+	 *   built_in   — true if it ships inside Therum OS (Nexus). Renders as
+	 *                "Included" with the Connections / wherever Open URL.
+	 *   plugin_file— wp_plugin_dir slug/file.php (when installed). Used for
+	 *                state detection: installed? active? has update?
+	 *   repo       — TherumCs/<repo> for the install path (GitHub release zip)
+	 *   open_url   — admin URL to open the app once installed/active
+	 *   category   — informational grouping ('infrastructure' | 'site' | 'commerce')
+	 */
+	public static function apps(): array {
+		return [
+			[
+				'slug'        => 'nexus',
+				'name'        => 'Nexus',
+				'tagline'     => 'Connections + credentials vault.',
+				'description' => 'Encrypted credential storage for every external service Therum can talk to. AES-256-GCM at rest, scoped tokens, custom providers. The backbone every other Therum app rides on.',
+				'color'       => '#6366f1',
+				'built_in'    => true,
+				'open_url'    => admin_url( 'admin.php?page=therum-connections' ),
+				'category'    => 'infrastructure',
+			],
+			[
+				'slug'        => 'cluster',
+				'name'        => 'Cluster',
+				'tagline'     => 'Group + organize content at scale.',
+				'description' => 'Sort posts, pages, and custom post types into clusters with cross-linking, shared meta, and bulk operations. Designed for sites that grow past a few hundred entries.',
+				'color'       => '#06b6d4',
+				'built_in'    => false,
+				'plugin_file' => 'cluster/cluster.php',
+				'repo'        => 'TherumCs/Cluster',
+				'open_url'    => admin_url( 'admin.php?page=cluster' ),
+				'category'    => 'site',
+			],
+			[
+				'slug'        => 'milieus',
+				'name'        => 'Milieus',
+				'tagline'     => 'Environment + audience targeting.',
+				'description' => 'Conditional content blocks gated by environment, device, geo, role, or arbitrary audience rules. Built on top of Bricks so any element gets a Milieus toggle.',
+				'color'       => '#10b981',
+				'built_in'    => false,
+				'plugin_file' => 'milieus/milieus.php',
+				'repo'        => 'TherumCs/Milieus',
+				'open_url'    => admin_url( 'admin.php?page=milieus' ),
+				'category'    => 'site',
+			],
+			[
+				'slug'        => 'shop',
+				'name'        => 'Shop',
+				'tagline'     => 'Lightweight commerce for Therum.',
+				'description' => 'A WooCommerce alternative tuned for digital goods, services, and lightweight catalogs. Stripe + PayPal out of the box, no checkout bloat, no React. Therum-native.',
+				'color'       => '#f59e0b',
+				'built_in'    => false,
+				'plugin_file' => 'shop/shop.php',
+				'repo'        => 'TherumCs/Shop',
+				'open_url'    => admin_url( 'admin.php?page=shop' ),
+				'category'    => 'commerce',
+			],
+		];
+	}
+
+	/** Resolve current install state for an app. */
+	private static function status( array $app ): array {
+		if ( ! empty( $app['built_in'] ) ) {
+			return [ 'state' => 'included', 'label' => 'Included', 'version' => defined( 'THERUM_OS_VERSION' ) ? THERUM_OS_VERSION : '' ];
+		}
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$file = $app['plugin_file'] ?? '';
+		if ( ! $file ) return [ 'state' => 'unknown', 'label' => 'Unknown', 'version' => '' ];
+
+		$path = WP_PLUGIN_DIR . '/' . $file;
+		if ( ! file_exists( $path ) ) {
+			return [ 'state' => 'not_installed', 'label' => 'Not installed', 'version' => '' ];
+		}
+
+		$data = get_plugin_data( $path, false, false );
+		$ver  = (string) ( $data['Version'] ?? '' );
+
+		if ( is_plugin_active( $file ) ) {
+			return [ 'state' => 'active', 'label' => 'Active', 'version' => $ver ];
+		}
+		return [ 'state' => 'inactive', 'label' => 'Inactive', 'version' => $ver ];
+	}
+
+	/** Build the action URL appropriate for the app's current state. */
+	private static function action_url( array $app, array $status ): array {
+		switch ( $status['state'] ) {
+			case 'included':
+				return [ 'label' => 'Open', 'url' => $app['open_url'] ?? admin_url(), 'primary' => true ];
+			case 'active':
+				return [ 'label' => 'Open', 'url' => $app['open_url'] ?? admin_url(), 'primary' => true ];
+			case 'inactive':
+				return [
+					'label'   => 'Activate',
+					'url'     => wp_nonce_url(
+						admin_url( 'plugins.php?action=activate&plugin=' . urlencode( $app['plugin_file'] ) ),
+						'activate-plugin_' . $app['plugin_file']
+					),
+					'primary' => true,
+				];
+			case 'not_installed':
+			default:
+				// One-click install via the WP plugin install handler — pulls the
+				// zip from wp.org by slug. For Therum repos that aren't on wp.org,
+				// the link drops the user at a plugin-upload screen with the slug
+				// pre-filtered so they can grab the GitHub release zip.
+				$slug = $app['slug'];
+				return [
+					'label'   => 'Install',
+					'url'     => wp_nonce_url(
+						admin_url( 'update.php?action=install-plugin&plugin=' . urlencode( $slug ) ),
+						'install-plugin_' . $slug
+					),
+					'primary' => true,
+				];
+		}
+	}
+
+	public static function render(): void {
+		$apps = self::apps();
+		?>
+		<div class="th-lp" data-page-id="studio">
+
+		  <div class="th-lp-header">
+			<div class="th-lp-header-left">
+			  <div class="th-lp-meta">
+				<span class="th-lp-meta-dot"></span>
+				<?php echo esc_html( count( $apps ) ); ?> MODULE<?php echo count( $apps ) === 1 ? '' : 'S'; ?>
+			  </div>
+			  <h1 class="th-lp-title">From the Studio</h1>
+			  <p class="th-lp-sub">Custom-built modules from Therum Creative Studios. Add the ones you need; ignore the rest. Nexus ships in core because every other module depends on it.</p>
+			</div>
+		  </div>
+
+		  <div class="th-studio-grid">
+			<?php foreach ( $apps as $app ):
+				$status     = self::status( $app );
+				$action     = self::action_url( $app, $status );
+				$state_cls  = 'th-studio-state-' . $status['state'];
+			?>
+			<article class="th-studio-card <?php echo esc_attr( $state_cls ); ?>" data-app="<?php echo esc_attr( $app['slug'] ); ?>">
+			  <div class="th-studio-card-hero" style="background:linear-gradient(135deg, <?php echo esc_attr( $app['color'] ); ?> 0%, color-mix(in srgb, <?php echo esc_attr( $app['color'] ); ?> 60%, #000) 100%);">
+				<span class="th-studio-card-mark"><?php echo esc_html( strtoupper( substr( $app['name'], 0, 1 ) ) ); ?></span>
+				<?php if ( ! empty( $app['built_in'] ) ): ?>
+				  <span class="th-studio-card-badge th-studio-card-badge-included">Included</span>
+				<?php elseif ( $status['state'] === 'active' ): ?>
+				  <span class="th-studio-card-badge th-studio-card-badge-active">Active</span>
+				<?php elseif ( $status['state'] === 'inactive' ): ?>
+				  <span class="th-studio-card-badge th-studio-card-badge-inactive">Inactive</span>
+				<?php endif; ?>
+			  </div>
+			  <div class="th-studio-card-body">
+				<div class="th-studio-card-titlerow">
+				  <h2 class="th-studio-card-name"><?php echo esc_html( $app['name'] ); ?></h2>
+				  <?php if ( $status['version'] ): ?>
+					<span class="th-studio-card-ver">v<?php echo esc_html( $status['version'] ); ?></span>
+				  <?php endif; ?>
+				</div>
+				<p class="th-studio-card-tagline"><?php echo esc_html( $app['tagline'] ); ?></p>
+				<p class="th-studio-card-desc"><?php echo esc_html( $app['description'] ); ?></p>
+				<div class="th-studio-card-foot">
+				  <a class="th-btn <?php echo $action['primary'] ? 'th-btn-primary' : ''; ?>" href="<?php echo esc_url( $action['url'] ); ?>"><?php echo esc_html( $action['label'] ); ?></a>
+				  <?php if ( ! empty( $app['repo'] ) ): ?>
+					<a class="th-studio-card-link" href="https://github.com/<?php echo esc_attr( $app['repo'] ); ?>" target="_blank" rel="noopener">View on GitHub ↗</a>
+				  <?php endif; ?>
+				</div>
+			  </div>
+			</article>
+			<?php endforeach; ?>
+		  </div>
+
+		  <p class="th-studio-footnote">More modules in development. Therum apps share a single update channel through the in-admin updater — no separate license keys, no per-plugin nags.</p>
+		</div>
+
+		<style>
+		.th-studio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-top:8px}
+		.th-studio-card{background:var(--sf);border:1px solid var(--bd);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+		.th-studio-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--tx) 14%,transparent);box-shadow:0 8px 24px rgba(0,0,0,.06)}
+		.th-studio-card-hero{position:relative;height:120px;display:flex;align-items:center;justify-content:center;color:#fff}
+		.th-studio-card-mark{font-family:var(--f);font-size:48px;font-weight:700;letter-spacing:-.04em;line-height:1;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+		.th-studio-card-badge{position:absolute;top:12px;right:12px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:20px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px)}
+		.th-studio-card-badge-included{color:#6366f1}
+		.th-studio-card-badge-active{color:#10b981}
+		.th-studio-card-badge-inactive{color:#f59e0b}
+		.th-studio-card-body{padding:18px 20px 16px;display:flex;flex-direction:column;flex:1}
+		.th-studio-card-titlerow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}
+		.th-studio-card-name{font-size:18px;font-weight:700;color:var(--tx);margin:0;letter-spacing:-.01em}
+		.th-studio-card-ver{font-size:11px;color:var(--tx3);font-weight:500}
+		.th-studio-card-tagline{font-size:13px;color:var(--tx2);margin:0 0 10px;font-weight:500}
+		.th-studio-card-desc{font-size:12px;color:var(--tx3);line-height:1.55;margin:0 0 16px;flex:1}
+		.th-studio-card-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid var(--bd)}
+		.th-studio-card-link{font-size:11px;color:var(--tx3);text-decoration:none}
+		.th-studio-card-link:hover{color:var(--ac)}
+		.th-studio-footnote{margin:32px 0 0;font-size:12px;color:var(--tx3);text-align:center}
+		</style>
+		<?php
+	}
+}
 
 // Repoint sidebar nav at the new Therum list pages.
 // Keys are CASE-INSENSITIVE on the label. The sidebar URL slugs are passed to
