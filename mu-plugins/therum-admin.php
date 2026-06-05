@@ -2372,14 +2372,26 @@ class Therum_List_Page {
 			<?php foreach ($actions as $a):
 			  $icon = function_exists('th_i') && !empty($a['icon']) ? th_i($a['icon']) : '';
 			  $danger = !empty($a['danger']) ? ' th-lp-kebab-item-danger' : '';
+			  // Arbitrary data-* attrs — used by Rename ("data" => ['th-rename' => 123, 'th-rename-name' => 'foo.jpg'])
+			  $data_attrs = '';
+			  if (!empty($a['data']) && is_array($a['data'])) {
+				foreach ($a['data'] as $dkey => $dval) {
+					$data_attrs .= ' data-' . esc_attr($dkey) . '="' . esc_attr((string)$dval) . '"';
+				}
+			  }
 			  if (!empty($a['copy'])):
 			?>
 			<button type="button" class="th-lp-kebab-item<?php echo $danger; ?>" role="menuitem" data-th-copy="<?php echo esc_attr($a['copy']); ?>">
 			  <?php echo $icon; ?>
 			  <span><?php echo esc_html($a['label']); ?></span>
 			</button>
+			<?php elseif (!empty($a['button'])): ?>
+			<button type="button" class="th-lp-kebab-item<?php echo $danger; ?>" role="menuitem"<?php echo $data_attrs; ?>>
+			  <?php echo $icon; ?>
+			  <span><?php echo esc_html($a['label']); ?></span>
+			</button>
 			<?php else: ?>
-			<a class="th-lp-kebab-item<?php echo $danger; ?>" href="<?php echo esc_url($a['href']); ?>"<?php echo !empty($a['target']) ? ' target="' . esc_attr($a['target']) . '"' : ''; ?> role="menuitem">
+			<a class="th-lp-kebab-item<?php echo $danger; ?>" href="<?php echo esc_url($a['href']); ?>"<?php echo !empty($a['target']) ? ' target="' . esc_attr($a['target']) . '"' : ''; ?><?php echo $data_attrs; ?> role="menuitem">
 			  <?php echo $icon; ?>
 			  <span><?php echo esc_html($a['label']); ?></span>
 			</a>
@@ -3115,8 +3127,23 @@ class Therum_Media_Page {
 		$edit  = get_edit_post_link($a->ID);
 		$url   = wp_get_attachment_url($a->ID);
 		$delete= get_delete_post_link($a->ID, '', true);
+		$file  = get_attached_file($a->ID);
+		$basename = $file ? basename($file) : '';
 		$out = [];
 		if ($edit) $out[] = ['label' => 'Edit details', 'href' => $edit, 'icon' => 'edit2'];
+		// Rename for SEO — opens the renamer modal (markup printed by therum-renamer.php
+		// in the admin_footer of the Media list page).
+		if ($basename) {
+			$out[] = [
+				'label'  => 'Rename for SEO',
+				'button' => true,
+				'icon'   => 'edit2',
+				'data'   => [
+					'th-rename'      => $a->ID,
+					'th-rename-name' => $basename,
+				],
+			];
+		}
 		if ($url) {
 			$out[] = ['label' => 'View file', 'href' => $url, 'icon' => 'external', 'target' => '_blank'];
 			$out[] = ['label' => 'Copy URL',  'copy' => $url, 'icon' => 'export'];

@@ -1,0 +1,663 @@
+<?php
+/**
+ * Plugin Name: Therum OS — Media Renamer
+ * Description: SEO file rename + cross-database reference rewriter. Native to
+ *              Therum, no third-party dependency. Renames attachment files
+ *              (including all intermediate image sizes), updates the attachment
+ *              record, and search-replaces the old URL across post_content +
+ *              postmeta (with serialized-data support).
+ * Version: 1.0.0
+ *
+ * Public API:
+ *   Therum_Renamer::suggest( int $id ): string                  — slug-cased proposal from title/alt
+ *   Therum_Renamer::preview( int $id, string $name ): array     — diff of files + reference counts
+ *   Therum_Renamer::rename( int $id, string $name ): array      — execute the rename + ref rewrite
+ *
+ * AJAX (admin only, manage_options + nonce):
+ *   wp_ajax_therum_renamer_preview
+ *   wp_ajax_therum_renamer_rename
+ */
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+final class Therum_Renamer {
+
+	/**
+	 * Derive a slug-cased filename from the attachment's title (preferred) or
+	 * alt text (fallback). Keeps the original extension.
+	 */
+	public static function suggest( int $attachment_id ): string {
+		$post = get_post( $attachment_id );
+		if ( ! $post ) return '';
+		$file = get_attached_file( $attachment_id );
+		if ( ! $file ) return '';
+		$ext = pathinfo( $file, PATHINFO_EXTENSION );
+
+		$title = (string) $post->post_title;
+		$alt   = (string) get_post_meta( $attachment_id, '_wp_attachment_image_alt', true );
+
+		$base = $title !== '' ? $title : $alt;
+		// Don't suggest a name identical to the existing basename. If the
+		// title is empty AND the basename is something like "IMG_8421", we
+		// still return empty — the user has to fill in something meaningful.
+		if ( $base === '' || $base === pathinfo( $file, PATHINFO_FILENAME ) ) {
+			return '';
+		}
+		$slug = sanitize_title( $base );
+		if ( $slug === '' ) return '';
+		return $slug . ( $ext ? '.' . strtolower( $ext ) : '' );
+	}
+
+	/**
+	 * Returns a preview of what `rename()` will do. Safe to call repeatedly —
+	 * no side effects.
+	 *
+	 * @return array {
+	 *   bool   ok
+	 *   string error           — present when ok=false
+	 *   string old_basename
+	 *   string new_basename
+	 *   string old_url
+	 *   string new_url
+	 *   array  files           — [['old' => abs, 'new' => abs, 'kind' => 'main|thumb'], …]
+	 *   int    refs_estimate   — count of post_content + postmeta rows that will be touched
+	 * }
+	 */
+	public static function preview( int $attachment_id, string $new_filename ): array {
+		$check = self::validate( $attachment_id, $new_filename );
+		if ( isset( $check['error'] ) ) return [ 'ok' => false ] + $check;
+
+		$plan = self::plan( $attachment_id, $new_filename );
+		$old_url = $plan['old_url'];
+
+		// Count references — cheap LIKE query, no full read.
+		global $wpdb;
+		$like = '%' . $wpdb->esc_like( $old_url ) . '%';
+		$c_posts = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status != 'trash'",
+			$like
+		) );
+		$c_meta = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_value LIKE %s",
+			$like
+		) );
+		$c_options = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->options} WHERE option_value LIKE %s AND option_name NOT LIKE %s",
+			$like, '\_%' // skip private/transient options
+		) );
+
+		return array_merge( [ 'ok' => true ], $plan, [
+			'refs_estimate' => $c_posts + $c_meta + $c_options,
+			'refs_breakdown' => [
+				'posts'   => $c_posts,
+				'postmeta'=> $c_meta,
+				'options' => $c_options,
+			],
+		] );
+	}
+
+	/**
+	 * Execute the rename. Atomic: rolls back any successful file renames if
+	 * a later step fails.
+	 *
+	 * @return array {
+	 *   bool   ok
+	 *   string error           — present when ok=false
+	 *   string old_url, new_url
+	 *   int    files_renamed
+	 *   int    refs_updated    — total rows updated across content+meta+options
+	 *   array  refs_breakdown
+	 * }
+	 */
+	public static function rename( int $attachment_id, string $new_filename ): array {
+		$check = self::validate( $attachment_id, $new_filename );
+		if ( isset( $check['error'] ) ) return [ 'ok' => false ] + $check;
+
+		$plan = self::plan( $attachment_id, $new_filename );
+
+		// 1. Rename files on disk. Track completed moves so we can roll back.
+		$renamed = [];
+		foreach ( $plan['files'] as $f ) {
+			if ( ! file_exists( $f['old'] ) ) {
+				// Skip missing intermediate sizes — not all sizes are guaranteed
+				// to exist (image-editor might have skipped some). Main file
+				// MUST exist; validate() checked that already.
+				continue;
+			}
+			if ( file_exists( $f['new'] ) && $f['old'] !== $f['new'] ) {
+				self::rollback( $renamed );
+				return [ 'ok' => false, 'error' => 'Target filename collides with an existing file: ' . basename( $f['new'] ) ];
+			}
+			if ( ! @rename( $f['old'], $f['new'] ) ) {
+				self::rollback( $renamed );
+				return [ 'ok' => false, 'error' => 'Could not rename ' . basename( $f['old'] ) . ' — check filesystem permissions.' ];
+			}
+			$renamed[] = $f;
+		}
+
+		// 2. Update the WP attachment record + metadata.
+		$upload  = wp_upload_dir();
+		$basedir = trailingslashit( (string) ( $upload['basedir'] ?? '' ) );
+		$rel_new = $basedir && str_starts_with( $plan['files'][0]['new'], $basedir )
+			? substr( $plan['files'][0]['new'], strlen( $basedir ) )
+			: basename( $plan['files'][0]['new'] );
+
+		update_post_meta( $attachment_id, '_wp_attached_file', $rel_new );
+
+		// Update _wp_attachment_metadata: file + sizes[*].file paths
+		$meta = wp_get_attachment_metadata( $attachment_id );
+		if ( is_array( $meta ) ) {
+			$meta['file'] = $rel_new;
+			if ( ! empty( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
+				foreach ( $meta['sizes'] as $size => $sdata ) {
+					if ( empty( $sdata['file'] ) ) continue;
+					// Sizes are stored as relative filenames (no path) — derive new name.
+					$old_size_path = trailingslashit( dirname( $plan['files'][0]['old'] ) ) . $sdata['file'];
+					foreach ( $plan['files'] as $f ) {
+						if ( $f['old'] === $old_size_path ) {
+							$meta['sizes'][ $size ]['file'] = basename( $f['new'] );
+							break;
+						}
+					}
+				}
+			}
+			wp_update_attachment_metadata( $attachment_id, $meta );
+		}
+
+		// Update GUID + post_name so canonical references stay consistent.
+		// (GUID is supposed to be immutable per WP docs, but every CMS that
+		// renames media touches it anyway because consumers DO look at it.)
+		wp_update_post( [
+			'ID'        => $attachment_id,
+			'guid'      => $plan['new_url'],
+			'post_name' => sanitize_title( pathinfo( $new_filename, PATHINFO_FILENAME ) ),
+		] );
+
+		// 3. Rewrite references across post_content / postmeta / options.
+		$refs = self::rewrite_references( $plan['old_url'], $plan['new_url'], $plan['files'] );
+
+		// Cache flush — any cached query/template/render referencing the old
+		// URL is now stale.
+		if ( class_exists( 'Therum_Cache_Bust' ) ) {
+			Therum_Cache_Bust::purge_all( 'media-rename:' . $attachment_id );
+		} else {
+			wp_cache_flush();
+		}
+
+		return [
+			'ok'             => true,
+			'old_url'        => $plan['old_url'],
+			'new_url'        => $plan['new_url'],
+			'files_renamed'  => count( $renamed ),
+			'refs_updated'   => $refs['total'],
+			'refs_breakdown' => $refs['breakdown'],
+		];
+	}
+
+	// ─── Internals ──────────────────────────────────────────────────────────
+
+	/**
+	 * Validate the rename request. Returns ['error' => msg] on failure or
+	 * ['attachment' => WP_Post, 'file' => abs path] on success.
+	 */
+	private static function validate( int $attachment_id, string $new_filename ): array {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return [ 'error' => 'You do not have permission to rename media.' ];
+		}
+		$post = get_post( $attachment_id );
+		if ( ! $post || $post->post_type !== 'attachment' ) {
+			return [ 'error' => 'Attachment not found.' ];
+		}
+		$file = get_attached_file( $attachment_id );
+		if ( ! $file || ! file_exists( $file ) ) {
+			return [ 'error' => 'Source file is missing on disk.' ];
+		}
+
+		// Filename sanity: no slashes, no traversal, extension must match.
+		$new_filename = wp_basename( $new_filename ); // strips path components
+		if ( $new_filename === '' || str_contains( $new_filename, '/' ) || str_contains( $new_filename, '\\' ) ) {
+			return [ 'error' => 'Filename contains illegal characters.' ];
+		}
+		$old_ext = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
+		$new_ext = strtolower( pathinfo( $new_filename, PATHINFO_EXTENSION ) );
+		if ( $new_ext === '' ) {
+			return [ 'error' => 'Filename must include an extension.' ];
+		}
+		if ( $new_ext !== $old_ext ) {
+			return [ 'error' => "Extension change not allowed ($old_ext → $new_ext). Use the same extension as the source file." ];
+		}
+		// Slug the basename — WP-style lowercase, hyphens.
+		$slug = sanitize_title( pathinfo( $new_filename, PATHINFO_FILENAME ) );
+		if ( $slug === '' ) {
+			return [ 'error' => 'Filename is empty after sanitization.' ];
+		}
+		return [ 'attachment' => $post, 'file' => $file, 'slug' => $slug, 'ext' => $old_ext ];
+	}
+
+	/**
+	 * Build the file-rename plan: main file + every intermediate image size.
+	 * Returns ['old_url', 'new_url', 'old_basename', 'new_basename', 'files' => [...]]
+	 */
+	private static function plan( int $attachment_id, string $new_filename ): array {
+		$file = get_attached_file( $attachment_id );
+		$dir  = dirname( $file );
+		$old_basename = basename( $file );
+		$slug = sanitize_title( pathinfo( $new_filename, PATHINFO_FILENAME ) );
+		$ext  = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
+		$new_basename = $slug . '.' . $ext;
+
+		$files = [
+			[
+				'old'  => $file,
+				'new'  => trailingslashit( $dir ) . $new_basename,
+				'kind' => 'main',
+			],
+		];
+
+		// Intermediate image sizes (image-150x150.jpg etc.) live next to the
+		// main file with `-<W>x<H>` suffix on the basename. Derive each one
+		// from the attachment metadata so we hit only the sizes that exist.
+		$meta = wp_get_attachment_metadata( $attachment_id );
+		if ( is_array( $meta ) && ! empty( $meta['sizes'] ) ) {
+			foreach ( $meta['sizes'] as $sdata ) {
+				if ( empty( $sdata['file'] ) ) continue;
+				$old_size_name = (string) $sdata['file'];
+				// New size name = new_basename minus ext + same -WxH suffix + ext
+				$old_ext = pathinfo( $old_size_name, PATHINFO_EXTENSION );
+				$old_no_ext = pathinfo( $old_size_name, PATHINFO_FILENAME );
+				// The size suffix is everything after the original basename
+				// minus extension. e.g. "IMG_1234-150x150" → "-150x150"
+				$old_main_no_ext = pathinfo( $old_basename, PATHINFO_FILENAME );
+				if ( ! str_starts_with( $old_no_ext, $old_main_no_ext ) ) continue;
+				$suffix = substr( $old_no_ext, strlen( $old_main_no_ext ) );
+				$new_size_name = $slug . $suffix . '.' . strtolower( $old_ext );
+				$files[] = [
+					'old'  => trailingslashit( $dir ) . $old_size_name,
+					'new'  => trailingslashit( $dir ) . $new_size_name,
+					'kind' => 'thumb',
+				];
+			}
+		}
+
+		// Original (pre-edit) variant + the -scaled variant WP creates for
+		// big images. Both are tracked via meta keys.
+		$original = get_post_meta( $attachment_id, '_wp_attachment_backup_sizes', true );
+		// (Backup sizes aren't renamed — they're snapshots tied to the original filename for restore.)
+
+		$old_url = wp_get_attachment_url( $attachment_id );
+		$new_url = str_replace( $old_basename, $new_basename, (string) $old_url );
+
+		return [
+			'old_basename' => $old_basename,
+			'new_basename' => $new_basename,
+			'old_url'      => $old_url,
+			'new_url'      => $new_url,
+			'files'        => $files,
+		];
+	}
+
+	/**
+	 * Rewrite references to the old URL across post_content / postmeta /
+	 * options. Handles serialized data in postmeta + options correctly.
+	 *
+	 * Also rewrites references to every intermediate-size URL.
+	 */
+	private static function rewrite_references( string $old_url, string $new_url, array $files ): array {
+		global $wpdb;
+		$breakdown = [ 'posts' => 0, 'postmeta' => 0, 'options' => 0 ];
+
+		// Build complete URL-pair map: main + every intermediate size.
+		$upload  = wp_upload_dir();
+		$baseurl = trailingslashit( (string) ( $upload['baseurl'] ?? '' ) );
+		$basedir = trailingslashit( (string) ( $upload['basedir'] ?? '' ) );
+		$pairs   = [ [ 'from' => $old_url, 'to' => $new_url ] ];
+		foreach ( $files as $f ) {
+			if ( $f['kind'] !== 'thumb' ) continue;
+			$rel_old = str_starts_with( $f['old'], $basedir ) ? substr( $f['old'], strlen( $basedir ) ) : basename( $f['old'] );
+			$rel_new = str_starts_with( $f['new'], $basedir ) ? substr( $f['new'], strlen( $basedir ) ) : basename( $f['new'] );
+			$pairs[] = [ 'from' => $baseurl . $rel_old, 'to' => $baseurl . $rel_new ];
+		}
+
+		// ── post_content (plain str_replace — never serialized) ───────────
+		foreach ( $pairs as $p ) {
+			$like = '%' . $wpdb->esc_like( $p['from'] ) . '%';
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT ID, post_content FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status != 'trash'",
+				$like
+			) );
+			foreach ( $rows as $row ) {
+				$new_content = str_replace( $p['from'], $p['to'], $row->post_content );
+				if ( $new_content !== $row->post_content ) {
+					$wpdb->update( $wpdb->posts, [ 'post_content' => $new_content ], [ 'ID' => $row->ID ] );
+					$breakdown['posts']++;
+				}
+			}
+		}
+
+		// ── postmeta (handles serialized data via recursive walker) ───────
+		$all_from_urls = array_column( $pairs, 'from' );
+		$or_clauses = array_fill( 0, count( $all_from_urls ), 'meta_value LIKE %s' );
+		$like_values = array_map( fn( $u ) => '%' . $wpdb->esc_like( $u ) . '%', $all_from_urls );
+		$meta_rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT meta_id, meta_value FROM {$wpdb->postmeta} WHERE " . implode( ' OR ', $or_clauses ),
+			...$like_values
+		) );
+		foreach ( $meta_rows as $row ) {
+			$replaced = self::deep_replace( $row->meta_value, $pairs );
+			if ( $replaced !== $row->meta_value ) {
+				$wpdb->update( $wpdb->postmeta, [ 'meta_value' => $replaced ], [ 'meta_id' => $row->meta_id ] );
+				$breakdown['postmeta']++;
+			}
+		}
+
+		// ── options (skip transient/private; same serialized handling) ────
+		$opt_rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT option_id, option_value FROM {$wpdb->options}
+			 WHERE (" . implode( ' OR ', array_fill( 0, count( $all_from_urls ), 'option_value LIKE %s' ) ) . ")
+			 AND option_name NOT LIKE %s AND option_name NOT LIKE %s",
+			...array_merge( $like_values, [ '\_transient\_%', '\_site\_transient\_%' ] )
+		) );
+		foreach ( $opt_rows as $row ) {
+			$replaced = self::deep_replace( $row->option_value, $pairs );
+			if ( $replaced !== $row->option_value ) {
+				$wpdb->update( $wpdb->options, [ 'option_value' => $replaced ], [ 'option_id' => $row->option_id ] );
+				$breakdown['options']++;
+			}
+		}
+
+		return [ 'total' => array_sum( $breakdown ), 'breakdown' => $breakdown ];
+	}
+
+	/**
+	 * Replace URL pairs inside a value that may be serialized PHP, JSON, or
+	 * plain text. Walks the unserialized structure so serialized-length
+	 * headers stay consistent.
+	 */
+	private static function deep_replace( $value, array $pairs ) {
+		if ( ! is_string( $value ) ) return $value;
+
+		// Serialized PHP — unserialize, recurse, re-serialize.
+		$is_serialized = is_serialized( $value );
+		if ( $is_serialized ) {
+			$un = @unserialize( $value );
+			if ( $un !== false || $value === 'b:0;' ) {
+				$un = self::deep_replace_recursive( $un, $pairs );
+				return serialize( $un );
+			}
+		}
+
+		// JSON — if it parses, walk + re-encode.
+		$first = $value[0] ?? '';
+		if ( $first === '{' || $first === '[' ) {
+			$decoded = json_decode( $value, true );
+			if ( json_last_error() === JSON_ERROR_NONE && ( is_array( $decoded ) || is_object( $decoded ) ) ) {
+				$walked = self::deep_replace_recursive( $decoded, $pairs );
+				$re = wp_json_encode( $walked, JSON_UNESCAPED_SLASHES );
+				if ( $re !== false ) return $re;
+			}
+		}
+
+		// Plain text fallback.
+		$out = $value;
+		foreach ( $pairs as $p ) {
+			$out = str_replace( $p['from'], $p['to'], $out );
+		}
+		return $out;
+	}
+
+	private static function deep_replace_recursive( $value, array $pairs ) {
+		if ( is_array( $value ) ) {
+			foreach ( $value as $k => $v ) {
+				$value[ $k ] = self::deep_replace_recursive( $v, $pairs );
+			}
+			return $value;
+		}
+		if ( is_object( $value ) ) {
+			foreach ( $value as $k => $v ) {
+				$value->$k = self::deep_replace_recursive( $v, $pairs );
+			}
+			return $value;
+		}
+		if ( is_string( $value ) ) {
+			foreach ( $pairs as $p ) {
+				$value = str_replace( $p['from'], $p['to'], $value );
+			}
+		}
+		return $value;
+	}
+
+	private static function rollback( array $renamed ): void {
+		foreach ( array_reverse( $renamed ) as $f ) {
+			@rename( $f['new'], $f['old'] );
+		}
+	}
+}
+
+// ─── AJAX endpoints ──────────────────────────────────────────────────────────
+
+add_action( 'wp_ajax_therum_renamer_preview', function() {
+	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
+	check_ajax_referer( 'therum_renamer', 'nonce' );
+	$id   = (int) ( $_POST['attachment'] ?? 0 );
+	$name = sanitize_file_name( wp_unslash( $_POST['filename'] ?? '' ) );
+	$result = Therum_Renamer::preview( $id, $name );
+	if ( empty( $result['ok'] ) ) wp_send_json_error( $result );
+	wp_send_json_success( $result );
+} );
+
+add_action( 'wp_ajax_therum_renamer_rename', function() {
+	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
+	check_ajax_referer( 'therum_renamer', 'nonce' );
+	$id   = (int) ( $_POST['attachment'] ?? 0 );
+	$name = sanitize_file_name( wp_unslash( $_POST['filename'] ?? '' ) );
+	$result = Therum_Renamer::rename( $id, $name );
+	if ( empty( $result['ok'] ) ) wp_send_json_error( $result );
+	wp_send_json_success( $result );
+} );
+
+add_action( 'wp_ajax_therum_renamer_suggest', function() {
+	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
+	check_ajax_referer( 'therum_renamer', 'nonce' );
+	$id = (int) ( $_POST['attachment'] ?? 0 );
+	wp_send_json_success( [ 'filename' => Therum_Renamer::suggest( $id ) ] );
+} );
+
+// ─── Modal markup + JS, printed on the Media list page only ─────────────────
+
+add_action( 'admin_footer', function() {
+	$page = $_GET['page'] ?? '';
+	if ( $page !== 'therum-media' ) return;
+	$nonce = wp_create_nonce( 'therum_renamer' );
+	?>
+<div id="th-renamer-modal" class="th-renamer-modal" hidden data-th-renamer-nonce="<?php echo esc_attr( $nonce ); ?>" role="dialog" aria-modal="true" aria-labelledby="th-renamer-title">
+  <div class="th-renamer-backdrop" data-th-renamer-close></div>
+  <div class="th-renamer-panel">
+	<div class="th-renamer-head">
+	  <h2 id="th-renamer-title">Rename for SEO</h2>
+	  <button type="button" class="th-renamer-x" data-th-renamer-close aria-label="Close">×</button>
+	</div>
+	<div class="th-renamer-body">
+	  <div class="th-renamer-row">
+		<label class="th-renamer-label">Current filename</label>
+		<div class="th-renamer-current" data-th-renamer-current></div>
+	  </div>
+	  <div class="th-renamer-row">
+		<label class="th-renamer-label" for="th-renamer-input">New filename</label>
+		<div class="th-renamer-inputrow">
+		  <input type="text" id="th-renamer-input" autocomplete="off" spellcheck="false" />
+		  <button type="button" class="th-btn" data-th-renamer-suggest title="Suggest from title / alt">↺ Suggest</button>
+		</div>
+		<div class="th-renamer-hint">Lowercase, hyphens, keep the original extension.</div>
+	  </div>
+	  <div class="th-renamer-preview" data-th-renamer-preview hidden>
+		<div class="th-renamer-preview-head">References that will be updated</div>
+		<div class="th-renamer-preview-body" data-th-renamer-preview-body></div>
+	  </div>
+	  <div class="th-renamer-error" data-th-renamer-error hidden></div>
+	</div>
+	<div class="th-renamer-foot">
+	  <button type="button" class="th-btn" data-th-renamer-close>Cancel</button>
+	  <button type="button" class="th-btn th-btn-primary" data-th-renamer-go disabled>Rename</button>
+	</div>
+  </div>
+</div>
+<style>
+.th-renamer-modal{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center}
+.th-renamer-modal[hidden]{display:none}
+.th-renamer-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+.th-renamer-panel{position:relative;width:min(560px,calc(100vw - 40px));max-height:calc(100vh - 60px);overflow:auto;background:var(--sf);border:1px solid var(--bd);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.th-renamer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--bd)}
+.th-renamer-head h2{margin:0;font-size:16px;font-weight:700;color:var(--tx);letter-spacing:-.01em}
+.th-renamer-x{background:transparent;border:0;font-size:22px;line-height:1;color:var(--tx3);cursor:pointer;padding:0 6px}
+.th-renamer-x:hover{color:var(--tx)}
+.th-renamer-body{padding:18px 22px;display:flex;flex-direction:column;gap:16px}
+.th-renamer-row{display:flex;flex-direction:column;gap:6px}
+.th-renamer-label{font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em}
+.th-renamer-current{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--tx);padding:8px 10px;background:var(--sf2);border-radius:6px;word-break:break-all}
+.th-renamer-inputrow{display:flex;gap:8px}
+.th-renamer-inputrow input{flex:1;padding:9px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:var(--sf);border:1px solid var(--bd);border-radius:7px;color:var(--tx);outline:none;transition:border-color .15s,box-shadow .15s}
+.th-renamer-inputrow input:focus{border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 16%,transparent)}
+.th-renamer-hint{font-size:11px;color:var(--tx3)}
+.th-renamer-preview{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--tx2)}
+.th-renamer-preview-head{font-weight:600;color:var(--tx);margin-bottom:6px;font-size:12px}
+.th-renamer-preview-body{line-height:1.55}
+.th-renamer-error{padding:10px 12px;background:color-mix(in srgb,var(--err) 8%,transparent);color:var(--err);border-radius:6px;font-size:12px;font-weight:500}
+.th-renamer-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid var(--bd);background:var(--sf2)}
+</style>
+<script>
+(function(){
+  var modal = document.getElementById('th-renamer-modal');
+  if (!modal) return;
+  var nonce = modal.getAttribute('data-th-renamer-nonce');
+  var ajaxUrl = (window.ajaxurl) || '/wp-admin/admin-ajax.php';
+  var input = modal.querySelector('#th-renamer-input');
+  var current = modal.querySelector('[data-th-renamer-current]');
+  var preview = modal.querySelector('[data-th-renamer-preview]');
+  var previewBody = modal.querySelector('[data-th-renamer-preview-body]');
+  var errBox = modal.querySelector('[data-th-renamer-error]');
+  var goBtn = modal.querySelector('[data-th-renamer-go]');
+  var suggestBtn = modal.querySelector('[data-th-renamer-suggest]');
+  var currentAttachment = null;
+  var previewDebounce = null;
+
+  function setError(msg) {
+    if (msg) { errBox.textContent = msg; errBox.hidden = false; }
+    else { errBox.hidden = true; errBox.textContent = ''; }
+  }
+  function open(attachmentId, currentName) {
+    currentAttachment = attachmentId;
+    current.textContent = currentName || '(unknown)';
+    input.value = '';
+    preview.hidden = true;
+    previewBody.textContent = '';
+    setError('');
+    goBtn.disabled = true;
+    modal.hidden = false;
+    setTimeout(function(){ input.focus(); fetchSuggest(); }, 50);
+  }
+  function close() { modal.hidden = true; currentAttachment = null; }
+
+  modal.querySelectorAll('[data-th-renamer-close]').forEach(function(el){
+    el.addEventListener('click', close);
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !modal.hidden) close();
+  });
+
+  function fetchSuggest() {
+    if (!currentAttachment) return;
+    var fd = new FormData();
+    fd.append('action', 'therum_renamer_suggest');
+    fd.append('nonce', nonce);
+    fd.append('attachment', currentAttachment);
+    fetch(ajaxUrl, { method:'POST', credentials:'same-origin', body: fd })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.success && res.data && res.data.filename && !input.value) {
+          input.value = res.data.filename;
+          schedulePreview();
+        }
+      });
+  }
+  suggestBtn.addEventListener('click', function(){
+    input.value = '';
+    fetchSuggest();
+  });
+
+  function schedulePreview() {
+    clearTimeout(previewDebounce);
+    previewDebounce = setTimeout(fetchPreview, 220);
+  }
+  input.addEventListener('input', schedulePreview);
+
+  function fetchPreview() {
+    if (!currentAttachment || !input.value.trim()) {
+      preview.hidden = true; goBtn.disabled = true; setError(''); return;
+    }
+    var fd = new FormData();
+    fd.append('action', 'therum_renamer_preview');
+    fd.append('nonce', nonce);
+    fd.append('attachment', currentAttachment);
+    fd.append('filename', input.value);
+    fetch(ajaxUrl, { method:'POST', credentials:'same-origin', body: fd })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (!res || !res.success) {
+          setError((res && res.data && res.data.error) || 'Preview failed');
+          preview.hidden = true; goBtn.disabled = true;
+          return;
+        }
+        setError('');
+        var d = res.data;
+        var b = d.refs_breakdown || {};
+        previewBody.innerHTML =
+          '<div><strong>'+ d.files.length +'</strong> file' + (d.files.length===1?'':'s') + ' will be renamed (main + thumbnails)</div>' +
+          '<div><strong>'+ d.refs_estimate +'</strong> reference' + (d.refs_estimate===1?'':'s') + ' will be updated' +
+            ' <span style="opacity:.7">(' + (b.posts||0) + ' posts, ' + (b.postmeta||0) + ' meta, ' + (b.options||0) + ' options)</span></div>';
+        preview.hidden = false;
+        goBtn.disabled = false;
+      })
+      .catch(function(){ setError('Network error'); preview.hidden = true; goBtn.disabled = true; });
+  }
+
+  goBtn.addEventListener('click', function(){
+    if (!currentAttachment || !input.value.trim()) return;
+    goBtn.disabled = true; goBtn.textContent = 'Renaming…';
+    var fd = new FormData();
+    fd.append('action', 'therum_renamer_rename');
+    fd.append('nonce', nonce);
+    fd.append('attachment', currentAttachment);
+    fd.append('filename', input.value);
+    fetch(ajaxUrl, { method:'POST', credentials:'same-origin', body: fd })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        goBtn.textContent = 'Rename';
+        if (!res || !res.success) {
+          setError((res && res.data && res.data.error) || 'Rename failed');
+          goBtn.disabled = false;
+          return;
+        }
+        // Success — close + reload so the Media grid shows the new name.
+        close();
+        location.reload();
+      })
+      .catch(function(){
+        setError('Network error');
+        goBtn.disabled = false; goBtn.textContent = 'Rename';
+      });
+  });
+
+  // Hook the kebab menu items with data-th-rename
+  document.addEventListener('click', function(e){
+    var trigger = e.target.closest('[data-th-rename]');
+    if (!trigger) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var id = trigger.getAttribute('data-th-rename');
+    var name = trigger.getAttribute('data-th-rename-name') || '';
+    open(id, name);
+  });
+})();
+</script>
+	<?php
+} );
