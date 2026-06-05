@@ -209,8 +209,19 @@ button.th-lp-kebab-item{background:transparent;border:0;width:100%;text-align:le
 /* Drag-to-sort affordances */
 .th-lp[data-th-sortable] [data-th-item-id]{cursor:grab}
 .th-lp[data-th-sortable] [data-th-item-id]:active{cursor:grabbing}
-.th-lp [data-th-item-id].th-lp-dragging{opacity:.45}
-.th-lp .th-lp-card[data-th-item-id].th-lp-drop-before{box-shadow:-3px 0 0 0 var(--ac)}
-.th-lp .th-lp-card[data-th-item-id].th-lp-drop-after{box-shadow:3px 0 0 0 var(--ac)}
+/* ══ Drag-to-reorder v2 — spring animation + pulsing drop indicator ═══════ */
+@keyframes th-drop-pulse{0%,100%{opacity:.55;transform:scaleX(.97)}50%{opacity:1;transform:scaleX(1)}}
+@keyframes th-lift-in{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.th-lp [data-th-item-id]{transition:transform .22s cubic-bezier(.2,.8,.3,1),opacity .18s ease,box-shadow .18s ease}
+.th-lp [data-th-item-id].th-lp-dragging{opacity:.35;transform:scale(.97);z-index:10;pointer-events:none}
+.th-lp [data-th-item-id].th-lp-just-dropped{animation:th-lift-in .32s cubic-bezier(.2,.8,.3,1) both}
+.th-lp .th-lp-card[data-th-item-id].th-lp-drop-before{box-shadow:-3px 0 0 0 var(--ac);position:relative}
+.th-lp .th-lp-card[data-th-item-id].th-lp-drop-before::before{content:'';position:absolute;left:-5px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--ac);animation:th-drop-pulse .8s ease infinite}
+.th-lp .th-lp-card[data-th-item-id].th-lp-drop-after{box-shadow:3px 0 0 0 var(--ac);position:relative}
+.th-lp .th-lp-card[data-th-item-id].th-lp-drop-after::after{content:'';position:absolute;right:-5px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--ac);animation:th-drop-pulse .8s ease infinite}
+.th-lp .th-lp-row[data-th-item-id].th-lp-drop-before{position:relative}
 .th-lp .th-lp-row[data-th-item-id].th-lp-drop-before>td:first-child{box-shadow:inset 0 2px 0 0 var(--ac)}
+.th-lp .th-lp-row[data-th-item-id].th-lp-drop-before::before{content:'';position:absolute;left:0;right:0;top:-1px;height:2px;background:var(--ac);border-radius:1px;animation:th-drop-pulse .8s ease infinite}
+.th-lp .th-lp-row[data-th-item-id].th-lp-drop-after{position:relative}
 .th-lp .th-lp-row[data-th-item-id].th-lp-drop-after>td:first-child{box-shadow:inset 0 -2px 0 0 var(--ac)}
+.th-lp .th-lp-row[data-th-item-id].th-lp-drop-after::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--ac);border-radius:1px;animation:th-drop-pulse .8s ease infinite}
