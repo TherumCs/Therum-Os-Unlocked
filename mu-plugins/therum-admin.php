@@ -1076,8 +1076,15 @@ add_action( 'in_admin_header', function() {
       <div class="th-top-title"><?php echo esc_html( $page_title ); ?></div>
 
       <div class="th-top-actions">
-        <button class="th-top-btn" id="th-theme-toggle" title="Toggle theme">
+        <button class="th-top-btn" id="th-theme-toggle" title="Toggle light/dark">
           <?php echo th_i('sun'); ?>
+        </button>
+        <?php
+        $dm_installed = function_exists( 'is_plugin_active' ) && is_plugin_active( 'desktop-mode/desktop-mode.php' );
+        $dm_user_on   = get_user_meta( get_current_user_id(), 'therum_desktop_mode', true ) === '1';
+        ?>
+        <button class="th-top-btn<?php echo $dm_user_on ? ' is-active' : ''; ?>" id="th-desktop-toggle" title="Desktop Mode" data-dm-installed="<?php echo $dm_installed ? '1' : '0'; ?>">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </button>
         <a class="th-top-btn" href="<?php echo esc_url( home_url() ); ?>" target="_blank" title="View site">
           <?php echo th_i('external'); ?>
@@ -3741,232 +3748,202 @@ class Therum_Plugins_Page {
 	 */
 	public static function render_core_carousel(array $core_items): void {
 		if (empty($core_items)) return;
-		// Re-index the array since array_filter preserves keys
 		$core_items = array_values($core_items);
 		$count = count($core_items);
 		?>
-		<section class="th-core-carousel" aria-label="Therum Core modules">
-		  <header class="th-core-carousel-head">
-			<div class="th-core-carousel-head-text">
-			  <span class="th-core-carousel-eyebrow">THERUM CORE</span>
-			  <h2 class="th-core-carousel-title">System modules <span class="th-core-carousel-count"><?php echo (int)$count; ?></span></h2>
+		<section class="th-core-modules" aria-label="Therum Core modules">
+		  <button type="button" class="th-core-modules-toggle" aria-expanded="false">
+			<div class="th-core-modules-toggle-left">
+			  <span class="th-core-modules-label">System modules</span>
+			  <span class="th-core-modules-count"><?php echo (int)$count; ?></span>
+			  <span class="th-core-modules-summary">
+				<?php
+				$names = array_map(function($item) {
+					$n = preg_replace('/^Therum OS\s*[\x{2014}\x{2013}\-:]\s*/u', '', $item['name']);
+					return $n ?: $item['name'];
+				}, $core_items);
+				echo esc_html(implode(' · ', $names));
+				?>
+			  </span>
 			</div>
-			<div class="th-core-carousel-nav">
-			  <button type="button" class="th-core-carousel-arrow" data-dir="prev" aria-label="Scroll left">
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-			  </button>
-			  <button type="button" class="th-core-carousel-arrow" data-dir="next" aria-label="Scroll right">
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-			  </button>
-			</div>
-		  </header>
+			<svg class="th-core-modules-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+		  </button>
 
-		  <div class="th-core-carousel-track" role="list">
-			<?php foreach ($core_items as $item):
-			  $icon = self::core_module_icon($item['name']);
-			  $svg  = function_exists('th_i') ? th_i($icon) : '';
-			  // Strip "Therum OS — " prefix from display name for cleaner cards
-			  $display_name = preg_replace('/^Therum OS\s*[\x{2014}\x{2013}\-:]\s*/u', '', $item['name']);
-			  $display_name = $display_name ?: $item['name'];
-			?>
-			<article class="th-core-card" role="listitem" data-search="<?php echo esc_attr(strtolower($item['name'] . ' ' . $item['desc'])); ?>">
-			  <div class="th-core-card-thumb">
-				<div class="th-core-card-icon"><?php echo $svg; ?></div>
+		  <div class="th-core-modules-body" hidden>
+			<div class="th-core-modules-grid">
+			  <?php foreach ($core_items as $item):
+				$icon = self::core_module_icon($item['name']);
+				$svg  = function_exists('th_i') ? th_i($icon) : '';
+				$display_name = preg_replace('/^Therum OS\s*[\x{2014}\x{2013}\-:]\s*/u', '', $item['name']);
+				$display_name = $display_name ?: $item['name'];
+			  ?>
+			  <div class="th-core-module" data-search="<?php echo esc_attr(strtolower($item['name'] . ' ' . $item['desc'])); ?>">
+				<div class="th-core-module-icon"><?php echo $svg; ?></div>
+				<div class="th-core-module-info">
+				  <div class="th-core-module-name"><?php echo esc_html($display_name); ?></div>
+				  <div class="th-core-module-desc"><?php echo esc_html(wp_trim_words($item['desc'], 12)); ?></div>
+				</div>
+				<div class="th-core-module-ver">v<?php echo esc_html($item['version']); ?></div>
 			  </div>
-			  <div class="th-core-card-body">
-				<h3 class="th-core-card-name"><?php echo esc_html($display_name); ?></h3>
-				<p class="th-core-card-desc"><?php echo esc_html(wp_trim_words($item['desc'], 14)); ?></p>
-				<p class="th-core-card-meta">v<?php echo esc_html($item['version']); ?> · Therum Core</p>
-			  </div>
-			</article>
-			<?php endforeach; ?>
+			  <?php endforeach; ?>
+			</div>
 		  </div>
 		</section>
 
 		<style>
-		.th-core-carousel {
-			margin: 0 0 32px;
+		.th-core-modules {
+			margin: 0 0 24px;
+			border: 1px solid var(--bd, rgba(0,0,0,0.08));
+			border-radius: 10px;
+			background: var(--sf, #fff);
+			overflow: hidden;
 		}
-		.th-core-carousel-head {
+		.th-core-modules-toggle {
 			display: flex;
-			align-items: flex-end;
+			align-items: center;
 			justify-content: space-between;
-			gap: 16px;
-			margin: 0 0 14px;
+			width: 100%;
+			padding: 12px 16px;
+			border: none;
+			background: none;
+			cursor: pointer;
+			gap: 12px;
+			color: inherit;
+			font-family: inherit;
+			transition: background 120ms ease;
 		}
-		.th-core-carousel-eyebrow {
-			display: block;
-			font-family: var(--ff-d, 'Inter Tight', sans-serif);
-			font-size: 11px;
-			font-weight: 500;
-			letter-spacing: 0.08em;
-			color: var(--ac, #e83b3b);
-			margin-bottom: 4px;
-			text-transform: uppercase;
+		.th-core-modules-toggle:hover {
+			background: var(--sf2, #f5f5f5);
 		}
-		.th-core-carousel-title {
-			font-family: var(--ff-d, 'Inter Tight', sans-serif);
-			font-size: 18px;
-			font-weight: 500;
-			letter-spacing: -0.02em;
-			color: var(--tx, #0a0a0a);
-			margin: 0;
+		.th-core-modules-toggle-left {
 			display: flex;
 			align-items: center;
 			gap: 10px;
+			min-width: 0;
 		}
-		.th-core-carousel-count {
+		.th-core-modules-label {
+			font-size: 13px;
+			font-weight: 600;
+			letter-spacing: -0.01em;
+			color: var(--tx, #0a0a0a);
+			white-space: nowrap;
+		}
+		.th-core-modules-count {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			min-width: 22px;
-			height: 22px;
-			padding: 0 8px;
+			min-width: 20px;
+			height: 20px;
+			padding: 0 6px;
 			background: var(--sf2, #f5f5f5);
-			color: var(--tx2, #666);
+			color: var(--tx3, #999);
 			border-radius: 999px;
 			font-size: 11px;
 			font-weight: 500;
-			letter-spacing: -0.005em;
+			flex-shrink: 0;
 		}
-		.th-core-carousel-nav {
+		.th-core-modules-summary {
+			font-size: 12px;
+			color: var(--tx3, #999);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			min-width: 0;
+		}
+		.th-core-modules.is-open .th-core-modules-summary {
+			display: none;
+		}
+		.th-core-modules-chev {
+			color: var(--tx3, #999);
+			flex-shrink: 0;
+			transition: transform 200ms ease;
+		}
+		.th-core-modules.is-open .th-core-modules-chev {
+			transform: rotate(180deg);
+		}
+		.th-core-modules-body {
+			border-top: 1px solid var(--bd, rgba(0,0,0,0.06));
+		}
+		.th-core-modules-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+			gap: 1px;
+			background: var(--bd, rgba(0,0,0,0.06));
+		}
+		.th-core-module {
 			display: flex;
-			gap: 6px;
+			align-items: center;
+			gap: 12px;
+			padding: 12px 16px;
+			background: var(--sf, #fff);
+			transition: background 120ms ease;
 		}
-		.th-core-carousel-arrow {
+		.th-core-module:hover {
+			background: var(--sf2, #f5f5f5);
+		}
+		.th-core-module-icon {
 			width: 32px;
 			height: 32px;
 			display: grid;
 			place-items: center;
-			background: var(--sf, #fff);
-			border: 1px solid var(--bd, rgba(0,0,0,0.08));
-			border-radius: 8px;
-			color: var(--tx2, #666);
-			cursor: pointer;
-			transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
-		}
-		.th-core-carousel-arrow:hover {
 			background: var(--sf2, #f5f5f5);
-			border-color: var(--bd2, rgba(0,0,0,0.16));
-			color: var(--tx, #0a0a0a);
-		}
-		.th-core-carousel-arrow:disabled {
-			opacity: 0.35;
-			cursor: not-allowed;
-		}
-		.th-core-carousel-track {
-			display: flex;
-			gap: 14px;
-			overflow-x: auto;
-			scroll-snap-type: x mandatory;
-			scroll-behavior: smooth;
-			padding: 4px 4px 18px;
-			margin: 0 -4px;
-			scrollbar-width: thin;
-			scrollbar-color: var(--bd2, rgba(0,0,0,0.16)) transparent;
-		}
-		.th-core-carousel-track::-webkit-scrollbar {
-			height: 6px;
-		}
-		.th-core-carousel-track::-webkit-scrollbar-track { background: transparent; }
-		.th-core-carousel-track::-webkit-scrollbar-thumb {
-			background: var(--bd2, rgba(0,0,0,0.16));
-			border-radius: 3px;
-		}
-		.th-core-card {
-			flex: 0 0 260px;
-			scroll-snap-align: start;
-			background: var(--sf, #fff);
-			border: 1px solid var(--bd, rgba(0,0,0,0.08));
-			border-radius: 12px;
-			overflow: hidden;
-			transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
-		}
-		.th-core-card:hover {
-			border-color: var(--bd2, rgba(0,0,0,0.16));
-			transform: translateY(-2px);
-			box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-		}
-		.th-core-card-thumb {
-			aspect-ratio: 16 / 10;
-			background: linear-gradient(135deg, var(--sf2, #fff5f5) 0%, var(--sf, #fff) 100%);
-			display: grid;
-			place-items: center;
-			position: relative;
-		}
-		.th-core-card-icon {
-			width: 56px;
-			height: 56px;
-			display: grid;
-			place-items: center;
-			background: var(--sf, #fff);
-			border-radius: 14px;
+			border-radius: 8px;
 			color: var(--ac, #e83b3b);
-			box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+			flex-shrink: 0;
 		}
-		.th-core-card-icon svg {
-			width: 26px;
-			height: 26px;
+		.th-core-module-icon svg {
+			width: 16px;
+			height: 16px;
 		}
-		.th-core-card-body {
-			padding: 14px 16px 16px;
+		.th-core-module-info {
+			min-width: 0;
+			flex: 1;
 		}
-		.th-core-card-name {
-			font-family: var(--ff-d, 'Inter Tight', sans-serif);
-			font-size: 14px;
+		.th-core-module-name {
+			font-size: 13px;
 			font-weight: 500;
-			letter-spacing: -0.015em;
 			color: var(--tx, #0a0a0a);
-			margin: 0 0 5px;
+			letter-spacing: -0.01em;
 			line-height: 1.3;
 		}
-		.th-core-card-desc {
-			font-size: 12px;
-			color: var(--tx2, #666);
-			margin: 0 0 8px;
-			line-height: 1.45;
-			min-height: 34px;
-			display: -webkit-box;
-			-webkit-line-clamp: 2;
-			-webkit-box-orient: vertical;
-			overflow: hidden;
-		}
-		.th-core-card-meta {
+		.th-core-module-desc {
 			font-size: 11px;
 			color: var(--tx3, #999);
-			margin: 0;
-			letter-spacing: -0.005em;
+			line-height: 1.4;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+		.th-core-module-ver {
+			font-size: 11px;
+			color: var(--tx3, #999);
+			white-space: nowrap;
+			flex-shrink: 0;
 		}
 		</style>
 
 		<script>
 		(function () {
-			var carousel = document.querySelector('.th-core-carousel');
-			if (!carousel) return;
-			var track = carousel.querySelector('.th-core-carousel-track');
-			var prev  = carousel.querySelector('.th-core-carousel-arrow[data-dir="prev"]');
-			var next  = carousel.querySelector('.th-core-carousel-arrow[data-dir="next"]');
-			if (!track || !prev || !next) return;
+			var section = document.querySelector('.th-core-modules');
+			if (!section) return;
+			var toggle = section.querySelector('.th-core-modules-toggle');
+			var body   = section.querySelector('.th-core-modules-body');
+			if (!toggle || !body) return;
 
-			function scrollAmount() {
-				var card = track.querySelector('.th-core-card');
-				if (!card) return 280;
-				var gap = parseInt(getComputedStyle(track).columnGap || getComputedStyle(track).gap || '14', 10);
-				return (card.offsetWidth + gap) * 2;
+			// Restore collapsed state from localStorage
+			var stored = localStorage.getItem('th_core_modules_open');
+			if (stored === '1') {
+				section.classList.add('is-open');
+				body.hidden = false;
+				toggle.setAttribute('aria-expanded', 'true');
 			}
-			function updateButtons() {
-				prev.disabled = track.scrollLeft <= 4;
-				next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
-			}
-			prev.addEventListener('click', function () {
-				track.scrollBy({ left: -scrollAmount(), behavior: 'smooth' });
+
+			toggle.addEventListener('click', function () {
+				var open = section.classList.toggle('is-open');
+				body.hidden = !open;
+				toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+				localStorage.setItem('th_core_modules_open', open ? '1' : '0');
 			});
-			next.addEventListener('click', function () {
-				track.scrollBy({ left: scrollAmount(), behavior: 'smooth' });
-			});
-			track.addEventListener('scroll', updateButtons, { passive: true });
-			window.addEventListener('resize', updateButtons);
-			updateButtons();
 		})();
 		</script>
 		<?php
@@ -9706,6 +9683,22 @@ function th_render_experiments(): void {
 	});
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  AJAX — toggle desktop mode preference per user
+// ─────────────────────────────────────────────────────────────────────────────
+add_action( 'wp_ajax_therum_toggle_desktop_mode', function() {
+	if ( ! current_user_can( 'read' ) ) wp_send_json_error( 'forbidden', 403 );
+	$nonce = $_POST['nonce'] ?? '';
+	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) ) {
+		wp_send_json_error( 'Invalid nonce.', 403 );
+	}
+	$user_id = get_current_user_id();
+	$current = get_user_meta( $user_id, 'therum_desktop_mode', true );
+	$new_val = $current === '1' ? '0' : '1';
+	update_user_meta( $user_id, 'therum_desktop_mode', $new_val );
+	wp_send_json_success( [ 'active' => $new_val === '1' ] );
+} );
+
 // Register the page itself + repoint sidebar Settings nav at it.
 add_action('admin_menu', function() {
 	add_submenu_page('', 'Therum Settings', 'Therum Settings', 'manage_options', 'therum-settings', ['Therum_Settings', 'render_page']);
@@ -10890,7 +10883,11 @@ add_action( 'admin_enqueue_scripts', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_therum_save_view_pref', function() {
 	if ( ! current_user_can( 'read' ) ) wp_send_json_error( 'forbidden', 403 );
-	check_ajax_referer( 'therum_theme', 'nonce' );
+	// Called from both Settings (nonce='therum_options') and Customization (nonce='therum_theme')
+	$nonce = $_POST['nonce'] ?? $_REQUEST['_wpnonce'] ?? '';
+	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) ) {
+		wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	}
 	$mode = sanitize_key( $_POST['mode'] ?? 'simple' );
 	if ( ! in_array( $mode, [ 'simple', 'advanced' ], true ) ) $mode = 'simple';
 	update_user_meta( get_current_user_id(), 'therum_pref_theme_view_mode', $mode );
@@ -10903,7 +10900,16 @@ add_action( 'wp_ajax_therum_save_view_pref', function() {
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_therum_save_state_field', function() {
 	if ( ! current_user_can( 'read' ) ) wp_send_json_error( 'forbidden', 403 );
-	check_ajax_referer( 'therum_theme', 'nonce' );
+
+	// This endpoint is called from two surfaces:
+	//   1. Settings → Appearance  (nonce action = 'therum_options')
+	//   2. Customization → Quick Controls  (nonce action = 'therum_theme')
+	// Accept either nonce so saves work from both pages.
+	$nonce = $_POST['nonce'] ?? $_REQUEST['_wpnonce'] ?? '';
+	$valid = wp_verify_nonce( $nonce, 'therum_theme' ) || wp_verify_nonce( $nonce, 'therum_options' );
+	if ( ! $valid ) {
+		wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	}
 
 	if ( ! class_exists( 'Therum_Themes' ) ) wp_send_json_error( 'no themes class' );
 
@@ -10918,7 +10924,14 @@ add_action( 'wp_ajax_therum_save_state_field', function() {
 	$field = $lookup[ strtolower( $raw_field ) ] ?? '';
 	if ( $field === '' ) wp_send_json_error( 'bad field: ' . $raw_field );
 
-	// Coerce booleans
+	// Coerce value type based on default_state() — same approach as ajax_save_field()
+	$defaults = Therum_Themes::default_state();
+	if ( is_bool( $defaults[ $field ] ?? null ) ) {
+		$value = filter_var( $value, FILTER_VALIDATE_BOOLEAN );
+	} elseif ( is_int( $defaults[ $field ] ?? null ) ) {
+		$value = (int) $value;
+	}
+	// Legacy string coercion fallback
 	if ( $value === 'true' )  $value = true;
 	elseif ( $value === 'false' ) $value = false;
 

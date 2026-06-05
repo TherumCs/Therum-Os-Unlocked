@@ -2029,29 +2029,48 @@ class Therum_Themes {
 			'mode'    => 'auto',
 			'glass'   => false,
 			'accent'  => '#e83b3b',
+			'intensity' => 'standard',
 			'font'    => 'system',
+			'displayFont' => 'inter-tight',
+			'monoFont' => 'jetbrains',
+			'baseSize' => 14,
+			'letterSpacing' => 'normal',
+			'lineHeight' => 'standard',
 			'radius'  => 'medium',
+			'borderWeight' => 'standard',
 			'shadow'  => 'soft',
-			'blur'    => 'medium',
-			'glassTint' => 'auto',
-			'density' => 'standard',
+			'blur'    => 40,
+			'glassTint' => 'dark',
+			'density' => 'comfortable',
 			'sidebar' => 'full',
 			'sidebarStyle' => 'default',
 			'sidebarLayout' => 'both',
-			'glassTint'    => 'auto',
+			'topbar'  => 'sticky',
+			'content' => 'full',
+			'bentoGap' => 16,
 			'bgImage' => 'none',
-			'cardLayout' => 'hero',     // 'card' | 'hero'
-			'cardImage'  => 'gradient', // 'gradient' | 'featured' | 'stock' | 'wireframe'
-			// Structural card-chrome variant. Same DOM, drastically different
-			// visual character. Lets a theme transform the dashboard's card grid
-			// from "soft surface tile" to "schematic outline" / "color-blocked
-			// material tile" / "frosted glass pane" without changing layout.
-			'cardStyle' => 'default',   // 'default' | 'flat' | 'glass' | 'tile' | 'bare' | 'paper'
-			// Independent surface-effect knob (lives in Settings → Appearance
-			// as its own section). Stacks ON TOP of any theme — pick a theme
-			// for personality, then layer Light/Dark/Colored Glass / Gradient
-			// / Blurred for backdrop atmosphere.
-			'surfaceEffect' => 'none', // 'none' | 'glass-light' | 'glass-dark' | 'glass-colored' | 'gradient' | 'blurred'
+			'cardLayout' => 'hero',
+			'cardImage'  => 'gradient',
+			'cardStyle' => 'default',
+			'motion'  => 'full',
+			'transitionSpeed' => 'standard',
+			'pageTransitions' => true,
+			'cardHoverLift' => true,
+			'listView' => 'grid',
+			'itemsPerPage' => 24,
+			'thumbSource' => 'gradient',
+			'contrast' => 'standard',
+			'reduceTransparency' => false,
+			'underlineLinks' => false,
+			'focusRings' => true,
+			'largeTargets' => false,
+			'showGrips' => false,
+			'showShortcuts' => true,
+			'autoSave' => true,
+			'debugOverlays' => false,
+			'codeEditorTheme' => 'therum',
+			'desktopMode' => false,
+			'surfaceEffect' => 'none',
 		];
 	}
 
@@ -2060,14 +2079,37 @@ class Therum_Themes {
 		if ($user_id) {
 			$user = get_user_meta($user_id, self::USER_META_KEY, true);
 			if (is_array($user) && !empty($user)) {
-				return array_merge(self::default_state(), $user);
+				$state = array_merge(self::default_state(), $user);
+				return self::migrate_state($state);
 			}
 		}
 		$site = get_option(self::SITE_OPTION_KEY, []);
 		if (is_array($site) && !empty($site)) {
-			return array_merge(self::default_state(), $site);
+			$state = array_merge(self::default_state(), $site);
+			return self::migrate_state($state);
 		}
 		return self::default_state();
+	}
+
+	/**
+	 * Migrate legacy state values that changed type or valid options.
+	 * Runs on read so old data auto-heals without a manual migration step.
+	 */
+	private static function migrate_state(array $state): array {
+		// blur: was 'medium' (string), now int 0-60. Convert legacy string values.
+		if (isset($state['blur']) && !is_numeric($state['blur'])) {
+			$blur_map = ['low' => 20, 'medium' => 40, 'high' => 60];
+			$state['blur'] = $blur_map[$state['blur']] ?? 40;
+		}
+		// density: was 'standard', now 'comfortable'. Map the old value.
+		if (isset($state['density']) && $state['density'] === 'standard') {
+			$state['density'] = 'comfortable';
+		}
+		// glassTint: was 'auto', now 'dark'. Map the old value.
+		if (isset($state['glassTint']) && $state['glassTint'] === 'auto') {
+			$state['glassTint'] = 'dark';
+		}
+		return $state;
 	}
 
 	public static function save_user_state(array $state): void {
@@ -2117,9 +2159,23 @@ class Therum_Themes {
 		return $state;
 	}
 
+	/**
+	 * Verify nonce for theme AJAX calls. These endpoints are called from
+	 * two different surfaces that emit different nonce actions:
+	 *   - Customization page → 'therum_theme'
+	 *   - Settings → Appearance → 'therum_options'
+	 * Accept either so saves work from both pages.
+	 */
+	private static function verify_theme_nonce(): void {
+		$nonce = $_POST['nonce'] ?? $_REQUEST['_wpnonce'] ?? '';
+		if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) ) {
+			wp_send_json_error( 'Invalid or expired nonce.', 403 );
+		}
+	}
+
 	public static function ajax_apply_preset(): void {
 		if (!current_user_can('read')) wp_send_json_error('unauthorized', 403);
-		check_ajax_referer('therum_theme', 'nonce');
+		self::verify_theme_nonce();
 		$id = sanitize_key($_POST['preset'] ?? '');
 		$state = self::apply_preset($id);
 		wp_send_json_success($state);
@@ -2127,7 +2183,7 @@ class Therum_Themes {
 
 	public static function ajax_reset(): void {
 		if (!current_user_can('read')) wp_send_json_error('unauthorized', 403);
-		check_ajax_referer('therum_theme', 'nonce');
+		self::verify_theme_nonce();
 		self::reset_user_state();
 		wp_send_json_success(self::get_state());
 	}
@@ -2140,7 +2196,7 @@ class Therum_Themes {
 	 */
 	public static function ajax_save_field(): void {
 		if (!current_user_can('read')) wp_send_json_error('unauthorized', 403);
-		check_ajax_referer('therum_theme', 'nonce');
+		self::verify_theme_nonce();
 		// NB: sanitize_key() lowercases — Therum state uses camelCase keys
 		// (glassTint, sidebarStyle, cardStyle, bgImage, surfaceEffect). Use a
 		// case-preserving filter and validate against the whitelist below.
@@ -2163,11 +2219,61 @@ class Therum_Themes {
 		self::save_user_state($current);
 		wp_send_json_success($current);
 	}
+
+	/**
+	 * Batch-save multiple Quick Controls fields in a single request.
+	 * Used by the 💾 Save button in the Quick Controls panel footer.
+	 * Expects POST['fields'] as a JSON-encoded object of {field: value} pairs.
+	 */
+	public static function ajax_save_batch(): void {
+		if ( ! current_user_can( 'read' ) ) wp_send_json_error( 'unauthorized', 403 );
+		self::verify_theme_nonce();
+
+		$raw = $_POST['fields'] ?? '';
+		if ( is_string( $raw ) ) {
+			$fields = json_decode( wp_unslash( $raw ), true );
+		} else {
+			$fields = $raw;
+		}
+		if ( ! is_array( $fields ) || empty( $fields ) ) {
+			wp_send_json_error( [ 'message' => 'No fields provided' ] );
+		}
+
+		$defaults = self::default_state();
+		$current  = self::get_state();
+		$saved    = [];
+
+		foreach ( $fields as $field => $value ) {
+			// Sanitize field name (case-preserving)
+			$field = preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $field );
+			if ( ! array_key_exists( $field, $defaults ) ) continue;
+
+			// Coerce value type from the default
+			if ( is_bool( $defaults[ $field ] ) ) {
+				$current[ $field ] = filter_var( $value, FILTER_VALIDATE_BOOLEAN );
+			} elseif ( is_int( $defaults[ $field ] ) ) {
+				$current[ $field ] = (int) $value;
+			} else {
+				$current[ $field ] = is_string( $value ) ? sanitize_text_field( $value ) : '';
+			}
+			$saved[] = $field;
+		}
+
+		if ( ! empty( $saved ) ) {
+			self::save_user_state( $current );
+		}
+
+		wp_send_json_success( [
+			'state'  => $current,
+			'saved'  => $saved,
+		] );
+	}
 }
 
 add_action('wp_ajax_therum_apply_preset',     ['Therum_Themes', 'ajax_apply_preset']);
 add_action('wp_ajax_therum_reset_theme',      ['Therum_Themes', 'ajax_reset']);
 add_action('wp_ajax_therum_save_theme_field', ['Therum_Themes', 'ajax_save_field']);
+add_action('wp_ajax_therum_save_theme_batch', ['Therum_Themes', 'ajax_save_batch']);
 
 // Apply theme classes to admin body.
 add_filter('admin_body_class', function(string $classes): string {
@@ -2231,6 +2337,14 @@ add_filter('admin_body_class', function(string $classes): string {
 		} elseif (preg_match('/^#[0-9a-f]{3,8}$/i', $state['glassTint'])) {
 			$add[] = 'glass-tint-color';
 		}
+	}
+	// Content width — drives #th-content > * max-width + topbar alignment
+	if (!empty($state['content']) && $state['content'] !== 'full') {
+		$add[] = 'content-' . $state['content'];
+	}
+	// Topbar mode
+	if (!empty($state['topbar']) && $state['topbar'] !== 'sticky') {
+		$add[] = 'topbar-' . $state['topbar'];
 	}
 	return $classes . ' ' . implode(' ', $add);
 });
@@ -2878,72 +2992,75 @@ function therum_cx_render_quick_controls( string $current_mode ): void {
 
 	<div class="th-cx-panel-body">
 
-		<?php therum_cx_panel_group( 'Appearance', [
-			[ 'seg', 'Mode', strtolower( $current_mode ), [ 'light' => 'Light', 'dark' => 'Dark', 'auto' => 'Auto' ], 'mode' ],
+		<?php
+		$dm_on = get_user_meta( get_current_user_id(), 'therum_desktop_mode', true ) === '1';
+		therum_cx_panel_group( 'Appearance', [
+			[ 'seg', 'Mode', $s( 'mode', 'auto' ), [ 'light' => 'Light', 'dark' => 'Dark', 'auto' => 'Auto' ], 'mode' ],
+			[ 'toggle', 'Desktop Mode', $dm_on, 'desktopMode' ],
 			[ 'swatch', 'Accent', $s( 'accent', '#e83b3b' ), [ '#f5389a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', 'custom' ], 'accent' ],
-			[ 'seg', 'Intensity', 'standard', [ 'subtle' => 'Subtle', 'standard' => 'Standard', 'vivid' => 'Vivid' ] ],
+			[ 'seg', 'Intensity', $s( 'intensity', 'standard' ), [ 'subtle' => 'Subtle', 'standard' => 'Standard', 'vivid' => 'Vivid' ], 'intensity' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Layout', [
-			[ 'seg', 'Density',     $s( 'density', 'breathing' ),    [ 'compact' => 'Compact', 'comfortable' => 'Comfortable', 'breathing' => 'Breathing' ], 'density' ],
+			[ 'seg', 'Density',     $s( 'density', 'standard' ),     [ 'compact' => 'Compact', 'comfortable' => 'Comfortable', 'breathing' => 'Breathing' ], 'density' ],
 			[ 'seg', 'Sidebar',     $s( 'sidebar', 'full' ),         [ 'full' => 'Full', 'icons' => 'Icons', 'text' => 'Text' ], 'sidebar' ],
-			[ 'seg', 'Variant',     $s( 'sidebarStyle', 'floating' ),[ 'default' => 'Default', 'floating' => 'Floating', 'minimal' => 'Minimal' ], 'sidebarStyle' ],
-			[ 'seg', 'Topbar',      'sticky',    [ 'static' => 'Static', 'sticky' => 'Sticky', 'hide' => 'Hide' ] ],
-			[ 'seg', 'Content',     'full',      [ 'narrow' => 'Narrow', 'wide' => 'Wide', 'full' => 'Full' ] ],
-			[ 'slider', 'Bento gap', 16, 8, 32 ],
+			[ 'seg', 'Variant',     $s( 'sidebarStyle', 'default' ), [ 'default' => 'Default', 'floating' => 'Floating', 'minimal' => 'Minimal' ], 'sidebarStyle' ],
+			[ 'seg', 'Topbar',      $s( 'topbar', 'sticky' ),        [ 'static' => 'Static', 'sticky' => 'Sticky', 'hide' => 'Hide' ], 'topbar' ],
+			[ 'seg', 'Content',     $s( 'content', 'full' ),         [ 'narrow' => 'Narrow', 'wide' => 'Wide', 'full' => 'Full' ], 'content' ],
+			[ 'slider', 'Bento gap', (int) $s( 'bentoGap', 16 ), 8, 32, 'bentoGap' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Surfaces', [
 			[ 'toggle', 'Glass surfaces', (bool) $s( 'glass', false ), 'glass' ],
 			[ 'seg', 'Glass tint', $s( 'glassTint', 'dark' ), [ 'light' => 'Light', 'dark' => 'Dark', 'colored' => 'Colored' ], 'glassTint' ],
-			[ 'slider', 'Blur strength', (int) ( is_numeric( $s( 'blur', 40 ) ) ? $s( 'blur', 40 ) : 40 ), 0, 60, 'blur' ],
+			[ 'slider', 'Blur strength', (int) $s( 'blur', 40 ), 0, 60, 'blur' ],
 			[ 'seg', 'Background', $s( 'bgImage', 'none' ), [ 'none' => 'None', 'gradient' => 'Gradient', 'pattern' => 'Pattern', 'image' => 'Image' ], 'bgImage' ],
 			[ 'seg', 'Shadow', $s( 'shadow', 'soft' ), [ 'flat' => 'Flat', 'soft' => 'Soft', 'heavy' => 'Heavy' ], 'shadow' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Typography', [
 			[ 'select', 'Body font',    $s( 'font', 'system' ), [ 'inter' => 'Inter', 'inter-tight' => 'Inter Tight', 'space-grotesk' => 'Space Grotesk', 'dm-sans' => 'DM Sans', 'ibm-plex' => 'IBM Plex Sans', 'crimson' => 'Crimson Pro', 'playfair' => 'Playfair Display', 'halyard' => 'Halyard Display', 'system' => 'System UI' ], 'font' ],
-			[ 'select', 'Display font', 'inter-tight', [ 'inter-tight' => 'Inter Tight', 'archivo-black' => 'Archivo Black', 'bebas' => 'Bebas Neue', 'halyard' => 'Halyard Display', 'audiowide' => 'Audiowide', 'orbitron' => 'Orbitron', 'caveat' => 'Caveat' ] ],
-			[ 'select', 'Mono font',    'jetbrains',  [ 'jetbrains' => 'JetBrains Mono', 'ibm-plex-mono' => 'IBM Plex Mono', 'sf-mono' => 'SF Mono', 'vt323' => 'VT323' ] ],
-			[ 'slider', 'Base size',    14, 12, 18 ],
-			[ 'seg', 'Letter spacing',  'normal', [ 'tight' => 'Tight', 'normal' => 'Normal', 'loose' => 'Loose' ] ],
-			[ 'seg', 'Line height',     'standard', [ 'tight' => 'Tight', 'standard' => 'Standard', 'relaxed' => 'Relaxed' ] ],
+			[ 'select', 'Display font', $s( 'displayFont', 'inter-tight' ), [ 'inter-tight' => 'Inter Tight', 'archivo-black' => 'Archivo Black', 'bebas' => 'Bebas Neue', 'halyard' => 'Halyard Display', 'audiowide' => 'Audiowide', 'orbitron' => 'Orbitron', 'caveat' => 'Caveat' ], 'displayFont' ],
+			[ 'select', 'Mono font',    $s( 'monoFont', 'jetbrains' ),  [ 'jetbrains' => 'JetBrains Mono', 'ibm-plex-mono' => 'IBM Plex Mono', 'sf-mono' => 'SF Mono', 'vt323' => 'VT323' ], 'monoFont' ],
+			[ 'slider', 'Base size',    (int) $s( 'baseSize', 14 ), 12, 18, 'baseSize' ],
+			[ 'seg', 'Letter spacing',  $s( 'letterSpacing', 'normal' ), [ 'tight' => 'Tight', 'normal' => 'Normal', 'loose' => 'Loose' ], 'letterSpacing' ],
+			[ 'seg', 'Line height',     $s( 'lineHeight', 'standard' ), [ 'tight' => 'Tight', 'standard' => 'Standard', 'relaxed' => 'Relaxed' ], 'lineHeight' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Shapes', [
-			[ 'seg', 'Radius',        $s( 'radius', 'medium' ),    [ 'sharp' => 'Sharp', 'medium' => 'Medium', 'round' => 'Round' ], 'radius' ],
-			[ 'seg', 'Border weight', 'standard', [ 'hairline' => 'Hairline', 'standard' => 'Standard', 'bold' => 'Bold' ] ],
-			[ 'seg', 'Card style',    $s( 'cardStyle', 'default' ), [ 'flat' => 'Flat', 'outline' => 'Outline', 'elevated' => 'Elevated', 'default' => 'Default' ], 'cardStyle' ],
+			[ 'seg', 'Radius',        $s( 'radius', 'medium' ),        [ 'sharp' => 'Sharp', 'medium' => 'Medium', 'round' => 'Round' ], 'radius' ],
+			[ 'seg', 'Border weight',  $s( 'borderWeight', 'standard' ),[ 'hairline' => 'Hairline', 'standard' => 'Standard', 'bold' => 'Bold' ], 'borderWeight' ],
+			[ 'seg', 'Card style',     $s( 'cardStyle', 'default' ),    [ 'flat' => 'Flat', 'outline' => 'Outline', 'elevated' => 'Elevated', 'default' => 'Default' ], 'cardStyle' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Motion', [
-			[ 'seg', 'Motion',           'full',     [ 'full' => 'Full', 'reduced' => 'Reduced', 'off' => 'Off' ] ],
-			[ 'seg', 'Transition speed', 'standard', [ 'instant' => 'Instant', 'snappy' => 'Snappy', 'standard' => 'Standard', 'slow' => 'Slow' ] ],
-			[ 'toggle', 'Page transitions', true ],
-			[ 'toggle', 'Card hover lift',  true ],
+			[ 'seg', 'Motion',           $s( 'motion', 'full' ),           [ 'full' => 'Full', 'reduced' => 'Reduced', 'off' => 'Off' ], 'motion' ],
+			[ 'seg', 'Transition speed', $s( 'transitionSpeed', 'standard' ), [ 'instant' => 'Instant', 'snappy' => 'Snappy', 'standard' => 'Standard', 'slow' => 'Slow' ], 'transitionSpeed' ],
+			[ 'toggle', 'Page transitions', (bool) $s( 'pageTransitions', true ), 'pageTransitions' ],
+			[ 'toggle', 'Card hover lift',  (bool) $s( 'cardHoverLift', true ),   'cardHoverLift' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Content defaults', [
-			[ 'select', 'Card layout', 'hero', [ 'hero' => 'Hero', 'card-v1' => 'Card V1 · poster', 'card-v2' => 'Card V2 · detailed', 'card-v3' => 'Card V3 · minimal', 'compact-v1' => 'Compact V1 · tight', 'compact-v2' => 'Compact V2 · editorial', 'compact-v3' => 'Compact V3 · stacked', 'magazine' => 'Magazine' ] ],
-			[ 'select', 'Thumbnail source', 'gradient', [ 'gradient' => 'Gradient', 'featured' => 'Featured image', 'stock' => 'Stock (Picsum)', 'wireframe' => 'Wireframe schematic', 'pattern' => 'Geometric pattern' ] ],
-			[ 'seg', 'List view', 'grid', [ 'grid' => 'Grid', 'table' => 'Table' ] ],
-			[ 'slider', 'Items / page', 24, 10, 60 ],
+			[ 'select', 'Card layout',      $s( 'cardLayout', 'hero' ), [ 'hero' => 'Hero', 'card-v1' => 'Card V1 · poster', 'card-v2' => 'Card V2 · detailed', 'card-v3' => 'Card V3 · minimal', 'compact-v1' => 'Compact V1 · tight', 'compact-v2' => 'Compact V2 · editorial', 'compact-v3' => 'Compact V3 · stacked', 'magazine' => 'Magazine' ], 'cardLayout' ],
+			[ 'select', 'Thumbnail source', $s( 'thumbSource', 'gradient' ), [ 'gradient' => 'Gradient', 'featured' => 'Featured image', 'stock' => 'Stock (Picsum)', 'wireframe' => 'Wireframe schematic', 'pattern' => 'Geometric pattern' ], 'thumbSource' ],
+			[ 'seg', 'List view',           $s( 'listView', 'grid' ),   [ 'grid' => 'Grid', 'table' => 'Table' ], 'listView' ],
+			[ 'slider', 'Items / page',     (int) $s( 'itemsPerPage', 24 ), 10, 60, 'itemsPerPage' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Accessibility', [
-			[ 'seg', 'Contrast', 'standard', [ 'standard' => 'Standard', 'high' => 'High' ] ],
-			[ 'toggle', 'Reduce transparency',       false ],
-			[ 'toggle', 'Underline links',           false ],
-			[ 'toggle', 'Focus rings always visible',true ],
-			[ 'toggle', 'Larger click targets',      false ],
+			[ 'seg', 'Contrast',                      $s( 'contrast', 'standard' ), [ 'standard' => 'Standard', 'high' => 'High' ], 'contrast' ],
+			[ 'toggle', 'Reduce transparency',        (bool) $s( 'reduceTransparency', false ), 'reduceTransparency' ],
+			[ 'toggle', 'Underline links',            (bool) $s( 'underlineLinks', false ),      'underlineLinks' ],
+			[ 'toggle', 'Focus rings always visible', (bool) $s( 'focusRings', true ),           'focusRings' ],
+			[ 'toggle', 'Larger click targets',       (bool) $s( 'largeTargets', false ),        'largeTargets' ],
 		] ); ?>
 
 		<?php therum_cx_panel_group( 'Advanced', [
-			[ 'toggle', 'Show sidebar grip handles', false ],
-			[ 'toggle', 'Show keyboard shortcuts',   true ],
-			[ 'toggle', 'Auto-save layout changes',  true ],
-			[ 'toggle', 'Debug overlays (dev only)', false ],
-			[ 'select', 'Code editor theme', 'therum', [ 'therum' => 'Therum Studio', 'one-dark' => 'One Dark', 'solarized' => 'Solarized Dark', 'monokai' => 'Monokai', 'github' => 'GitHub' ] ],
+			[ 'toggle', 'Show sidebar grip handles', (bool) $s( 'showGrips', false ),      'showGrips' ],
+			[ 'toggle', 'Show keyboard shortcuts',   (bool) $s( 'showShortcuts', true ),    'showShortcuts' ],
+			[ 'toggle', 'Auto-save layout changes',  (bool) $s( 'autoSave', true ),         'autoSave' ],
+			[ 'toggle', 'Debug overlays (dev only)',  (bool) $s( 'debugOverlays', false ),   'debugOverlays' ],
+			[ 'select', 'Code editor theme',          $s( 'codeEditorTheme', 'therum' ), [ 'therum' => 'Therum Studio', 'one-dark' => 'One Dark', 'solarized' => 'Solarized Dark', 'monokai' => 'Monokai', 'github' => 'GitHub' ], 'codeEditorTheme' ],
 		], true /* collapsed */ ); ?>
 
 	</div>

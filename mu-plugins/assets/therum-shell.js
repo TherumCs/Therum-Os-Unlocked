@@ -324,6 +324,29 @@ fd.append('nonce', THEME_NONCE);
 fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd });
 });
 }
+const dmBtn = document.getElementById('th-desktop-toggle');
+if (dmBtn) {
+dmBtn.addEventListener('click', () => {
+const installed = dmBtn.dataset.dmInstalled === '1';
+if (!installed) {
+if (confirm('Desktop Mode plugin is not installed. Go to Settings → Experiments to install it?')) {
+window.location.href = '/wp-admin/admin.php?page=therum-settings&section=experiments';
+}
+return;
+}
+dmBtn.classList.toggle('is-active');
+const fd = new FormData();
+fd.append('action', 'therum_toggle_desktop_mode');
+fd.append('nonce', THEME_NONCE);
+fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd })
+.then(r => r.json())
+.then(res => {
+if (res && res.success) {
+setTimeout(() => location.reload(), 300);
+}
+});
+});
+}
 const editBtn = document.getElementById('th-edit-layout-btn');
 const editDone = document.getElementById('th-edit-done');
 const editReset = document.getElementById('th-edit-reset');

@@ -34,6 +34,18 @@ document.addEventListener('DOMContentLoaded', function () {
 					root.style.removeProperty(p);
 					body.style.removeProperty(p);
 				});
+				// Also persist the reset to user_meta
+				var cxNonce2 = (document.querySelector('[data-th-cx]') || {}).dataset.nonce || '';
+				if (cxNonce2) {
+					var rfd = new FormData();
+					rfd.append('action', 'therum_reset_theme');
+					rfd.append('nonce', cxNonce2);
+					fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+						method: 'POST', credentials: 'same-origin', body: rfd
+					}).then(function () {
+						setTimeout(function () { location.reload(); }, 350);
+					});
+				}
 				if (window.therumToast) window.therumToast('Reset to defaults');
 			} else if (act === 'random') {
 				var cards = document.querySelectorAll('.th-cx-theme[data-theme]');
@@ -43,15 +55,65 @@ document.addEventListener('DOMContentLoaded', function () {
 					if (window.therumToast) window.therumToast('Random theme: ' + (pick.dataset.theme || 'applied'));
 				}
 			} else if (act === 'save') {
-				// On live, save the current state to localStorage as a snapshot.
-				// Persistent save to user_meta lands in a later phase.
-				var snap = { bodyClasses: body.className, ts: Date.now() };
-				var saves = [];
-				try { saves = JSON.parse(localStorage.getItem('therum-saved-themes') || '[]'); } catch(e){}
-				saves.unshift(snap);
-				if (saves.length > 20) saves = saves.slice(0, 20);
-				try { localStorage.setItem('therum-saved-themes', JSON.stringify(saves)); } catch(e){}
-				if (window.therumToast) window.therumToast('Saved (' + saves.length + ' total)');
+				// Collect all Quick Control values from data-th-state-field rows
+				// and batch-save them to user_meta via AJAX.
+				var fields = {};
+				var controlsPanel = document.querySelector('[data-th-cx-controls]');
+				if (controlsPanel) {
+					// Segmented buttons
+					controlsPanel.querySelectorAll('[data-th-state-field]').forEach(function (row) {
+						var field = row.getAttribute('data-th-state-field');
+						if (!field) return;
+						// Segment: active button's data-value
+						var activeSeg = row.querySelector('.th-cx-seg button.is-active');
+						if (activeSeg) { fields[field] = activeSeg.dataset.value; return; }
+						// Toggle: is-on state
+						var toggle = row.querySelector('.th-cx-toggle-sw');
+						if (toggle) { fields[field] = toggle.classList.contains('is-on') ? '1' : '0'; return; }
+						// Slider: input value
+						var slider = row.querySelector('.th-cx-slider');
+						if (slider) { fields[field] = slider.value; return; }
+						// Select: selected value
+						var select = row.querySelector('.th-cx-select');
+						if (select) { fields[field] = select.value; return; }
+						// Swatch: active swatch's data-color
+						var activeSwatch = row.querySelector('.th-cx-swatch.is-active');
+						if (activeSwatch && activeSwatch.dataset.color) { fields[field] = activeSwatch.dataset.color; return; }
+					});
+				}
+				var fieldCount = Object.keys(fields).length;
+				if (fieldCount === 0) {
+					if (window.therumToast) window.therumToast('Nothing to save');
+					return;
+				}
+				b.disabled = true;
+				b.textContent = 'Saving...';
+				var cxNonce = (document.querySelector('[data-th-cx]') || {}).dataset.nonce || '';
+				var fd = new FormData();
+				fd.append('action', 'therum_save_theme_batch');
+				fd.append('fields', JSON.stringify(fields));
+				fd.append('nonce', cxNonce);
+				fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+					method: 'POST',
+					credentials: 'same-origin',
+					body: fd
+				})
+					.then(function (r) { return r.json(); })
+					.then(function (res) {
+						b.disabled = false;
+						b.textContent = '💾 Save';
+						if (res && res.success) {
+							var count = (res.data && res.data.saved) ? res.data.saved.length : fieldCount;
+							if (window.therumToast) window.therumToast(count + ' setting' + (count !== 1 ? 's' : '') + ' saved');
+						} else {
+							if (window.therumToast) window.therumToast('Save failed: ' + ((res.data && res.data.message) || 'unknown error'));
+						}
+					})
+					.catch(function () {
+						b.disabled = false;
+						b.textContent = '💾 Save';
+						if (window.therumToast) window.therumToast('Network error — could not save');
+					});
 			}
 		});
 	});
@@ -506,7 +568,28 @@ document.addEventListener('DOMContentLoaded', function () {
 			var toggle = e.target.closest('.th-cx-toggle-sw');
 			if (toggle) {
 				var tRow = toggle.closest('[data-th-state-field]');
-				if (tRow) thCxSaveField(tRow.getAttribute('data-th-state-field'), toggle.classList.contains('is-on') ? '1' : '0');
+				if (tRow) {
+					var tField = tRow.getAttribute('data-th-state-field');
+					// Desktop Mode toggle uses its own AJAX endpoint + reloads
+					if (tField === 'desktopMode') {
+						var fd = new FormData();
+						fd.append('action', 'therum_toggle_desktop_mode');
+						fd.append('nonce', thCxNonce);
+						fetch(thCxAjax, { method: 'POST', credentials: 'same-origin', body: fd })
+							.then(function (r) { return r.json(); })
+							.then(function (res) {
+								if (res && res.success) {
+									thCxFlash('Desktop Mode ' + (res.data.active ? 'on' : 'off'));
+									setTimeout(function () { location.reload(); }, 400);
+								} else {
+									thCxFlash('Could not toggle Desktop Mode', true);
+									toggle.classList.toggle('is-on'); // revert visual
+								}
+							});
+					} else {
+						thCxSaveField(tField, toggle.classList.contains('is-on') ? '1' : '0');
+					}
+				}
 			}
 		});
 		thCxControls.addEventListener('input', function (e) {
