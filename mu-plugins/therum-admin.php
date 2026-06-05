@@ -2082,8 +2082,14 @@ class Therum_List_Page {
 				$class   = 'th-btn' . ($primary ? ' th-btn-primary' : '');
 				$icon    = $btn['icon']    ?? '';
 				$svg     = function_exists('th_i') && $icon ? th_i($icon) : '';
+				$attrs   = '';
+				if (!empty($btn['attrs']) && is_array($btn['attrs'])) {
+					foreach ($btn['attrs'] as $ak => $av) {
+						$attrs .= ' ' . esc_attr($ak) . '="' . esc_attr((string)$av) . '"';
+					}
+				}
 			  ?>
-			  <a href="<?php echo esc_url($href); ?>" class="<?php echo esc_attr($class); ?>"<?php echo !empty($btn['target']) ? ' target="'.esc_attr($btn['target']).'"' : ''; ?>><?php echo $svg; ?> <?php echo esc_html($label); ?></a>
+			  <a href="<?php echo esc_url($href); ?>" class="<?php echo esc_attr($class); ?>"<?php echo !empty($btn['target']) ? ' target="'.esc_attr($btn['target']).'"' : ''; ?><?php echo $attrs; ?>><?php echo $svg; ?> <?php echo esc_html($label); ?></a>
 			  <?php endforeach; ?>
 			</div>
 			<?php endif; ?>
@@ -3089,6 +3095,7 @@ class Therum_Media_Page {
 			],
 			'action_buttons' => [
 				['label'=>'Upload', 'icon'=>'import', 'primary'=>true, 'href'=>admin_url('media-new.php')],
+				['label'=>'Bulk rename', 'icon'=>'edit2', 'href'=>'#', 'attrs' => ['data-th-bulk-rename' => '1']],
 				['label'=>'Download library', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_media_download_zip'), 'therum_media_zip' )],
 			],
 			'density_slider'  => true,
@@ -10301,6 +10308,20 @@ function th_render_uploads() {
 	$strip_exif = (bool) get_option( 'th_upload_strip_exif', true );
 	$auto_webp  = (bool) get_option( 'th_upload_auto_webp', false );
 	$resize_max = (int) get_option( 'th_upload_resize_max', 2560 );
+	$auto_rename = (bool) get_option( 'th_renamer_auto', false );
+
+	th_settings_group( 'Media file renaming', 'Auto-rename uploaded files to match their title or alt text. Renames the file, all intermediate sizes, and rewrites every database reference (post content, postmeta, options).', function() use ( $auto_rename ) {
+		th_setting_row(
+			'Auto-rename on title edit',
+			'When you change an attachment\'s title or alt text, the file is renamed to match. Manual renames via the kebab \'Rename for SEO\' always work; this toggle just adds an automatic path.',
+			th_toggle( 'th_renamer_auto', $auto_rename )
+		);
+		?>
+		<div style="font-size:11px;color:var(--tx3);padding:6px 14px 0;">
+			Risk to know: out-of-database references (CDN caches, hardcoded URLs in custom HTML, external services) aren't touched — same boundary as any rename tool.
+		</div>
+		<?php
+	} );
 
 	// Read PHP runtime values for upload limits
 	$php_upload_max  = ini_get( 'upload_max_filesize' );
