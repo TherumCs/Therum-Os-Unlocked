@@ -328,3 +328,57 @@ window.addEventListener('resize', closeOpenKebab);
     }
   });
 })();
+
+// ─── EXPORT FORMAT PICKER ────────────────────────────────────────────────────
+// Intercepts [data-th-export] buttons and shows a small dropdown with format
+// options (JSON, TXT, Markdown, Bricks). Clicking a format navigates to the
+// export URL with &format=xxx appended.
+(function thExportPicker() {
+  document.querySelectorAll('[data-th-export]').forEach(function (btn) {
+    var baseUrl = btn.getAttribute('data-th-export-base') || '';
+    if (!baseUrl) return;
+
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // If menu already open, close it
+      var existing = btn.parentElement.querySelector('.th-export-menu');
+      if (existing) { existing.remove(); return; }
+
+      // Close any other open export menus
+      document.querySelectorAll('.th-export-menu').forEach(function (m) { m.remove(); });
+
+      var formats = [
+        { key: 'json',   label: 'JSON',     desc: 'Full data + meta + Bricks elements' },
+        { key: 'bricks', label: 'Bricks',   desc: 'Native Bricks format (ZIP of per-page JSON)' },
+        { key: 'md',     label: 'Markdown',  desc: 'Content as .md with front-matter table' },
+        { key: 'txt',    label: 'Plain text', desc: 'Stripped HTML, readable text' },
+      ];
+
+      var menu = document.createElement('div');
+      menu.className = 'th-export-menu';
+      menu.innerHTML = '<div class="th-export-menu-title">Export format</div>' +
+        formats.map(function (f) {
+          return '<a class="th-export-menu-item" href="' + baseUrl + '&format=' + f.key + '">' +
+            '<span class="th-export-menu-label">' + f.label + '</span>' +
+            '<span class="th-export-menu-desc">' + f.desc + '</span>' +
+          '</a>';
+        }).join('');
+
+      btn.style.position = 'relative';
+      btn.parentElement.style.position = 'relative';
+      btn.parentElement.appendChild(menu);
+
+      // Close on outside click
+      setTimeout(function () {
+        document.addEventListener('click', function closer(ev) {
+          if (!menu.contains(ev.target) && ev.target !== btn) {
+            menu.remove();
+            document.removeEventListener('click', closer);
+          }
+        });
+      }, 10);
+    });
+  });
+})();

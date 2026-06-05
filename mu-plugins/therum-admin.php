@@ -2448,7 +2448,7 @@ class Therum_Pages_Page {
 				$by_status['draft'] . ' draft' . ($by_status['draft']===1?'':'s'),
 			],
 			'action_buttons' => [
-				['label'=>'Export', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_export_content&post_type=page'), 'therum_export' )],
+				therum_export_button( 'page' ),
 				['label'=>'Import', 'icon'=>'import', 'href'=>admin_url('import.php')],
 				['label'=>'New Page', 'icon'=>'plus', 'primary'=>true, 'href'=>admin_url('post-new.php?post_type=page')],
 			],
@@ -2743,7 +2743,7 @@ class Therum_Case_Studies_Page {
 				count($tags) . ' tag' . (count($tags)===1?'':'s'),
 			],
 			'action_buttons' => [
-				['label'=>'Export', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_export_content&post_type=case_study'), 'therum_export' )],
+				therum_export_button( 'case_study' ),
 				['label'=>'Categories', 'icon'=>'folder', 'href'=>admin_url('edit-tags.php?taxonomy=case_study_discipline&post_type=case_study')],
 				['label'=>'Tags',       'icon'=>'tag',    'href'=>admin_url('edit-tags.php?taxonomy=case_study_tag&post_type=case_study')],
 				['label'=>'New Case Study', 'icon'=>'plus', 'primary'=>true, 'href'=>admin_url('post-new.php?post_type=case_study')],
@@ -2816,7 +2816,7 @@ class Therum_Posts_Page {
 				$by_status['draft'] . ' draft' . ($by_status['draft']===1?'':'s'),
 			],
 			'action_buttons' => [
-				['label'=>'Export', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_export_content&post_type=post'), 'therum_export' )],
+				therum_export_button( 'post' ),
 				['label'=>'Categories', 'icon'=>'cats', 'href'=>admin_url('edit-tags.php?taxonomy=category')],
 				['label'=>'New Post', 'icon'=>'plus', 'primary'=>true, 'href'=>admin_url('post-new.php')],
 			],
@@ -6870,99 +6870,285 @@ add_action( 'wp_ajax_therum_media_download_zip', function() {
 
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  CONTENT EXPORT — JSON export for pages, posts, case studies, any CPT
+//  CONTENT EXPORT — multi-format export for pages, posts, case studies, CPTs
 //
-//  Exports every post of the requested type as a JSON array. Each item
-//  includes: post fields, all post meta (including Bricks element data),
-//  taxonomies, featured image URL, and Bricks template associations.
-//  Re-importable via WP REST or a future Therum importer.
+//  Formats: json (full data + meta), txt (plain text), md (Markdown),
+//           pdf (formatted), bricks (Bricks-native element JSON per page).
+//
+//  URL: admin-ajax.php?action=therum_export_content&post_type=page&format=json
 // ═════════════════════════════════════════════════════════════════════════════
-add_action( 'wp_ajax_therum_export_content', function() {
-	if ( ! current_user_can( 'edit_posts' ) ) wp_die( 'Forbidden', 403 );
-	check_admin_referer( 'therum_export' );
 
-	$post_type = sanitize_key( $_GET['post_type'] ?? 'post' );
-	$pto = get_post_type_object( $post_type );
-	if ( ! $pto ) wp_die( 'Unknown post type: ' . esc_html( $post_type ) );
+/**
+ * Build an export action button config with data attrs for the format picker JS.
+ * The JS intercepts the click and shows a small dropdown of format options.
+ */
+function therum_export_button( string $post_type ): array {
+	return [
+		'label' => 'Export',
+		'icon'  => 'export',
+		'href'  => '#',
+		'attrs' => [
+			'data-th-export'    => $post_type,
+			'data-th-export-base' => wp_nonce_url( admin_url( 'admin-ajax.php?action=therum_export_content&post_type=' . $post_type ), 'therum_export' ),
+		],
+	];
+}
 
-	$posts = get_posts( [
+/**
+ * Collect all posts of a type into a structured array. Shared by all formats.
+ */
+function therum_export_collect( string $post_type ): array {
+	return get_posts( [
 		'post_type'      => $post_type,
 		'post_status'    => [ 'publish', 'draft', 'future', 'pending', 'private' ],
 		'posts_per_page' => -1,
 		'orderby'        => 'date',
 		'order'          => 'DESC',
 	] );
+}
 
-	$export = [
-		'generator'  => 'Therum OS Content Export',
-		'site_url'   => home_url(),
-		'exported_at'=> gmdate( 'c' ),
-		'post_type'  => $post_type,
-		'count'      => count( $posts ),
-		'items'      => [],
+/**
+ * Build the full structured item data for one post (used by JSON + Bricks).
+ */
+function therum_export_item( WP_Post $p, string $post_type ): array {
+	$item = [
+		'ID'             => $p->ID,
+		'title'          => $p->post_title,
+		'slug'           => $p->post_name,
+		'status'         => $p->post_status,
+		'date'           => $p->post_date,
+		'date_gmt'       => $p->post_date_gmt,
+		'modified'       => $p->post_modified,
+		'content'        => $p->post_content,
+		'excerpt'        => $p->post_excerpt,
+		'author'         => get_the_author_meta( 'display_name', $p->post_author ),
+		'template'       => get_page_template_slug( $p->ID ) ?: '',
+		'menu_order'     => $p->menu_order,
+		'parent'         => $p->post_parent,
+		'featured_image' => '',
+		'taxonomies'     => [],
+		'meta'           => [],
 	];
 
-	foreach ( $posts as $p ) {
-		$item = [
-			'ID'             => $p->ID,
-			'title'          => $p->post_title,
-			'slug'           => $p->post_name,
-			'status'         => $p->post_status,
-			'date'           => $p->post_date,
-			'date_gmt'       => $p->post_date_gmt,
-			'modified'       => $p->post_modified,
-			'content'        => $p->post_content,
-			'excerpt'        => $p->post_excerpt,
-			'author'         => get_the_author_meta( 'display_name', $p->post_author ),
-			'template'       => get_page_template_slug( $p->ID ) ?: '',
-			'menu_order'     => $p->menu_order,
-			'parent'         => $p->post_parent,
-			'featured_image' => '',
-			'taxonomies'     => [],
-			'meta'           => [],
-		];
-
-		// Featured image URL
-		$thumb_id = get_post_thumbnail_id( $p->ID );
-		if ( $thumb_id ) {
-			$item['featured_image'] = wp_get_attachment_url( $thumb_id ) ?: '';
-		}
-
-		// Taxonomies (categories, tags, custom taxonomies)
-		$taxos = get_object_taxonomies( $post_type, 'objects' );
-		foreach ( $taxos as $tax_slug => $tax_obj ) {
-			$terms = wp_get_object_terms( $p->ID, $tax_slug, [ 'fields' => 'names' ] );
-			if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
-				$item['taxonomies'][ $tax_slug ] = $terms;
-			}
-		}
-
-		// All post meta — includes Bricks element data, ACF fields, SEO, etc.
-		$all_meta = get_post_meta( $p->ID );
-		foreach ( $all_meta as $key => $values ) {
-			// Skip internal WP keys that aren't useful for export
-			if ( str_starts_with( $key, '_edit_' ) ) continue;
-			if ( $key === '_wp_old_slug' ) continue;
-			// Single-value meta → unwrap from array
-			$item['meta'][ $key ] = count( $values ) === 1 ? $values[0] : $values;
-		}
-
-		$export['items'][] = $item;
+	$thumb_id = get_post_thumbnail_id( $p->ID );
+	if ( $thumb_id ) {
+		$item['featured_image'] = wp_get_attachment_url( $thumb_id ) ?: '';
 	}
 
-	$json     = wp_json_encode( $export, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-	$label    = $pto->labels->name ?? $post_type;
-	$filename = sanitize_file_name( 'therum-' . $post_type . '-export-' . gmdate( 'Y-m-d' ) ) . '.json';
+	$taxos = get_object_taxonomies( $post_type, 'objects' );
+	foreach ( $taxos as $tax_slug => $tax_obj ) {
+		$terms = wp_get_object_terms( $p->ID, $tax_slug, [ 'fields' => 'names' ] );
+		if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+			$item['taxonomies'][ $tax_slug ] = $terms;
+		}
+	}
+
+	$all_meta = get_post_meta( $p->ID );
+	foreach ( $all_meta as $key => $values ) {
+		if ( str_starts_with( $key, '_edit_' ) || $key === '_wp_old_slug' ) continue;
+		$item['meta'][ $key ] = count( $values ) === 1 ? $values[0] : $values;
+	}
+
+	return $item;
+}
+
+/**
+ * Stream the export in the requested format.
+ */
+add_action( 'wp_ajax_therum_export_content', function() {
+	if ( ! current_user_can( 'edit_posts' ) ) wp_die( 'Forbidden', 403 );
+	check_admin_referer( 'therum_export' );
+
+	$post_type = sanitize_key( $_GET['post_type'] ?? 'post' );
+	$format    = sanitize_key( $_GET['format']    ?? 'json' );
+	$pto       = get_post_type_object( $post_type );
+	if ( ! $pto ) wp_die( 'Unknown post type: ' . esc_html( $post_type ) );
+
+	$posts    = therum_export_collect( $post_type );
+	$date_str = gmdate( 'Y-m-d' );
+	$base     = 'therum-' . $post_type . '-export-' . $date_str;
 
 	nocache_headers();
-	header( 'Content-Type: application/json; charset=utf-8' );
-	header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
-	header( 'Content-Length: ' . strlen( $json ) );
-	header( 'X-Therum-Export-Type: ' . $post_type );
-	header( 'X-Therum-Export-Count: ' . count( $posts ) );
 	while ( ob_get_level() ) ob_end_clean();
-	echo $json;
-	exit;
+
+	// ── JSON (full structured data) ──────────────────────────────────────
+	if ( $format === 'json' ) {
+		$export = [
+			'generator'  => 'Therum OS Content Export',
+			'site_url'   => home_url(),
+			'exported_at'=> gmdate( 'c' ),
+			'post_type'  => $post_type,
+			'count'      => count( $posts ),
+			'items'      => array_map( fn( $p ) => therum_export_item( $p, $post_type ), $posts ),
+		];
+		$json = wp_json_encode( $export, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $base . '.json"' );
+		header( 'Content-Length: ' . strlen( $json ) );
+		echo $json;
+		exit;
+	}
+
+	// ── TXT (plain text) ─────────────────────────────────────────────────
+	if ( $format === 'txt' ) {
+		$lines = [];
+		$lines[] = strtoupper( $pto->labels->name ?? $post_type ) . ' EXPORT — ' . home_url() . ' — ' . $date_str;
+		$lines[] = str_repeat( '=', 72 );
+		$lines[] = '';
+		foreach ( $posts as $p ) {
+			$lines[] = $p->post_title;
+			$lines[] = str_repeat( '-', mb_strlen( $p->post_title ) );
+			$lines[] = 'Status: ' . $p->post_status . '  |  Date: ' . $p->post_date . '  |  Slug: /' . $p->post_name;
+			$lines[] = '';
+			$content = wp_strip_all_tags( $p->post_content );
+			$content = html_entity_decode( $content, ENT_QUOTES, 'UTF-8' );
+			$content = preg_replace( '/\n{3,}/', "\n\n", trim( $content ) );
+			if ( $content ) {
+				$lines[] = $content;
+			} else {
+				$lines[] = '(no content)';
+			}
+			$lines[] = '';
+			$lines[] = str_repeat( '=', 72 );
+			$lines[] = '';
+		}
+		$txt = implode( "\n", $lines );
+		header( 'Content-Type: text/plain; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $base . '.txt"' );
+		header( 'Content-Length: ' . strlen( $txt ) );
+		echo $txt;
+		exit;
+	}
+
+	// ── MD (Markdown) ────────────────────────────────────────────────────
+	if ( $format === 'md' ) {
+		$lines = [];
+		$lines[] = '# ' . ( $pto->labels->name ?? $post_type ) . ' Export';
+		$lines[] = '';
+		$lines[] = '> ' . home_url() . ' — exported ' . $date_str;
+		$lines[] = '';
+		foreach ( $posts as $p ) {
+			$lines[] = '---';
+			$lines[] = '';
+			$lines[] = '## ' . $p->post_title;
+			$lines[] = '';
+			$lines[] = '| Field | Value |';
+			$lines[] = '|-------|-------|';
+			$lines[] = '| Status | ' . $p->post_status . ' |';
+			$lines[] = '| Date | ' . $p->post_date . ' |';
+			$lines[] = '| Slug | `/' . $p->post_name . '` |';
+			$thumb = get_post_thumbnail_id( $p->ID ) ? wp_get_attachment_url( get_post_thumbnail_id( $p->ID ) ) : '';
+			if ( $thumb ) $lines[] = '| Featured image | ' . $thumb . ' |';
+
+			$taxos = get_object_taxonomies( $post_type );
+			foreach ( $taxos as $tax ) {
+				$terms = wp_get_object_terms( $p->ID, $tax, [ 'fields' => 'names' ] );
+				if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+					$lines[] = '| ' . $tax . ' | ' . implode( ', ', $terms ) . ' |';
+				}
+			}
+			$lines[] = '';
+
+			// Convert HTML content to basic Markdown
+			$html = $p->post_content;
+			$md = $html;
+			$md = preg_replace( '/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/si', "\n" . '$0', $md );
+			$md = preg_replace( '/<h1[^>]*>(.*?)<\/h1>/si', '### $1', $md );
+			$md = preg_replace( '/<h2[^>]*>(.*?)<\/h2>/si', '#### $1', $md );
+			$md = preg_replace( '/<h3[^>]*>(.*?)<\/h3>/si', '##### $1', $md );
+			$md = preg_replace( '/<h[4-6][^>]*>(.*?)<\/h[4-6]>/si', '###### $1', $md );
+			$md = preg_replace( '/<strong[^>]*>(.*?)<\/strong>/si', '**$1**', $md );
+			$md = preg_replace( '/<b[^>]*>(.*?)<\/b>/si', '**$1**', $md );
+			$md = preg_replace( '/<em[^>]*>(.*?)<\/em>/si', '*$1*', $md );
+			$md = preg_replace( '/<i[^>]*>(.*?)<\/i>/si', '*$1*', $md );
+			$md = preg_replace( '/<a[^>]+href="([^"]*)"[^>]*>(.*?)<\/a>/si', '[$2]($1)', $md );
+			$md = preg_replace( '/<li[^>]*>(.*?)<\/li>/si', '- $1', $md );
+			$md = preg_replace( '/<img[^>]+src="([^"]*)"[^>]*>/si', '![]($1)', $md );
+			$md = wp_strip_all_tags( $md );
+			$md = html_entity_decode( $md, ENT_QUOTES, 'UTF-8' );
+			$md = preg_replace( '/\n{3,}/', "\n\n", trim( $md ) );
+
+			if ( $md ) {
+				$lines[] = $md;
+			} else {
+				$lines[] = '*(no content)*';
+			}
+			$lines[] = '';
+		}
+		$out = implode( "\n", $lines );
+		header( 'Content-Type: text/markdown; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $base . '.md"' );
+		header( 'Content-Length: ' . strlen( $out ) );
+		echo $out;
+		exit;
+	}
+
+	// ── BRICKS (native Bricks element JSON per page, bundled as ZIP) ─────
+	if ( $format === 'bricks' ) {
+		if ( ! class_exists( 'ZipArchive' ) ) wp_die( 'PHP ZipArchive extension is required.' );
+
+		$tmp_zip = trailingslashit( get_temp_dir() ) . 'therum-bricks-' . wp_generate_uuid4() . '.zip';
+		$zip     = new ZipArchive();
+		if ( $zip->open( $tmp_zip, ZipArchive::CREATE | ZipArchive::OVERWRITE ) !== true ) wp_die( 'Could not create temp zip.' );
+
+		$global_classes  = get_option( 'bricks_global_classes', [] );
+		$global_vars     = get_option( 'bricks_global_variables', [] );
+		$added = 0;
+
+		foreach ( $posts as $p ) {
+			$bricks_data = get_post_meta( $p->ID, BRICKS_DB_PAGE_CONTENT, true );
+			if ( ! is_array( $bricks_data ) || empty( $bricks_data ) ) continue;
+
+			// Build Bricks-native export shape (matches Bricks' own template export)
+			$template_data = [
+				'source'          => 'bricksCopiedElements',
+				'sourceUrl'       => home_url(),
+				'version'         => defined( 'BRICKS_VERSION' ) ? BRICKS_VERSION : '1.0',
+				'content'         => $bricks_data,
+				'templateName'    => $p->post_title,
+				'post_type'       => $post_type,
+			];
+
+			// Collect global classes used in this page's elements
+			$used_class_ids = [];
+			foreach ( $bricks_data as $el ) {
+				if ( ! empty( $el['settings']['_cssGlobalClasses'] ) ) {
+					$used_class_ids = array_merge( $used_class_ids, $el['settings']['_cssGlobalClasses'] );
+				}
+			}
+			$used_class_ids = array_unique( $used_class_ids );
+			if ( $used_class_ids && is_array( $global_classes ) ) {
+				$page_classes = array_filter( $global_classes, fn( $c ) => in_array( $c['id'] ?? '', $used_class_ids, true ) );
+				if ( $page_classes ) $template_data['globalClasses'] = array_values( $page_classes );
+			}
+
+			if ( ! empty( $global_vars ) ) {
+				$template_data['globalVariables'] = $global_vars;
+			}
+
+			$slug     = $p->post_name ?: sanitize_title( $p->post_title );
+			$filename = $slug . '.json';
+			$zip->addFromString( $filename, wp_json_encode( $template_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+			$added++;
+		}
+
+		$zip->close();
+
+		if ( $added === 0 ) {
+			@unlink( $tmp_zip );
+			wp_die( 'No Bricks content found to export — pages may use the classic editor.' );
+		}
+
+		$zip_name = $base . '-bricks.zip';
+		header( 'Content-Type: application/zip' );
+		header( 'Content-Disposition: attachment; filename="' . $zip_name . '"' );
+		header( 'Content-Length: ' . filesize( $tmp_zip ) );
+		readfile( $tmp_zip );
+		@unlink( $tmp_zip );
+		exit;
+	}
+
+	wp_die( 'Unknown export format: ' . esc_html( $format ) );
 } );
 
 
