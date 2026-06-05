@@ -3605,29 +3605,50 @@ add_action('admin_post_therum_duplicate_post', function() {
 	if (!$post_id || !wp_verify_nonce($_GET['_wpnonce'] ?? '', 'therum_dup_' . $post_id)) wp_die('Bad nonce', 400);
 	$src = get_post($post_id);
 	if (!$src) wp_die('Not found', 404);
-	if (!in_array($src->post_type, ['page', 'post'], true)) wp_die('Invalid post type for duplication', 400);
+
 	$new_id = wp_insert_post([
-		'post_type'    => $src->post_type,
-		'post_status'  => 'draft',
-		'post_title'   => $src->post_title . ' (copy)',
-		'post_content' => $src->post_content,
-		'post_excerpt' => $src->post_excerpt,
-		'post_author'  => get_current_user_id(),
+		'post_type'      => $src->post_type,
+		'post_status'    => 'draft',
+		'post_title'     => $src->post_title . ' (copy)',
+		'post_content'   => $src->post_content,
+		'post_excerpt'   => $src->post_excerpt,
+		'post_author'    => get_current_user_id(),
+		'post_parent'    => $src->post_parent,
+		'menu_order'     => $src->menu_order,
+		'comment_status' => $src->comment_status,
+		'ping_status'    => $src->ping_status,
 	], true);
 	if (is_wp_error($new_id)) wp_die($new_id->get_error_message());
-	// Copy all meta
+
+	// Copy all meta (Bricks elements, ACF fields, SEO, featured image, etc.)
+	$skip = ['_edit_lock', '_edit_last', '_wp_old_slug', '_wp_old_date'];
 	$meta = get_post_meta($post_id);
 	foreach ($meta as $key => $vals) {
-		if (in_array($key, ['_edit_lock', '_edit_last'], true)) continue;
+		if (in_array($key, $skip, true)) continue;
+		// Clear Bricks template conditions on the duplicate to avoid conflicts
+		if ($key === '_bricks_template_conditions') continue;
 		foreach ($vals as $v) {
-			$v = maybe_unserialize($v);
-			add_post_meta($new_id, $key, $v);
+			add_post_meta($new_id, $key, maybe_unserialize($v));
 		}
 	}
-	$redirect = $src->post_type === 'page'
-		? admin_url('admin.php?page=therum-pages')
-		: admin_url('admin.php?page=therum-posts');
-	wp_safe_redirect($redirect);
+
+	// Copy taxonomy assignments (categories, tags, custom taxonomies)
+	$taxonomies = get_object_taxonomies($src->post_type);
+	foreach ($taxonomies as $tax) {
+		$terms = wp_get_object_terms($post_id, $tax, ['fields' => 'ids']);
+		if (!is_wp_error($terms) && !empty($terms)) {
+			wp_set_object_terms($new_id, $terms, $tax);
+		}
+	}
+
+	// Redirect back to the correct Therum list page
+	$type_map = [
+		'page'         => 'therum-pages',
+		'post'         => 'therum-posts',
+		'case_study'   => 'therum-case-studies',
+	];
+	$dest = $type_map[$src->post_type] ?? 'therum-pages';
+	wp_safe_redirect(admin_url('admin.php?page=' . $dest));
 	exit;
 });
 
