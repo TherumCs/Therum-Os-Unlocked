@@ -181,16 +181,29 @@ function th_nav(): array {
 		];
 	}
 
-	$s[] = [ 'id' => 'design', 'label' => 'Design', 'icon' => 'design', 'desc' => 'Front-end design system, themes, navigation.', 'items' => $design_items ];
+	// SITE — everything that affects what visitors see on the front-end.
+	// Renamed from "Design" so the section title clearly signals "this is
+	// the public-facing surface" vs. WORKSPACE (admin-UX) and SYSTEM (plumbing).
+	$s[] = [ 'id' => 'site', 'label' => 'Site', 'icon' => 'design', 'desc' => 'Front-end design system, themes, navigation, templates.', 'items' => $design_items ];
+
+	// WORKSPACE — admin UX customization. Pulled "Admin Theme" out of the old
+	// SYSTEM/Admin section so admin-appearance settings aren't mixed with
+	// infrastructure. Single-item for now; density / shortcuts / dock prefs
+	// land here as they ship.
+	$s[] = [ 'id' => 'workspace', 'label' => 'Workspace', 'icon' => 'manage', 'desc' => 'How your wp-admin looks and behaves.', 'items' => [
+		[ 'label' => 'Appearance', 'icon' => 'palette', 'url' => 'admin.php?page=therum-customization', 'match' => 'page=therum-customization' ],
+	] ];
 
 	$s[] = [ 'id' => 'studio', 'label' => 'Studio', 'icon' => 'therum', 'desc' => 'Custom modules from Therum Creative Studios.', 'items' => [
 		[ 'label' => 'From the Studio', 'icon' => 'therum', 'url' => 'admin.php?page=therum-studio', 'match' => 'page=therum-studio' ],
 	] ];
 
-	$s[] = [ 'id' => 'admin', 'label' => 'Admin', 'icon' => 'admin', 'desc' => 'Plugins, users, admin theme, connections.', 'items' => [
+	// SYSTEM — admin infrastructure / plumbing. Renamed from "Admin" so it
+	// no longer overloads two meanings (admin-UX vs. admin-extensions).
+	// "Admin Theme" item moved out to WORKSPACE above.
+	$s[] = [ 'id' => 'system', 'label' => 'System', 'icon' => 'admin', 'desc' => 'Plugins, users, connections, updates, settings.', 'items' => [
 		[ 'label' => 'Plugins',       'icon' => 'plugins',  'url' => 'admin.php?page=therum-plugins',       'match' => 'page=therum-plugins' ],
 		[ 'label' => 'Users',         'icon' => 'users',    'url' => 'admin.php?page=therum-users',         'match' => 'page=therum-users' ],
-		[ 'label' => 'Admin Theme',   'icon' => 'themes',   'url' => 'admin.php?page=therum-customization', 'match' => 'page=therum-customization' ],
 		[ 'label' => 'Connections',   'icon' => 'webhook',  'url' => 'admin.php?page=therum-connections',   'match' => 'page=therum-connections' ],
 		[ 'label' => 'Updates',       'icon' => 'import',   'url' => 'admin.php?page=therum-updates',       'match' => 'page=therum-updates',
 		  'badge' => ( class_exists( 'Therum_Updates' ) && Therum_Updates::has_update() ) ? 'new' : '' ],
