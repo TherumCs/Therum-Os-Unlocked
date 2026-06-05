@@ -2404,7 +2404,7 @@ class Therum_List_Page {
 			  <span><?php echo esc_html($a['label']); ?></span>
 			</button>
 			<?php else: ?>
-			<a class="th-lp-kebab-item<?php echo $danger; ?>" href="<?php echo esc_url($a['href']); ?>"<?php echo !empty($a['target']) ? ' target="' . esc_attr($a['target']) . '"' : ''; ?><?php echo $data_attrs; ?> role="menuitem">
+			<a class="th-lp-kebab-item<?php echo $danger; ?>" href="<?php echo esc_url($a['href']); ?>"<?php echo !empty($a['target']) ? ' target="' . esc_attr($a['target']) . '"' : ''; ?><?php echo !empty($a['download']) ? ' download="' . esc_attr($a['download']) . '"' : ''; ?><?php echo $data_attrs; ?> role="menuitem">
 			  <?php echo $icon; ?>
 			  <span><?php echo esc_html($a['label']); ?></span>
 			</a>
@@ -2448,6 +2448,7 @@ class Therum_Pages_Page {
 				$by_status['draft'] . ' draft' . ($by_status['draft']===1?'':'s'),
 			],
 			'action_buttons' => [
+				['label'=>'Export', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_export_content&post_type=page'), 'therum_export' )],
 				['label'=>'Import', 'icon'=>'import', 'href'=>admin_url('import.php')],
 				['label'=>'New Page', 'icon'=>'plus', 'primary'=>true, 'href'=>admin_url('post-new.php?post_type=page')],
 			],
@@ -2742,6 +2743,7 @@ class Therum_Case_Studies_Page {
 				count($tags) . ' tag' . (count($tags)===1?'':'s'),
 			],
 			'action_buttons' => [
+				['label'=>'Export', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_export_content&post_type=case_study'), 'therum_export' )],
 				['label'=>'Categories', 'icon'=>'folder', 'href'=>admin_url('edit-tags.php?taxonomy=case_study_discipline&post_type=case_study')],
 				['label'=>'Tags',       'icon'=>'tag',    'href'=>admin_url('edit-tags.php?taxonomy=case_study_tag&post_type=case_study')],
 				['label'=>'New Case Study', 'icon'=>'plus', 'primary'=>true, 'href'=>admin_url('post-new.php?post_type=case_study')],
@@ -2814,6 +2816,7 @@ class Therum_Posts_Page {
 				$by_status['draft'] . ' draft' . ($by_status['draft']===1?'':'s'),
 			],
 			'action_buttons' => [
+				['label'=>'Export', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_export_content&post_type=post'), 'therum_export' )],
 				['label'=>'Categories', 'icon'=>'cats', 'href'=>admin_url('edit-tags.php?taxonomy=category')],
 				['label'=>'New Post', 'icon'=>'plus', 'primary'=>true, 'href'=>admin_url('post-new.php')],
 			],
@@ -3159,6 +3162,7 @@ class Therum_Media_Page {
 			];
 		}
 		if ($url) {
+			$out[] = ['label' => 'Download',  'href' => $url, 'icon' => 'import', 'download' => $basename ?: basename($url)];
 			$out[] = ['label' => 'View file', 'href' => $url, 'icon' => 'external', 'target' => '_blank'];
 			$out[] = ['label' => 'Copy URL',  'copy' => $url, 'icon' => 'export'];
 		}
@@ -6863,6 +6867,104 @@ add_action( 'wp_ajax_therum_media_download_zip', function() {
 	@unlink( $tmp_zip );
 	exit;
 });
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  CONTENT EXPORT — JSON export for pages, posts, case studies, any CPT
+//
+//  Exports every post of the requested type as a JSON array. Each item
+//  includes: post fields, all post meta (including Bricks element data),
+//  taxonomies, featured image URL, and Bricks template associations.
+//  Re-importable via WP REST or a future Therum importer.
+// ═════════════════════════════════════════════════════════════════════════════
+add_action( 'wp_ajax_therum_export_content', function() {
+	if ( ! current_user_can( 'edit_posts' ) ) wp_die( 'Forbidden', 403 );
+	check_admin_referer( 'therum_export' );
+
+	$post_type = sanitize_key( $_GET['post_type'] ?? 'post' );
+	$pto = get_post_type_object( $post_type );
+	if ( ! $pto ) wp_die( 'Unknown post type: ' . esc_html( $post_type ) );
+
+	$posts = get_posts( [
+		'post_type'      => $post_type,
+		'post_status'    => [ 'publish', 'draft', 'future', 'pending', 'private' ],
+		'posts_per_page' => -1,
+		'orderby'        => 'date',
+		'order'          => 'DESC',
+	] );
+
+	$export = [
+		'generator'  => 'Therum OS Content Export',
+		'site_url'   => home_url(),
+		'exported_at'=> gmdate( 'c' ),
+		'post_type'  => $post_type,
+		'count'      => count( $posts ),
+		'items'      => [],
+	];
+
+	foreach ( $posts as $p ) {
+		$item = [
+			'ID'             => $p->ID,
+			'title'          => $p->post_title,
+			'slug'           => $p->post_name,
+			'status'         => $p->post_status,
+			'date'           => $p->post_date,
+			'date_gmt'       => $p->post_date_gmt,
+			'modified'       => $p->post_modified,
+			'content'        => $p->post_content,
+			'excerpt'        => $p->post_excerpt,
+			'author'         => get_the_author_meta( 'display_name', $p->post_author ),
+			'template'       => get_page_template_slug( $p->ID ) ?: '',
+			'menu_order'     => $p->menu_order,
+			'parent'         => $p->post_parent,
+			'featured_image' => '',
+			'taxonomies'     => [],
+			'meta'           => [],
+		];
+
+		// Featured image URL
+		$thumb_id = get_post_thumbnail_id( $p->ID );
+		if ( $thumb_id ) {
+			$item['featured_image'] = wp_get_attachment_url( $thumb_id ) ?: '';
+		}
+
+		// Taxonomies (categories, tags, custom taxonomies)
+		$taxos = get_object_taxonomies( $post_type, 'objects' );
+		foreach ( $taxos as $tax_slug => $tax_obj ) {
+			$terms = wp_get_object_terms( $p->ID, $tax_slug, [ 'fields' => 'names' ] );
+			if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+				$item['taxonomies'][ $tax_slug ] = $terms;
+			}
+		}
+
+		// All post meta — includes Bricks element data, ACF fields, SEO, etc.
+		$all_meta = get_post_meta( $p->ID );
+		foreach ( $all_meta as $key => $values ) {
+			// Skip internal WP keys that aren't useful for export
+			if ( str_starts_with( $key, '_edit_' ) ) continue;
+			if ( $key === '_wp_old_slug' ) continue;
+			// Single-value meta → unwrap from array
+			$item['meta'][ $key ] = count( $values ) === 1 ? $values[0] : $values;
+		}
+
+		$export['items'][] = $item;
+	}
+
+	$json     = wp_json_encode( $export, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	$label    = $pto->labels->name ?? $post_type;
+	$filename = sanitize_file_name( 'therum-' . $post_type . '-export-' . gmdate( 'Y-m-d' ) ) . '.json';
+
+	nocache_headers();
+	header( 'Content-Type: application/json; charset=utf-8' );
+	header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+	header( 'Content-Length: ' . strlen( $json ) );
+	header( 'X-Therum-Export-Type: ' . $post_type );
+	header( 'X-Therum-Export-Count: ' . count( $posts ) );
+	while ( ob_get_level() ) ob_end_clean();
+	echo $json;
+	exit;
+} );
+
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  PART 1 — MEDIA LIBRARY: density slider + grid/masonry/metro/list views
