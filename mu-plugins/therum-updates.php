@@ -142,6 +142,15 @@ class Therum_Updates {
 		] );
 
 		if ( is_wp_error( $res ) || (int) wp_remote_retrieve_response_code( $res ) !== 200 ) {
+			// Surface the common, easily-missed cause: WP_HTTP_BLOCK_EXTERNAL is
+			// on and GitHub isn't whitelisted, so the request never leaves the box.
+			if ( is_wp_error( $res ) && $res->get_error_code() === 'http_request_not_executed' ) {
+				error_log(
+					'[therum-updates] GitHub request blocked by WP_HTTP_BLOCK_EXTERNAL. '
+					. 'Add these to WP_ACCESSIBLE_HOSTS in wp-config.php: '
+					. 'github.com,api.github.com,codeload.github.com,objects.githubusercontent.com'
+				);
+			}
 			set_transient( self::GH_TRANSIENT, 'none', 15 * MINUTE_IN_SECONDS );
 			return null;
 		}
@@ -197,6 +206,10 @@ class Therum_Updates {
 			throw new \RuntimeException( 'No GitHub release zip found.' );
 		}
 
+		// Fail fast with an actionable message if the swap can't possibly succeed.
+		$blocker = self::apply_blocker();
+		if ( $blocker !== null ) throw new \RuntimeException( $blocker );
+
 		// 1. Download to wp temp dir
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		$tmp = download_url( $gh['zip_url'], 30 );
@@ -244,10 +257,56 @@ class Therum_Updates {
 		];
 	}
 
+	// ─── Filesystem preflight + staging helpers ───────────────────────────
+
+	/** The OS user PHP runs as — used in permission diagnostics. */
+	private static function web_user(): string {
+		if ( function_exists( 'posix_geteuid' ) && function_exists( 'posix_getpwuid' ) ) {
+			$info = posix_getpwuid( posix_geteuid() );
+			if ( is_array( $info ) && ! empty( $info['name'] ) ) return (string) $info['name'];
+		}
+		$u = get_current_user();
+		return $u !== '' ? $u : 'the web server user';
+	}
+
+	/**
+	 * A directory the web user can actually write to for staging uploads/extracts.
+	 * Prefers wp-content/upgrade (WP convention); on hardened hosts where the web
+	 * user can't write inside wp-content, falls back to the system temp dir.
+	 */
+	private static function staging_dir(): string {
+		$upgrade = WP_CONTENT_DIR . '/upgrade';
+		if ( ! is_dir( $upgrade ) ) @wp_mkdir_p( $upgrade );
+		if ( is_dir( $upgrade ) && is_writable( $upgrade ) ) return $upgrade;
+		return rtrim( get_temp_dir(), '/\\' );
+	}
+
+	/**
+	 * Preflight for in-place updates. Applying ANY update backs up + rewrites
+	 * mu-plugins/, which requires the web user to have write access to both
+	 * mu-plugins/ and wp-content/. Returns a human-readable blocker string, or
+	 * null if writes will succeed. This turns the old opaque "Could not back up
+	 * mu-plugins" failure into an actionable message.
+	 */
+	private static function apply_blocker(): ?string {
+		$mu       = defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins';
+		$problems = [];
+		if ( is_dir( $mu ) && ! is_writable( $mu ) ) $problems[] = 'mu-plugins/';
+		if ( ! is_writable( WP_CONTENT_DIR ) )       $problems[] = 'wp-content/';
+		if ( empty( $problems ) ) return null;
+		return sprintf(
+			'The web server user (%s) can\'t write to %s, so in-browser updates can\'t be applied. '
+			. 'This is expected on a hardened install with read-only code — update via SSH/deploy instead, '
+			. 'or grant the web user write access to those paths.',
+			self::web_user(),
+			implode( ' and ', $problems )
+		);
+	}
+
 	// ─── Drop-in ZIP channel ──────────────────────────────────────────────
 	//
 	// Manual upload path. The admin picks a .zip from disk, we extract it
-	// into wp-content/upgrade/, find the mu-plugins source inside (handles
+	// into a writable staging dir, find the mu-plugins source inside (handles
 	// patch-shape, full-bundle-shape, and GitHub-zipball-wrap), then run
 	// the same backup-and-swap as the GitHub + local channels.
 	// ─────────────────────────────────────────────────────────────────────
@@ -260,9 +319,13 @@ class Therum_Updates {
 		if ( ! class_exists( '\ZipArchive' ) ) throw new \RuntimeException( 'ZipArchive unavailable.' );
 		if ( ! is_readable( $zip_path ) )     throw new \RuntimeException( 'Uploaded zip not readable.' );
 
-		// 1. Stage extraction
-		$tmp = WP_CONTENT_DIR . '/upgrade/therum-upload-' . substr( wp_generate_password( 8, false ), 0, 8 );
-		if ( ! wp_mkdir_p( $tmp ) ) throw new \RuntimeException( 'Cannot create temp dir.' );
+		// Fail fast with an actionable message if the swap can't possibly succeed.
+		$blocker = self::apply_blocker();
+		if ( $blocker !== null ) throw new \RuntimeException( $blocker );
+
+		// 1. Stage extraction (in a dir the web user can actually write to)
+		$tmp = self::staging_dir() . '/therum-upload-' . substr( wp_generate_password( 8, false ), 0, 8 );
+		if ( ! wp_mkdir_p( $tmp ) ) throw new \RuntimeException( 'Cannot create temp dir at ' . $tmp );
 
 		$zip   = new \ZipArchive();
 		$open  = $zip->open( $zip_path );
@@ -430,13 +493,13 @@ class Therum_Updates {
 				if ( ! in_array( $magic, $zip_sigs, true ) ) {
 					throw new \RuntimeException( 'That file is not a valid ZIP archive (failed signature check).' );
 				}
-				// Move out of PHP's upload tmpdir (auto-cleaned mid-request)
-				// and into wp-content/upgrade where we have stable write access.
-				$dest_dir = WP_CONTENT_DIR . '/upgrade';
-				wp_mkdir_p( $dest_dir );
+				// Move out of PHP's upload tmpdir (auto-cleaned mid-request) into a
+				// dir the web user can actually write to (wp-content/upgrade if
+				// writable, else the system temp dir on hardened hosts).
+				$dest_dir = self::staging_dir();
 				$dest = $dest_dir . '/therum-uploaded-' . substr( wp_generate_password( 8, false ), 0, 8 ) . '.zip';
 				if ( ! move_uploaded_file( $file['tmp_name'], $dest ) ) {
-					throw new \RuntimeException( 'Could not move uploaded file into ' . $dest_dir );
+					throw new \RuntimeException( 'Could not move uploaded file into ' . $dest_dir . ' — directory not writable by ' . self::web_user() . '.' );
 				}
 				$up_applied = self::apply_uploaded_zip( $dest );
 				@unlink( $dest );
