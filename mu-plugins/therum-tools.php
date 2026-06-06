@@ -1,0 +1,1354 @@
+<?php
+/**
+ * Plugin Name: Therum OS — Tools
+ * Description: Power-user tools: ⌘K command palette, activity log, undo toast,
+ *              bulk actions, redirect manager, global find & replace, favorites,
+ *              keyboard shortcuts, content calendar, broken link checker, DB optimizer.
+ * Version: 1.0.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  1. ACTIVITY LOG — lightweight audit trail
+// ════════════════════════════════════════════════════════════════════════════
+
+class Therum_Activity_Log {
+
+	const TABLE_SUFFIX = 'therum_activity_log';
+	const MAX_ROWS     = 5000; // auto-prune beyond this
+
+	public static function init(): void {
+		self::ensure_table();
+		// Hook into common actions
+		add_action( 'save_post',              [ __CLASS__, 'on_save_post' ], 999, 3 );
+		add_action( 'delete_post',            [ __CLASS__, 'on_delete_post' ] );
+		add_action( 'wp_trash_post',          [ __CLASS__, 'on_trash_post' ] );
+		add_action( 'activated_plugin',       [ __CLASS__, 'on_plugin_activate' ] );
+		add_action( 'deactivated_plugin',     [ __CLASS__, 'on_plugin_deactivate' ] );
+		add_action( 'wp_login',               [ __CLASS__, 'on_login' ], 10, 2 );
+		add_action( 'switch_theme',           [ __CLASS__, 'on_switch_theme' ] );
+		add_action( 'updated_option',         [ __CLASS__, 'on_option_update' ], 10, 3 );
+		add_action( 'therum_duplicate_after', [ __CLASS__, 'on_duplicate' ], 10, 3 );
+		// Register Settings section
+		add_action( 'init', function() {
+			if ( class_exists( 'Therum_Settings' ) ) {
+				Therum_Settings::register( 'activity', [
+					'label'    => 'Activity',
+					'icon'     => 'clock',
+					'desc'     => 'Audit trail of changes.',
+					'priority' => 115,
+					'render'   => [ __CLASS__, 'render_settings' ],
+				] );
+			}
+		}, 20 );
+	}
+
+	private static function ensure_table(): void {
+		global $wpdb;
+		$table = $wpdb->prefix . self::TABLE_SUFFIX;
+		if ( get_option( '_therum_activity_log_v' ) === '1' ) return;
+		$charset = $wpdb->get_charset_collate();
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS `$table` (
+			id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			ts DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			user_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			user_name VARCHAR(100) NOT NULL DEFAULT '',
+			action VARCHAR(60) NOT NULL DEFAULT '',
+			object_type VARCHAR(40) NOT NULL DEFAULT '',
+			object_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			object_title VARCHAR(255) NOT NULL DEFAULT '',
+			detail TEXT NOT NULL DEFAULT ''
+		) $charset" );
+		update_option( '_therum_activity_log_v', '1', true );
+	}
+
+	public static function log( string $action, string $obj_type = '', int $obj_id = 0, string $obj_title = '', string $detail = '' ): void {
+		global $wpdb;
+		$table = $wpdb->prefix . self::TABLE_SUFFIX;
+		$user  = wp_get_current_user();
+		$wpdb->insert( $table, [
+			'user_id'      => $user->ID ?? 0,
+			'user_name'    => $user->display_name ?? 'system',
+			'action'       => substr( $action, 0, 60 ),
+			'object_type'  => substr( $obj_type, 0, 40 ),
+			'object_id'    => $obj_id,
+			'object_title' => substr( $obj_title, 0, 255 ),
+			'detail'       => substr( $detail, 0, 2000 ),
+		] );
+		// Auto-prune
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `$table`" );
+		if ( $count > self::MAX_ROWS ) {
+			$keep_id = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM `$table` ORDER BY id DESC LIMIT 1 OFFSET %d", self::MAX_ROWS
+			) );
+			if ( $keep_id ) $wpdb->query( $wpdb->prepare( "DELETE FROM `$table` WHERE id < %d", $keep_id ) );
+		}
+	}
+
+	// ── Hooks ────────────────────────────────────────────────────────────
+	public static function on_save_post( $post_id, $post, $update ): void {
+		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) return;
+		if ( in_array( $post->post_type, [ 'nav_menu_item', 'revision', 'customize_changeset' ], true ) ) return;
+		$action = $update ? 'updated' : 'created';
+		self::log( $action, $post->post_type, $post_id, $post->post_title, 'Status: ' . $post->post_status );
+	}
+	public static function on_delete_post( $post_id ): void {
+		$p = get_post( $post_id );
+		if ( $p ) self::log( 'deleted', $p->post_type, $post_id, $p->post_title );
+	}
+	public static function on_trash_post( $post_id ): void {
+		$p = get_post( $post_id );
+		if ( $p ) self::log( 'trashed', $p->post_type, $post_id, $p->post_title );
+	}
+	public static function on_plugin_activate( $plugin ): void {
+		self::log( 'activated', 'plugin', 0, $plugin );
+	}
+	public static function on_plugin_deactivate( $plugin ): void {
+		self::log( 'deactivated', 'plugin', 0, $plugin );
+	}
+	public static function on_login( $user_login, $user ): void {
+		self::log( 'login', 'user', $user->ID, $user->display_name, 'IP: ' . ( $_SERVER['REMOTE_ADDR'] ?? 'unknown' ) );
+	}
+	public static function on_switch_theme( $new_name ): void {
+		self::log( 'switched_theme', 'theme', 0, $new_name );
+	}
+	public static function on_option_update( $option, $old, $new ): void {
+		$track = [ 'blogname', 'blogdescription', 'admin_email', 'default_role', 'permalink_structure' ];
+		if ( in_array( $option, $track, true ) ) {
+			self::log( 'changed_option', 'option', 0, $option, 'Old: ' . mb_substr( (string) $old, 0, 200 ) );
+		}
+	}
+	public static function on_duplicate( $new_id, $source_id, $source ): void {
+		self::log( 'duplicated', $source->post_type, $new_id, $source->post_title . ' → copy', 'Source: #' . $source_id );
+	}
+
+	// ── AJAX: fetch log entries ──────────────────────────────────────────
+	public static function ajax_fetch(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		global $wpdb;
+		$table  = $wpdb->prefix . self::TABLE_SUFFIX;
+		$offset = max( 0, (int) ( $_GET['offset'] ?? 0 ) );
+		$limit  = min( 100, max( 10, (int) ( $_GET['limit'] ?? 50 ) ) );
+		$rows   = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM `$table` ORDER BY id DESC LIMIT %d OFFSET %d", $limit, $offset
+		) );
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `$table`" );
+		wp_send_json_success( [ 'rows' => $rows, 'total' => $total ] );
+	}
+
+	// ── Settings page renderer ───────────────────────────────────────────
+	public static function render_settings(): void {
+		global $wpdb;
+		$table = $wpdb->prefix . self::TABLE_SUFFIX;
+		$rows  = $wpdb->get_results( "SELECT * FROM `$table` ORDER BY id DESC LIMIT 50" );
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `$table`" );
+
+		if ( function_exists( 'th_settings_group' ) ) {
+			th_settings_group( 'Recent activity', $total . ' events recorded. Oldest auto-pruned at ' . self::MAX_ROWS . '.', function() use ( $rows ) {
+				if ( empty( $rows ) ) {
+					echo '<p style="color:var(--tx3);font-size:13px;">No activity recorded yet.</p>';
+					return;
+				}
+				echo '<div style="max-height:500px;overflow-y:auto;">';
+				echo '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
+				echo '<thead><tr style="text-align:left;border-bottom:1px solid var(--bd);">
+					<th style="padding:8px;">When</th>
+					<th style="padding:8px;">User</th>
+					<th style="padding:8px;">Action</th>
+					<th style="padding:8px;">Object</th>
+					<th style="padding:8px;">Detail</th>
+				</tr></thead><tbody>';
+				foreach ( $rows as $r ) {
+					$ago = human_time_diff( strtotime( $r->ts ) );
+					echo '<tr style="border-bottom:1px solid var(--bd);">';
+					echo '<td style="padding:6px 8px;white-space:nowrap;color:var(--tx3);">' . esc_html( $ago ) . ' ago</td>';
+					echo '<td style="padding:6px 8px;font-weight:500;">' . esc_html( $r->user_name ) . '</td>';
+					echo '<td style="padding:6px 8px;"><span style="padding:2px 8px;border-radius:4px;background:var(--sf2);font-size:11px;font-weight:500;">' . esc_html( $r->action ) . '</span></td>';
+					echo '<td style="padding:6px 8px;">' . esc_html( $r->object_type ) . ( $r->object_title ? ': ' . esc_html( $r->object_title ) : '' ) . '</td>';
+					echo '<td style="padding:6px 8px;color:var(--tx3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' . esc_html( $r->detail ) . '</td>';
+					echo '</tr>';
+				}
+				echo '</tbody></table></div>';
+			} );
+		}
+	}
+}
+
+add_action( 'init', [ 'Therum_Activity_Log', 'init' ] );
+add_action( 'wp_ajax_therum_activity_log', [ 'Therum_Activity_Log', 'ajax_fetch' ] );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  2. REDIRECT MANAGER — 301 redirects for changed slugs
+// ════════════════════════════════════════════════════════════════════════════
+
+class Therum_Redirects {
+
+	const OPTION_KEY = 'therum_redirects';
+
+	public static function init(): void {
+		// Auto-capture slug changes
+		add_action( 'post_updated', [ __CLASS__, 'on_slug_change' ], 10, 3 );
+		// Intercept 404s and redirect if we have a match
+		add_action( 'template_redirect', [ __CLASS__, 'maybe_redirect' ] );
+		// AJAX
+		add_action( 'wp_ajax_therum_redirects_save', [ __CLASS__, 'ajax_save' ] );
+		add_action( 'wp_ajax_therum_redirects_delete', [ __CLASS__, 'ajax_delete' ] );
+		// Settings section
+		add_action( 'init', function() {
+			if ( class_exists( 'Therum_Settings' ) ) {
+				Therum_Settings::register( 'redirects', [
+					'label'    => 'Redirects',
+					'icon'     => 'external',
+					'desc'     => '301 redirect rules.',
+					'priority' => 92,
+					'render'   => [ __CLASS__, 'render_settings' ],
+				] );
+			}
+		}, 20 );
+	}
+
+	public static function get_all(): array {
+		return (array) get_option( self::OPTION_KEY, [] );
+	}
+
+	public static function add( string $from, string $to, string $source = 'manual' ): void {
+		$rules = self::get_all();
+		$from  = '/' . ltrim( wp_parse_url( $from, PHP_URL_PATH ) ?: $from, '/' );
+		$rules[ $from ] = [
+			'to'      => $to,
+			'source'  => $source,
+			'created' => current_time( 'mysql' ),
+			'hits'    => 0,
+		];
+		update_option( self::OPTION_KEY, $rules, false );
+	}
+
+	public static function on_slug_change( $post_id, $post_after, $post_before ): void {
+		if ( $post_before->post_name === $post_after->post_name ) return;
+		if ( $post_after->post_status !== 'publish' ) return;
+		$old_url = get_permalink( $post_before );
+		$new_url = get_permalink( $post_after );
+		if ( $old_url && $new_url && $old_url !== $new_url ) {
+			self::add( $old_url, $new_url, 'auto-slug-change' );
+			if ( class_exists( 'Therum_Activity_Log' ) ) {
+				Therum_Activity_Log::log( 'redirect_created', $post_after->post_type, $post_id, $post_after->post_title, $old_url . ' → ' . $new_url );
+			}
+		}
+	}
+
+	public static function maybe_redirect(): void {
+		if ( ! is_404() ) return;
+		$path  = '/' . ltrim( wp_parse_url( $_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH ) ?: '', '/' );
+		$rules = self::get_all();
+		if ( isset( $rules[ $path ] ) ) {
+			// Increment hit counter
+			$rules[ $path ]['hits'] = ( $rules[ $path ]['hits'] ?? 0 ) + 1;
+			update_option( self::OPTION_KEY, $rules, false );
+			wp_redirect( $rules[ $path ]['to'], 301 );
+			exit;
+		}
+	}
+
+	public static function ajax_save(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		check_ajax_referer( 'therum_options', 'nonce' );
+		$from = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
+		$to   = sanitize_text_field( wp_unslash( $_POST['to'] ?? '' ) );
+		if ( ! $from || ! $to ) wp_send_json_error( 'from and to are required' );
+		self::add( $from, $to, 'manual' );
+		wp_send_json_success( [ 'count' => count( self::get_all() ) ] );
+	}
+
+	public static function ajax_delete(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		check_ajax_referer( 'therum_options', 'nonce' );
+		$from  = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
+		$rules = self::get_all();
+		unset( $rules[ $from ] );
+		update_option( self::OPTION_KEY, $rules, false );
+		wp_send_json_success();
+	}
+
+	public static function render_settings(): void {
+		$rules = self::get_all();
+		$nonce = wp_create_nonce( 'therum_options' );
+
+		if ( function_exists( 'th_settings_group' ) ) {
+			th_settings_group( 'Redirect rules', count( $rules ) . ' active redirect' . ( count( $rules ) === 1 ? '' : 's' ) . '. Auto-created when you change a published page\'s slug.', function() use ( $rules, $nonce ) {
+				?>
+				<div data-th-redirects data-nonce="<?php echo esc_attr( $nonce ); ?>">
+				<div style="display:flex;gap:8px;margin-bottom:14px;">
+					<input type="text" class="th-input" placeholder="/old-path" style="flex:1;" data-th-redir-from />
+					<span style="color:var(--tx3);align-self:center;">→</span>
+					<input type="text" class="th-input" placeholder="/new-path or https://..." style="flex:1;" data-th-redir-to />
+					<button type="button" class="th-btn th-btn-primary" data-th-redir-add>Add</button>
+				</div>
+				<?php if ( empty( $rules ) ): ?>
+					<p style="color:var(--tx3);font-size:13px;">No redirects yet. They're created automatically when you change a published page's slug, or add one manually above.</p>
+				<?php else: ?>
+					<table style="width:100%;font-size:12px;border-collapse:collapse;">
+					<thead><tr style="text-align:left;border-bottom:1px solid var(--bd);">
+						<th style="padding:8px;">From</th><th style="padding:8px;">To</th><th style="padding:8px;">Source</th><th style="padding:8px;">Hits</th><th style="padding:8px;width:60px;"></th>
+					</tr></thead><tbody>
+					<?php foreach ( $rules as $from => $r ): ?>
+					<tr style="border-bottom:1px solid var(--bd);" data-th-redir-row="<?php echo esc_attr( $from ); ?>">
+						<td style="padding:6px 8px;font-family:ui-monospace,monospace;font-size:11px;"><?php echo esc_html( $from ); ?></td>
+						<td style="padding:6px 8px;font-size:11px;color:var(--tx2);"><?php echo esc_html( $r['to'] ); ?></td>
+						<td style="padding:6px 8px;"><span style="padding:2px 8px;border-radius:4px;background:var(--sf2);font-size:11px;"><?php echo esc_html( $r['source'] ?? 'manual' ); ?></span></td>
+						<td style="padding:6px 8px;color:var(--tx3);"><?php echo (int) ( $r['hits'] ?? 0 ); ?></td>
+						<td style="padding:6px 8px;text-align:right;"><button type="button" class="th-btn" style="padding:4px 8px;font-size:11px;color:var(--err);" data-th-redir-del="<?php echo esc_attr( $from ); ?>">Delete</button></td>
+					</tr>
+					<?php endforeach; ?>
+					</tbody></table>
+				<?php endif; ?>
+				</div>
+				<script>
+				(function(){
+					var wrap = document.querySelector('[data-th-redirects]');
+					if (!wrap) return;
+					var nonce = wrap.dataset.nonce;
+					var ajax = window.ajaxurl || '/wp-admin/admin-ajax.php';
+					wrap.querySelector('[data-th-redir-add]').addEventListener('click', function(){
+						var f = wrap.querySelector('[data-th-redir-from]').value.trim();
+						var t = wrap.querySelector('[data-th-redir-to]').value.trim();
+						if (!f || !t) return;
+						var fd = new FormData();
+						fd.append('action','therum_redirects_save');fd.append('from',f);fd.append('to',t);fd.append('nonce',nonce);
+						fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(){location.reload();});
+					});
+					wrap.querySelectorAll('[data-th-redir-del]').forEach(function(btn){
+						btn.addEventListener('click', function(){
+							var fd = new FormData();
+							fd.append('action','therum_redirects_delete');fd.append('from',btn.dataset.thRedirDel);fd.append('nonce',nonce);
+							fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(){
+								var row = btn.closest('[data-th-redir-row]');
+								if (row) row.remove();
+							});
+						});
+					});
+				})();
+				</script>
+				<?php
+			} );
+		}
+	}
+}
+
+add_action( 'init', [ 'Therum_Redirects', 'init' ] );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  3. GLOBAL FIND & REPLACE
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_find_replace', function() {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+	check_ajax_referer( 'therum_options', 'nonce' );
+
+	$find    = wp_unslash( $_POST['find'] ?? '' );
+	$replace = wp_unslash( $_POST['replace'] ?? '' );
+	$dry_run = ! empty( $_POST['dry_run'] );
+
+	if ( $find === '' ) wp_send_json_error( 'find is required' );
+
+	global $wpdb;
+	$affected = [];
+
+	// Search post_content
+	$rows = $wpdb->get_results( $wpdb->prepare(
+		"SELECT ID, post_title, post_type FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status IN ('publish','draft','private','future','pending') LIMIT 500",
+		'%' . $wpdb->esc_like( $find ) . '%'
+	) );
+	foreach ( $rows as $r ) {
+		$affected[] = [ 'id' => $r->ID, 'title' => $r->post_title, 'type' => $r->post_type, 'field' => 'content' ];
+	}
+
+	// Search post_title
+	$rows2 = $wpdb->get_results( $wpdb->prepare(
+		"SELECT ID, post_title, post_type FROM {$wpdb->posts} WHERE post_title LIKE %s AND post_status IN ('publish','draft','private','future','pending') LIMIT 500",
+		'%' . $wpdb->esc_like( $find ) . '%'
+	) );
+	foreach ( $rows2 as $r ) {
+		$affected[] = [ 'id' => $r->ID, 'title' => $r->post_title, 'type' => $r->post_type, 'field' => 'title' ];
+	}
+
+	// Search post_excerpt
+	$rows3 = $wpdb->get_results( $wpdb->prepare(
+		"SELECT ID, post_title, post_type FROM {$wpdb->posts} WHERE post_excerpt LIKE %s AND post_status IN ('publish','draft','private','future','pending') LIMIT 500",
+		'%' . $wpdb->esc_like( $find ) . '%'
+	) );
+	foreach ( $rows3 as $r ) {
+		$affected[] = [ 'id' => $r->ID, 'title' => $r->post_title, 'type' => $r->post_type, 'field' => 'excerpt' ];
+	}
+
+	if ( ! $dry_run && $replace !== null ) {
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$wpdb->posts} SET post_content = REPLACE(post_content, %s, %s) WHERE post_content LIKE %s",
+			$find, $replace, '%' . $wpdb->esc_like( $find ) . '%'
+		) );
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$wpdb->posts} SET post_title = REPLACE(post_title, %s, %s) WHERE post_title LIKE %s",
+			$find, $replace, '%' . $wpdb->esc_like( $find ) . '%'
+		) );
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$wpdb->posts} SET post_excerpt = REPLACE(post_excerpt, %s, %s) WHERE post_excerpt LIKE %s",
+			$find, $replace, '%' . $wpdb->esc_like( $find ) . '%'
+		) );
+		// Also search/replace in postmeta values (for Bricks content, ACF, etc.)
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$wpdb->postmeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s AND meta_key NOT LIKE '\\_transient%%'",
+			$find, $replace, '%' . $wpdb->esc_like( $find ) . '%'
+		) );
+		if ( class_exists( 'Therum_Activity_Log' ) ) {
+			Therum_Activity_Log::log( 'find_replace', 'content', 0, '', 'Find: "' . mb_substr( $find, 0, 80 ) . '" → Replace: "' . mb_substr( $replace, 0, 80 ) . '" — ' . count( $affected ) . ' posts affected' );
+		}
+	}
+
+	wp_send_json_success( [
+		'dry_run'  => $dry_run,
+		'find'     => $find,
+		'replace'  => $replace,
+		'affected' => $affected,
+		'count'    => count( $affected ),
+	] );
+} );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  4. DATABASE OPTIMIZER
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_db_optimize', function() {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+	check_ajax_referer( 'therum_options', 'nonce' );
+
+	global $wpdb;
+	$results = [];
+
+	// 1. Clean excess revisions (keep latest 5 per post)
+	$rev_limit = max( 1, (int) get_option( 'th_perf_revisions_limit', 5 ) );
+	$excess = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'revision'" );
+	// Delete revisions beyond limit for each parent
+	$parents = $wpdb->get_col( "SELECT DISTINCT post_parent FROM {$wpdb->posts} WHERE post_type = 'revision' AND post_parent > 0" );
+	$deleted_revs = 0;
+	foreach ( $parents as $parent_id ) {
+		$keep_ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'revision' AND post_parent = %d ORDER BY post_date DESC LIMIT %d",
+			$parent_id, $rev_limit
+		) );
+		if ( empty( $keep_ids ) ) continue;
+		$keep_str = implode( ',', array_map( 'intval', $keep_ids ) );
+		$del = $wpdb->query( $wpdb->prepare(
+			"DELETE FROM {$wpdb->posts} WHERE post_type = 'revision' AND post_parent = %d AND ID NOT IN ($keep_str)",
+			$parent_id
+		) );
+		$deleted_revs += (int) $del;
+	}
+	$results[] = "Revisions: removed $deleted_revs excess (kept $rev_limit per post)";
+
+	// 2. Clean orphaned postmeta
+	$orphan_meta = $wpdb->query( "DELETE pm FROM {$wpdb->postmeta} pm LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE p.ID IS NULL" );
+	$results[] = "Orphaned postmeta: removed $orphan_meta rows";
+
+	// 3. Clean expired transients
+	$trans = $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_%' AND option_value < UNIX_TIMESTAMP()" );
+	$trans2 = $wpdb->query( "DELETE o FROM {$wpdb->options} o LEFT JOIN {$wpdb->options} t ON t.option_name = CONCAT('_transient_timeout_', SUBSTRING(o.option_name, 12)) WHERE o.option_name LIKE '_transient_%' AND o.option_name NOT LIKE '_transient_timeout_%' AND t.option_name IS NULL" );
+	$results[] = "Transients: cleaned " . ( $trans + $trans2 ) . " expired";
+
+	// 4. Clean spam + trash comments
+	$spam = $wpdb->query( "DELETE FROM {$wpdb->comments} WHERE comment_approved IN ('spam', 'trash')" );
+	$results[] = "Comments: removed $spam spam/trash";
+
+	// 5. Clean auto-drafts older than 7 days
+	$drafts = $wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_status = 'auto-draft' AND post_modified < DATE_SUB(NOW(), INTERVAL 7 DAY)" );
+	$results[] = "Auto-drafts: removed $drafts old drafts";
+
+	if ( class_exists( 'Therum_Activity_Log' ) ) {
+		Therum_Activity_Log::log( 'db_optimize', 'system', 0, '', implode( '; ', $results ) );
+	}
+
+	wp_send_json_success( [ 'results' => $results ] );
+} );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  5. BROKEN LINK CHECKER — background scan
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_check_links', function() {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+
+	global $wpdb;
+	$broken = [];
+	$checked = 0;
+
+	// Extract URLs from post_content of published posts
+	$posts = $wpdb->get_results(
+		"SELECT ID, post_title, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_content LIKE '%href=%' LIMIT 100"
+	);
+
+	foreach ( $posts as $p ) {
+		preg_match_all( '/href=["\']([^"\']+)["\']/i', $p->post_content, $matches );
+		if ( empty( $matches[1] ) ) continue;
+
+		foreach ( array_unique( $matches[1] ) as $url ) {
+			if ( str_starts_with( $url, '#' ) || str_starts_with( $url, 'mailto:' ) || str_starts_with( $url, 'tel:' ) ) continue;
+			if ( $checked >= 50 ) break 2; // Cap per request
+
+			$response = wp_remote_head( $url, [ 'timeout' => 5, 'redirection' => 3, 'sslverify' => false ] );
+			$checked++;
+			$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+			if ( $code === 0 || $code >= 400 ) {
+				$broken[] = [
+					'post_id'    => $p->ID,
+					'post_title' => $p->post_title,
+					'url'        => $url,
+					'status'     => $code ?: ( is_wp_error( $response ) ? $response->get_error_message() : 'unknown' ),
+				];
+			}
+		}
+	}
+
+	wp_send_json_success( [ 'broken' => $broken, 'checked' => $checked ] );
+} );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  6. FAVORITES / PINNED — star pages/posts for quick access
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_toggle_favorite', function() {
+	$nonce = $_POST['nonce'] ?? '';
+	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) ) {
+		wp_send_json_error( 'bad nonce' );
+	}
+	$post_id = (int) ( $_POST['post_id'] ?? 0 );
+	if ( ! $post_id || ! get_post( $post_id ) ) wp_send_json_error( 'bad post' );
+
+	$user_id = get_current_user_id();
+	$favs    = (array) get_user_meta( $user_id, 'therum_favorites', true );
+	$favs    = array_filter( $favs );
+	$key     = array_search( $post_id, $favs, true );
+
+	if ( $key !== false ) {
+		unset( $favs[ $key ] );
+		$is_fav = false;
+	} else {
+		array_unshift( $favs, $post_id );
+		$is_fav = true;
+	}
+
+	update_user_meta( $user_id, 'therum_favorites', array_values( $favs ) );
+	wp_send_json_success( [ 'is_favorite' => $is_fav, 'count' => count( $favs ) ] );
+} );
+
+// Expose favorites to the shell JS for sidebar rendering
+add_action( 'admin_head', function() {
+	if ( ! is_admin() ) return;
+	$favs = (array) get_user_meta( get_current_user_id(), 'therum_favorites', true );
+	$favs = array_filter( $favs );
+	if ( empty( $favs ) ) return;
+
+	$items = [];
+	foreach ( array_slice( $favs, 0, 10 ) as $id ) {
+		$p = get_post( $id );
+		if ( ! $p || $p->post_status === 'trash' ) continue;
+		$items[] = [
+			'id'    => $p->ID,
+			'title' => $p->post_title ?: '(untitled)',
+			'type'  => $p->post_type,
+			'edit'  => get_edit_post_link( $p->ID, 'raw' ),
+		];
+	}
+	if ( empty( $items ) ) return;
+	echo '<script>window.therumFavorites = ' . wp_json_encode( $items ) . ';</script>' . "\n";
+} );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  7. CONTENT CALENDAR — AJAX endpoint for scheduled/recent posts
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_calendar_events', function() {
+	if ( ! current_user_can( 'edit_posts' ) ) wp_send_json_error( 'forbidden' );
+
+	$start = sanitize_text_field( $_GET['start'] ?? gmdate( 'Y-m-01' ) );
+	$end   = sanitize_text_field( $_GET['end']   ?? gmdate( 'Y-m-t' ) );
+
+	$posts = get_posts( [
+		'post_type'      => [ 'post', 'page', 'case_study' ],
+		'post_status'    => [ 'publish', 'draft', 'future', 'pending' ],
+		'posts_per_page' => 200,
+		'date_query'     => [
+			[ 'after' => $start, 'before' => $end, 'inclusive' => true ],
+		],
+		'orderby' => 'date',
+		'order'   => 'ASC',
+	] );
+
+	$events = [];
+	foreach ( $posts as $p ) {
+		$events[] = [
+			'id'     => $p->ID,
+			'title'  => $p->post_title ?: '(untitled)',
+			'date'   => $p->post_date,
+			'status' => $p->post_status,
+			'type'   => $p->post_type,
+			'edit'   => get_edit_post_link( $p->ID, 'raw' ),
+		];
+	}
+
+	wp_send_json_success( [ 'events' => $events ] );
+} );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  8. SCHEDULED ACTIONS DASHBOARD — upcoming cron + scheduled posts
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_scheduled_overview', function() {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+
+	$out = [ 'scheduled_posts' => [], 'cron_jobs' => [] ];
+
+	// Scheduled posts
+	$future = get_posts( [
+		'post_type'      => [ 'post', 'page', 'case_study' ],
+		'post_status'    => 'future',
+		'posts_per_page' => 20,
+		'orderby'        => 'date',
+		'order'          => 'ASC',
+	] );
+	foreach ( $future as $p ) {
+		$out['scheduled_posts'][] = [
+			'id'    => $p->ID,
+			'title' => $p->post_title,
+			'type'  => $p->post_type,
+			'date'  => $p->post_date,
+			'edit'  => get_edit_post_link( $p->ID, 'raw' ),
+		];
+	}
+
+	// Next cron events
+	$crons = _get_cron_array();
+	if ( is_array( $crons ) ) {
+		$now = time();
+		foreach ( $crons as $ts => $hooks ) {
+			if ( $ts < $now ) continue;
+			foreach ( $hooks as $hook => $events ) {
+				// Skip WP internal noise
+				if ( str_starts_with( $hook, 'wp_' ) && ! in_array( $hook, [ 'wp_scheduled_auto_draft_delete' ], true ) ) continue;
+				$out['cron_jobs'][] = [
+					'hook'      => $hook,
+					'next_run'  => gmdate( 'Y-m-d H:i:s', $ts ),
+					'in'        => human_time_diff( $now, $ts ),
+				];
+			}
+			if ( count( $out['cron_jobs'] ) >= 20 ) break;
+		}
+	}
+
+	wp_send_json_success( $out );
+} );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  9. TOOLS SETTINGS — Find & Replace + DB Optimizer + Link Checker UI
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'init', function() {
+	if ( ! class_exists( 'Therum_Settings' ) ) return;
+
+	Therum_Settings::register( 'tools', [
+		'label'    => 'Tools',
+		'icon'     => 'settings',
+		'desc'     => 'Find & replace, DB cleanup, link checker.',
+		'priority' => 125,
+		'render'   => 'therum_render_tools_settings',
+	] );
+}, 20 );
+
+function therum_render_tools_settings(): void {
+	$nonce = wp_create_nonce( 'therum_options' );
+
+	if ( function_exists( 'th_settings_group' ) ) {
+		// ── Find & Replace ───────────────────────────────────────────────
+		th_settings_group( 'Find & replace', 'Search across all post content, titles, excerpts, and meta. Preview matches before replacing.', function() use ( $nonce ) {
+			?>
+			<div data-th-fnr data-nonce="<?php echo esc_attr( $nonce ); ?>">
+				<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+					<input type="text" class="th-input" placeholder="Find this text…" style="flex:1;min-width:200px;" data-th-fnr-find />
+					<input type="text" class="th-input" placeholder="Replace with…" style="flex:1;min-width:200px;" data-th-fnr-replace />
+				</div>
+				<div style="display:flex;gap:8px;">
+					<button type="button" class="th-btn" data-th-fnr-preview>Preview matches</button>
+					<button type="button" class="th-btn th-btn-primary" data-th-fnr-run style="display:none;">Replace all</button>
+				</div>
+				<div data-th-fnr-results style="margin-top:12px;font-size:12px;color:var(--tx2);"></div>
+			</div>
+			<script>
+			(function(){
+				var wrap = document.querySelector('[data-th-fnr]');
+				if (!wrap) return;
+				var nonce = wrap.dataset.nonce, ajax = window.ajaxurl || '/wp-admin/admin-ajax.php';
+				var findEl = wrap.querySelector('[data-th-fnr-find]');
+				var repEl = wrap.querySelector('[data-th-fnr-replace]');
+				var results = wrap.querySelector('[data-th-fnr-results]');
+				var runBtn = wrap.querySelector('[data-th-fnr-run]');
+				wrap.querySelector('[data-th-fnr-preview]').addEventListener('click', function(){
+					var fd = new FormData();
+					fd.append('action','therum_find_replace');fd.append('find',findEl.value);fd.append('replace',repEl.value);fd.append('dry_run','1');fd.append('nonce',nonce);
+					fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(function(res){
+						if (res.success) {
+							var d = res.data;
+							results.innerHTML = '<strong>' + d.count + ' match' + (d.count===1?'':'es') + '</strong> found across posts.' +
+								(d.count > 0 ? '<br>' + d.affected.slice(0,10).map(function(a){return a.type + ' #' + a.id + ' "' + a.title + '" (' + a.field + ')';}).join('<br>') : '');
+							runBtn.style.display = d.count > 0 ? '' : 'none';
+						}
+					});
+				});
+				runBtn.addEventListener('click', function(){
+					if (!confirm('Replace "' + findEl.value + '" with "' + repEl.value + '" across all content? This cannot be undone.')) return;
+					var fd = new FormData();
+					fd.append('action','therum_find_replace');fd.append('find',findEl.value);fd.append('replace',repEl.value);fd.append('dry_run','');fd.append('nonce',nonce);
+					fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(function(res){
+						if (res.success) {
+							results.innerHTML = '<strong style="color:var(--ok);">Done.</strong> Replaced in ' + res.data.count + ' location' + (res.data.count===1?'':'s') + '.';
+							runBtn.style.display = 'none';
+						}
+					});
+				});
+			})();
+			</script>
+			<?php
+		} );
+
+		// ── DB Optimizer ─────────────────────────────────────────────────
+		th_settings_group( 'Database optimizer', 'Clean excess revisions, orphaned meta, expired transients, spam comments, old auto-drafts.', function() use ( $nonce ) {
+			?>
+			<div data-th-dbopt data-nonce="<?php echo esc_attr( $nonce ); ?>">
+				<button type="button" class="th-btn th-btn-primary" data-th-dbopt-run>Run cleanup</button>
+				<div data-th-dbopt-results style="margin-top:12px;font-size:12px;color:var(--tx2);"></div>
+			</div>
+			<script>
+			(function(){
+				var wrap = document.querySelector('[data-th-dbopt]');
+				if (!wrap) return;
+				wrap.querySelector('[data-th-dbopt-run]').addEventListener('click', function(){
+					this.disabled = true; this.textContent = 'Cleaning…';
+					var fd = new FormData();
+					fd.append('action','therum_db_optimize');fd.append('nonce',wrap.dataset.nonce);
+					fetch(window.ajaxurl||'/wp-admin/admin-ajax.php',{method:'POST',credentials:'same-origin',body:fd})
+					.then(function(r){return r.json();}).then(function(res){
+						var btn = wrap.querySelector('[data-th-dbopt-run]');
+						btn.disabled = false; btn.textContent = 'Run cleanup';
+						if (res.success) {
+							wrap.querySelector('[data-th-dbopt-results]').innerHTML = '<strong style="color:var(--ok);">Done.</strong><br>' + res.data.results.join('<br>');
+						}
+					});
+				});
+			})();
+			</script>
+			<?php
+		} );
+
+		// ── Broken Link Checker ──────────────────────────────────────────
+		th_settings_group( 'Broken link checker', 'Scans published posts for links returning 404 or errors. Checks up to 50 URLs per run.', function() {
+			?>
+			<div data-th-linkcheck>
+				<button type="button" class="th-btn th-btn-primary" data-th-linkcheck-run>Scan for broken links</button>
+				<div data-th-linkcheck-results style="margin-top:12px;font-size:12px;color:var(--tx2);"></div>
+			</div>
+			<script>
+			(function(){
+				var wrap = document.querySelector('[data-th-linkcheck]');
+				if (!wrap) return;
+				wrap.querySelector('[data-th-linkcheck-run]').addEventListener('click', function(){
+					this.disabled = true; this.textContent = 'Scanning…';
+					fetch((window.ajaxurl||'/wp-admin/admin-ajax.php') + '?action=therum_check_links',{credentials:'same-origin'})
+					.then(function(r){return r.json();}).then(function(res){
+						var btn = wrap.querySelector('[data-th-linkcheck-run]');
+						btn.disabled = false; btn.textContent = 'Scan for broken links';
+						var el = wrap.querySelector('[data-th-linkcheck-results]');
+						if (res.success) {
+							var d = res.data;
+							if (!d.broken.length) { el.innerHTML = '<strong style="color:var(--ok);">No broken links found.</strong> Checked ' + d.checked + ' URLs.'; return; }
+							el.innerHTML = '<strong style="color:var(--err);">' + d.broken.length + ' broken link' + (d.broken.length===1?'':'s') + '</strong> found (checked ' + d.checked + ' URLs):<br>' +
+								d.broken.map(function(b){return '• <a href="' + b.url + '" target="_blank">' + b.url + '</a> → ' + b.status + ' (in "' + b.post_title + '")';}).join('<br>');
+						}
+					});
+				});
+			})();
+			</script>
+			<?php
+		} );
+	}
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  10. MULTISITE AWARENESS — add network context to sidebar if multisite
+// ════════════════════════════════════════════════════════════════════════════
+
+if ( is_multisite() ) {
+	add_action( 'admin_bar_menu', function( $bar ) {
+		if ( ! is_user_logged_in() ) return;
+		$sites = get_sites( [ 'number' => 10 ] );
+		if ( count( $sites ) <= 1 ) return;
+		$bar->add_node( [
+			'id'     => 'th-network-sites',
+			'parent' => 'top-secondary',
+			'title'  => 'Network (' . count( $sites ) . ' sites)',
+		] );
+		foreach ( $sites as $s ) {
+			$bar->add_node( [
+				'id'     => 'th-site-' . $s->blog_id,
+				'parent' => 'th-network-sites',
+				'title'  => $s->blogname ?: $s->domain,
+				'href'   => get_admin_url( $s->blog_id ),
+			] );
+		}
+	}, 200 );
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  11. ⌘K COMMAND PALETTE + 12. UNDO TOAST + 13. BULK ACTIONS +
+//  14. KEYBOARD SHORTCUTS + 15. REVISION LINK + IMPORT TOOL
+//
+//  All injected as one inline script block in admin_footer.
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'admin_footer', function() {
+	if ( function_exists( 'th_is_frame' ) && th_is_frame() ) return;
+
+	// Build command palette data
+	$commands = [];
+
+	// Navigation commands
+	$nav_items = [
+		[ 'Dashboard',     admin_url( 'admin.php?page=therum' ) ],
+		[ 'Pages',         admin_url( 'admin.php?page=therum-pages' ) ],
+		[ 'Posts',         admin_url( 'admin.php?page=therum-posts' ) ],
+		[ 'Media',         admin_url( 'admin.php?page=therum-media' ) ],
+		[ 'Plugins',       admin_url( 'admin.php?page=therum-plugins' ) ],
+		[ 'Users',         admin_url( 'admin.php?page=therum-users' ) ],
+		[ 'Settings',      admin_url( 'admin.php?page=therum-settings' ) ],
+		[ 'Customization', admin_url( 'admin.php?page=therum-customization' ) ],
+		[ 'Themes',        admin_url( 'admin.php?page=therum-customization&section=themes' ) ],
+		[ 'Updates',       admin_url( 'admin.php?page=therum-updates' ) ],
+		[ 'Connections',   admin_url( 'admin.php?page=therum-connections' ) ],
+	];
+	foreach ( $nav_items as $ni ) {
+		$commands[] = [ 'label' => 'Go to ' . $ni[0], 'url' => $ni[1], 'group' => 'Navigation', 'keys' => strtolower( $ni[0] ) ];
+	}
+
+	// Action commands
+	$commands[] = [ 'label' => 'New Page',         'url' => admin_url( 'post-new.php?post_type=page' ), 'group' => 'Create' ];
+	$commands[] = [ 'label' => 'New Post',          'url' => admin_url( 'post-new.php' ), 'group' => 'Create' ];
+	$commands[] = [ 'label' => 'Upload Media',      'url' => admin_url( 'media-new.php' ), 'group' => 'Create' ];
+	$commands[] = [ 'label' => 'New Case Study',    'url' => admin_url( 'post-new.php?post_type=case_study' ), 'group' => 'Create' ];
+
+	// Settings shortcuts
+	$settings_sections = [ 'appearance', 'branding', 'security', 'performance', 'uploads', 'notifications', 'updates', 'backup', 'experiments', 'tools', 'activity', 'redirects', 'about' ];
+	foreach ( $settings_sections as $s ) {
+		$commands[] = [ 'label' => ucfirst( $s ) . ' settings', 'url' => admin_url( 'admin.php?page=therum-settings&section=' . $s ), 'group' => 'Settings', 'keys' => $s . ' settings' ];
+	}
+
+	// Toggle commands (JS-handled)
+	$commands[] = [ 'label' => 'Toggle dark mode',    'action' => 'toggle-theme', 'group' => 'Actions' ];
+	$commands[] = [ 'label' => 'Toggle desktop mode', 'action' => 'toggle-desktop', 'group' => 'Actions' ];
+	$commands[] = [ 'label' => 'View site',           'url' => home_url(), 'group' => 'Actions', 'target' => '_blank' ];
+
+	// Recent posts for quick jump
+	$recent = get_posts( [ 'posts_per_page' => 15, 'post_type' => [ 'page', 'post', 'case_study' ], 'post_status' => [ 'publish', 'draft' ], 'orderby' => 'modified', 'order' => 'DESC' ] );
+	foreach ( $recent as $rp ) {
+		$commands[] = [ 'label' => 'Edit: ' . ( $rp->post_title ?: '(untitled)' ), 'url' => get_edit_post_link( $rp->ID, 'raw' ), 'group' => 'Recent', 'keys' => strtolower( $rp->post_title ) ];
+	}
+
+	$json = wp_json_encode( $commands, JSON_UNESCAPED_UNICODE );
+	?>
+<style id="therum-tools-css">
+/* ⌘K Command Palette */
+.th-cmd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:none;align-items:flex-start;justify-content:center;padding-top:min(20vh,160px);backdrop-filter:blur(4px)}
+.th-cmd-overlay.is-open{display:flex}
+.th-cmd{width:560px;max-width:calc(100vw - 40px);max-height:min(60vh,480px);background:var(--sf,#fff);border:1px solid var(--bd);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.25);overflow:hidden;display:flex;flex-direction:column;animation:th-lift-in .15s ease both}
+@keyframes th-lift-in{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.th-cmd-input-wrap{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--bd)}
+.th-cmd-input-wrap svg{color:var(--tx3);flex-shrink:0}
+.th-cmd-input{flex:1;border:none;background:none;font-size:16px;font-family:var(--f);color:var(--tx);outline:none}
+.th-cmd-input::placeholder{color:var(--tx3)}
+.th-cmd-kbd{font-size:10px;color:var(--tx3);background:var(--sf2);padding:3px 8px;border-radius:5px;border:1px solid var(--bd)}
+.th-cmd-list{overflow-y:auto;padding:6px}
+.th-cmd-group{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);padding:8px 12px 4px}
+.th-cmd-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:8px;color:var(--tx);font-size:14px;text-decoration:none!important;cursor:pointer;transition:background .08s}
+.th-cmd-item:hover,.th-cmd-item.is-active{background:var(--sf2);color:var(--ac)}
+.th-cmd-item-sub{margin-left:auto;font-size:11px;color:var(--tx3)}
+.th-cmd-empty{padding:24px;text-align:center;color:var(--tx3);font-size:13px}
+.th-cmd-footer{padding:8px 14px;border-top:1px solid var(--bd);display:flex;gap:14px;font-size:11px;color:var(--tx3)}
+.th-cmd-footer kbd{font-size:10px;background:var(--sf2);padding:2px 6px;border-radius:4px;border:1px solid var(--bd);font-family:var(--f)}
+
+/* Undo toast */
+.th-undo-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--tx,#0a0a0a);color:#fff;padding:10px 18px;border-radius:10px;font:500 13px/1.3 var(--f);box-shadow:0 12px 40px rgba(0,0,0,.25);z-index:99998;display:flex;align-items:center;gap:12px;opacity:0;transition:opacity .2s,transform .2s}
+.th-undo-toast.is-visible{opacity:1;transform:translateX(-50%) translateY(0)}
+.th-undo-toast button{background:rgba(255,255,255,.2);border:none;color:#fff;padding:5px 12px;border-radius:6px;font:600 12px/1 var(--f);cursor:pointer}
+.th-undo-toast button:hover{background:rgba(255,255,255,.3)}
+
+/* Bulk actions bar */
+.th-bulk-bar{display:none;position:sticky;top:var(--topbar-h,72px);z-index:50;margin:0 0 16px;padding:10px 16px;background:var(--ac);color:#fff;border-radius:10px;align-items:center;gap:12px;font-size:13px;font-weight:500}
+.th-bulk-bar.is-active{display:flex}
+.th-bulk-bar button{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 12px;border-radius:6px;font:500 12px/1 var(--f);cursor:pointer}
+.th-bulk-bar button:hover{background:rgba(255,255,255,.3)}
+.th-bulk-bar .spacer{flex:1}
+.th-lp-card.is-selected{outline:2px solid var(--ac);outline-offset:2px}
+.th-lp-row.is-selected td:first-child{box-shadow:inset 3px 0 0 0 var(--ac)}
+</style>
+
+<div class="th-cmd-overlay" id="th-cmd-overlay">
+<div class="th-cmd">
+  <div class="th-cmd-input-wrap">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input class="th-cmd-input" id="th-cmd-input" placeholder="Search commands, pages, settings…" autocomplete="off" />
+    <span class="th-cmd-kbd">ESC</span>
+  </div>
+  <div class="th-cmd-list" id="th-cmd-list"></div>
+  <div class="th-cmd-footer">
+    <span><kbd>↑↓</kbd> navigate</span>
+    <span><kbd>↵</kbd> select</span>
+    <span><kbd>esc</kbd> close</span>
+  </div>
+</div>
+</div>
+
+<div class="th-undo-toast" id="th-undo-toast">
+  <span id="th-undo-msg"></span>
+  <button id="th-undo-btn">Undo</button>
+</div>
+
+<script id="therum-tools-js">
+(function() {
+'use strict';
+var COMMANDS = <?php echo $json; ?>;
+var overlay = document.getElementById('th-cmd-overlay');
+var input   = document.getElementById('th-cmd-input');
+var list    = document.getElementById('th-cmd-list');
+var activeIdx = -1;
+
+// ─── ⌘K COMMAND PALETTE ─────────────────────────────────────────────
+function openPalette() {
+  overlay.classList.add('is-open');
+  input.value = '';
+  activeIdx = -1;
+  renderResults('');
+  setTimeout(function(){ input.focus(); }, 50);
+}
+function closePalette() {
+  overlay.classList.remove('is-open');
+}
+
+function renderResults(q) {
+  q = q.toLowerCase().trim();
+  var groups = {};
+  var count = 0;
+  COMMANDS.forEach(function(c) {
+    var haystack = (c.label + ' ' + (c.keys || '') + ' ' + (c.group || '')).toLowerCase();
+    if (q && haystack.indexOf(q) === -1) return;
+    var g = c.group || 'Other';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(c);
+    count++;
+  });
+  if (count === 0) {
+    list.innerHTML = '<div class="th-cmd-empty">No matches for "' + q.replace(/</g,'&lt;') + '"</div>';
+    return;
+  }
+  var html = '';
+  var idx = 0;
+  Object.keys(groups).forEach(function(g) {
+    html += '<div class="th-cmd-group">' + g + '</div>';
+    groups[g].forEach(function(c) {
+      var cls = idx === activeIdx ? ' is-active' : '';
+      html += '<div class="th-cmd-item' + cls + '" data-idx="' + idx + '" data-url="' + (c.url||'') + '" data-action="' + (c.action||'') + '" data-target="' + (c.target||'') + '">';
+      html += '<span>' + c.label + '</span>';
+      if (c.group === 'Recent') html += '<span class="th-cmd-item-sub">' + (c.keys||'') + '</span>';
+      html += '</div>';
+      idx++;
+    });
+  });
+  list.innerHTML = html;
+}
+
+function executeItem(el) {
+  var url = el.dataset.url;
+  var action = el.dataset.action;
+  closePalette();
+  if (action === 'toggle-theme') {
+    var btn = document.getElementById('th-theme-toggle');
+    if (btn) btn.click();
+  } else if (action === 'toggle-desktop') {
+    var dm = document.getElementById('th-desktop-toggle');
+    if (dm) dm.click();
+  } else if (url) {
+    if (el.dataset.target === '_blank') window.open(url);
+    else window.location.href = url;
+  }
+}
+
+input.addEventListener('input', function() {
+  activeIdx = -1;
+  renderResults(input.value);
+});
+
+input.addEventListener('keydown', function(e) {
+  var items = list.querySelectorAll('.th-cmd-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    activeIdx = Math.min(activeIdx + 1, items.length - 1);
+    items.forEach(function(it, i) { it.classList.toggle('is-active', i === activeIdx); });
+    if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    activeIdx = Math.max(activeIdx - 1, 0);
+    items.forEach(function(it, i) { it.classList.toggle('is-active', i === activeIdx); });
+    if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    var active = list.querySelector('.th-cmd-item.is-active') || items[0];
+    if (active) executeItem(active);
+  } else if (e.key === 'Escape') {
+    closePalette();
+  }
+});
+
+list.addEventListener('click', function(e) {
+  var item = e.target.closest('.th-cmd-item');
+  if (item) executeItem(item);
+});
+
+overlay.addEventListener('click', function(e) {
+  if (e.target === overlay) closePalette();
+});
+
+// ⌘K / Ctrl+K global shortcut
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    if (overlay.classList.contains('is-open')) closePalette();
+    else openPalette();
+  }
+});
+
+// Also wire the sidebar ⌘K hint to open the palette
+var sbSearch = document.querySelector('.th-sb-search-box');
+if (sbSearch) {
+  sbSearch.addEventListener('click', function(e) {
+    e.preventDefault();
+    openPalette();
+  });
+}
+
+// ─── UNDO TOAST ──────────────────────────────────────────────────────
+var undoToast = document.getElementById('th-undo-toast');
+var undoMsg   = document.getElementById('th-undo-msg');
+var undoBtn   = document.getElementById('th-undo-btn');
+var undoTimer = null;
+var undoCallback = null;
+
+window.therumUndo = function(message, callback, duration) {
+  clearTimeout(undoTimer);
+  undoMsg.textContent = message;
+  undoCallback = callback;
+  undoToast.classList.add('is-visible');
+  undoTimer = setTimeout(function() {
+    undoToast.classList.remove('is-visible');
+    undoCallback = null;
+  }, duration || 8000);
+};
+
+undoBtn.addEventListener('click', function() {
+  clearTimeout(undoTimer);
+  undoToast.classList.remove('is-visible');
+  if (typeof undoCallback === 'function') undoCallback();
+  undoCallback = null;
+});
+
+// ─── BULK ACTIONS ────────────────────────────────────────────────────
+// Ctrl/Cmd+Click on list items to select; bulk bar appears with actions.
+var lp = document.querySelector('.th-lp');
+if (lp) {
+  var selected = new Set();
+
+  lp.addEventListener('click', function(e) {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    var card = e.target.closest('.th-lp-card[data-th-item-id], .th-lp-row[data-th-item-id]');
+    if (!card) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var id = card.getAttribute('data-th-item-id');
+    if (selected.has(id)) {
+      selected.delete(id);
+      card.classList.remove('is-selected');
+    } else {
+      selected.add(id);
+      card.classList.add('is-selected');
+    }
+    updateBulkBar();
+  });
+
+  // Inject bulk bar if not present
+  var bulkBar = document.createElement('div');
+  bulkBar.className = 'th-bulk-bar';
+  bulkBar.innerHTML = '<span class="th-bulk-count">0 selected</span><span class="spacer"></span>' +
+    '<button data-bulk="publish">Publish</button>' +
+    '<button data-bulk="draft">Set to draft</button>' +
+    '<button data-bulk="trash">Trash</button>' +
+    '<button data-bulk="clear" style="background:transparent;text-decoration:underline;opacity:.8">Clear</button>';
+  var toolbar = lp.querySelector('.th-lp-toolbar');
+  if (toolbar) toolbar.parentNode.insertBefore(bulkBar, toolbar.nextSibling);
+
+  function updateBulkBar() {
+    var count = selected.size;
+    bulkBar.classList.toggle('is-active', count > 0);
+    bulkBar.querySelector('.th-bulk-count').textContent = count + ' selected';
+    // Sync visual selection across views
+    lp.querySelectorAll('[data-th-item-id]').forEach(function(el) {
+      el.classList.toggle('is-selected', selected.has(el.getAttribute('data-th-item-id')));
+    });
+  }
+
+  bulkBar.addEventListener('click', function(e) {
+    var action = e.target.dataset.bulk;
+    if (!action) return;
+    if (action === 'clear') {
+      selected.clear();
+      updateBulkBar();
+      return;
+    }
+    if (!selected.size) return;
+    var ids = Array.from(selected);
+    // Extract numeric post IDs from item IDs (format: "post_123" or just "123")
+    var postIds = ids.map(function(id) { return parseInt(id.replace(/\D/g,''), 10); }).filter(Boolean);
+    if (!postIds.length) return;
+    if (action === 'trash' && !confirm('Move ' + postIds.length + ' item(s) to trash?')) return;
+
+    var fd = new FormData();
+    fd.append('action', 'therum_bulk_action');
+    fd.append('bulk_action', action);
+    fd.append('post_ids', JSON.stringify(postIds));
+    fd.append('nonce', (window.therumShellData && therumShellData.themeNonce) || '');
+    fetch((window.ajaxurl || '/wp-admin/admin-ajax.php'), { method: 'POST', credentials: 'same-origin', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.success) {
+          var msg = res.data.count + ' item(s) ' + action + (action === 'trash' ? 'ed' : 'ed');
+          if (action === 'trash') {
+            window.therumUndo(msg, function() {
+              // Undo: untrash them
+              var ufd = new FormData();
+              ufd.append('action', 'therum_bulk_action');
+              ufd.append('bulk_action', 'untrash');
+              ufd.append('post_ids', JSON.stringify(postIds));
+              ufd.append('nonce', (window.therumShellData && therumShellData.themeNonce) || '');
+              fetch((window.ajaxurl || '/wp-admin/admin-ajax.php'), { method: 'POST', credentials: 'same-origin', body: fd })
+                .then(function() { location.reload(); });
+            });
+          }
+          setTimeout(function() { location.reload(); }, action === 'trash' ? 8500 : 500);
+        }
+      });
+  });
+}
+
+// ─── KEYBOARD SHORTCUTS ──────────────────────────────────────────────
+// Global shortcuts available on list pages
+document.addEventListener('keydown', function(e) {
+  // Don't fire if user is typing in an input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  if (overlay.classList.contains('is-open')) return;
+
+  // ? — show shortcut help
+  if (e.key === '?' && !e.metaKey && !e.ctrlKey) {
+    e.preventDefault();
+    alert(
+      'Therum OS Keyboard Shortcuts\n\n' +
+      '⌘K / Ctrl+K — Command palette\n' +
+      'N — New post/page (on list pages)\n' +
+      '/ — Focus search\n' +
+      'G then H — Go to dashboard\n' +
+      'G then P — Go to pages\n' +
+      'G then O — Go to posts\n' +
+      'G then M — Go to media\n' +
+      'G then S — Go to settings\n' +
+      '⌘+Click — Select multiple items\n' +
+      '? — This help'
+    );
+    return;
+  }
+
+  // / — focus search
+  if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
+    var search = document.querySelector('.th-lp-search-input') || document.querySelector('.th-sb-search-box input');
+    if (search) { e.preventDefault(); search.focus(); }
+    return;
+  }
+
+  // N — new post/page
+  if (e.key === 'n' && !e.metaKey && !e.ctrlKey) {
+    var page = new URLSearchParams(window.location.search).get('page') || '';
+    if (page === 'therum-pages') window.location.href = '<?php echo esc_js( admin_url( 'post-new.php?post_type=page' ) ); ?>';
+    else if (page === 'therum-posts') window.location.href = '<?php echo esc_js( admin_url( 'post-new.php' ) ); ?>';
+    else if (page === 'therum-case-studies') window.location.href = '<?php echo esc_js( admin_url( 'post-new.php?post_type=case_study' ) ); ?>';
+    return;
+  }
+
+  // G then X — go-to shortcuts (two-key sequence)
+  if (e.key === 'g' && !e.metaKey && !e.ctrlKey) {
+    var gHandler = function(e2) {
+      document.removeEventListener('keydown', gHandler);
+      clearTimeout(gTimer);
+      var map = {
+        'h': '<?php echo esc_js( admin_url( 'admin.php?page=therum' ) ); ?>',
+        'p': '<?php echo esc_js( admin_url( 'admin.php?page=therum-pages' ) ); ?>',
+        'o': '<?php echo esc_js( admin_url( 'admin.php?page=therum-posts' ) ); ?>',
+        'm': '<?php echo esc_js( admin_url( 'admin.php?page=therum-media' ) ); ?>',
+        's': '<?php echo esc_js( admin_url( 'admin.php?page=therum-settings' ) ); ?>',
+        'u': '<?php echo esc_js( admin_url( 'admin.php?page=therum-users' ) ); ?>',
+        'c': '<?php echo esc_js( admin_url( 'admin.php?page=therum-customization' ) ); ?>',
+      };
+      if (map[e2.key]) { e2.preventDefault(); window.location.href = map[e2.key]; }
+    };
+    var gTimer = setTimeout(function() { document.removeEventListener('keydown', gHandler); }, 1000);
+    document.addEventListener('keydown', gHandler);
+    return;
+  }
+});
+
+})();
+</script>
+	<?php
+}, 999 );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  BULK ACTIONS — AJAX handler
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_bulk_action', function() {
+	if ( ! current_user_can( 'edit_posts' ) ) wp_send_json_error( 'forbidden' );
+	$nonce = $_POST['nonce'] ?? '';
+	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) && ! wp_verify_nonce( $nonce, 'therum_layout' ) ) {
+		wp_send_json_error( 'bad nonce' );
+	}
+
+	$action   = sanitize_key( $_POST['bulk_action'] ?? '' );
+	$post_ids = json_decode( wp_unslash( $_POST['post_ids'] ?? '[]' ), true );
+	if ( ! is_array( $post_ids ) || empty( $post_ids ) ) wp_send_json_error( 'no posts' );
+
+	$allowed = [ 'publish', 'draft', 'trash', 'untrash' ];
+	if ( ! in_array( $action, $allowed, true ) ) wp_send_json_error( 'bad action' );
+
+	$count = 0;
+	foreach ( $post_ids as $id ) {
+		$id = (int) $id;
+		if ( ! current_user_can( 'edit_post', $id ) ) continue;
+
+		if ( $action === 'trash' ) {
+			wp_trash_post( $id );
+		} elseif ( $action === 'untrash' ) {
+			wp_untrash_post( $id );
+		} else {
+			wp_update_post( [ 'ID' => $id, 'post_status' => $action ] );
+		}
+		$count++;
+	}
+
+	if ( class_exists( 'Therum_Activity_Log' ) ) {
+		Therum_Activity_Log::log( 'bulk_' . $action, 'posts', 0, '', $count . ' posts' );
+	}
+
+	wp_send_json_success( [ 'action' => $action, 'count' => $count ] );
+} );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  REVISION HISTORY — add "Revisions" link to post row actions
+// ════════════════════════════════════════════════════════════════════════════
+
+add_filter( 'post_row_actions', 'therum_add_revision_link', 10, 2 );
+add_filter( 'page_row_actions', 'therum_add_revision_link', 10, 2 );
+
+function therum_add_revision_link( $actions, $post ) {
+	if ( ! wp_revisions_enabled( $post ) ) return $actions;
+	$count = count( wp_get_post_revisions( $post->ID, [ 'posts_per_page' => -1, 'fields' => 'ids' ] ) );
+	if ( $count > 0 ) {
+		$url = admin_url( 'revision.php?revision=' . $post->ID );
+		$actions['therum_revisions'] = '<a href="' . esc_url( $url ) . '">' . $count . ' revision' . ( $count === 1 ? '' : 's' ) . '</a>';
+	}
+	return $actions;
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  JSON IMPORTER — handles our own therum-*-export-*.json format
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_import_content', function() {
+	if ( ! current_user_can( 'edit_posts' ) ) wp_send_json_error( 'forbidden' );
+	check_admin_referer( 'therum_import' );
+
+	if ( empty( $_FILES['file'] ) ) wp_send_json_error( 'no file' );
+	$file = $_FILES['file'];
+	if ( $file['error'] !== UPLOAD_ERR_OK ) wp_send_json_error( 'upload error: ' . $file['error'] );
+
+	$json = file_get_contents( $file['tmp_name'] );
+	$data = json_decode( $json, true );
+	if ( ! is_array( $data ) || empty( $data['items'] ) ) wp_send_json_error( 'invalid JSON or no items' );
+
+	$imported = 0;
+	$skipped  = 0;
+
+	foreach ( $data['items'] as $item ) {
+		// Check if a post with same slug + type already exists
+		$existing = get_page_by_path( $item['slug'] ?? '', OBJECT, $item['meta']['_wp_post_type'] ?? $data['post_type'] ?? 'post' );
+		if ( $existing ) { $skipped++; continue; }
+
+		$new_id = wp_insert_post( [
+			'post_type'    => $data['post_type'] ?? 'post',
+			'post_status'  => $item['status'] ?? 'draft',
+			'post_title'   => $item['title'] ?? '',
+			'post_name'    => $item['slug'] ?? '',
+			'post_content' => $item['content'] ?? '',
+			'post_excerpt' => $item['excerpt'] ?? '',
+			'post_date'    => $item['date'] ?? current_time( 'mysql' ),
+			'menu_order'   => $item['menu_order'] ?? 0,
+		], true );
+
+		if ( is_wp_error( $new_id ) ) { $skipped++; continue; }
+
+		// Import meta
+		if ( ! empty( $item['meta'] ) && is_array( $item['meta'] ) ) {
+			foreach ( $item['meta'] as $key => $value ) {
+				if ( in_array( $key, [ '_edit_lock', '_edit_last', '_wp_old_slug' ], true ) ) continue;
+				update_post_meta( $new_id, $key, maybe_unserialize( $value ) );
+			}
+		}
+
+		// Import taxonomies
+		if ( ! empty( $item['taxonomies'] ) && is_array( $item['taxonomies'] ) ) {
+			foreach ( $item['taxonomies'] as $tax => $terms ) {
+				wp_set_object_terms( $new_id, $terms, $tax );
+			}
+		}
+
+		$imported++;
+	}
+
+	if ( class_exists( 'Therum_Activity_Log' ) ) {
+		Therum_Activity_Log::log( 'imported', $data['post_type'] ?? 'content', 0, '', "$imported imported, $skipped skipped" );
+	}
+
+	wp_send_json_success( [ 'imported' => $imported, 'skipped' => $skipped, 'total' => count( $data['items'] ) ] );
+} );
