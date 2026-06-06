@@ -422,6 +422,14 @@ class Therum_Updates {
 				if ( ! preg_match( '/\.zip$/i', $name ) ) {
 					throw new \RuntimeException( 'Expected a .zip file.' );
 				}
+				// Don't trust the extension alone — verify the file actually is a
+				// ZIP by its magic bytes. PK\x03\x04 is a normal archive; \x05\x06
+				// (empty) and \x07\x08 (spanned) are the other valid signatures.
+				$magic = (string) @file_get_contents( $file['tmp_name'], false, null, 0, 4 );
+				$zip_sigs = [ "PK\x03\x04", "PK\x05\x06", "PK\x07\x08" ];
+				if ( ! in_array( $magic, $zip_sigs, true ) ) {
+					throw new \RuntimeException( 'That file is not a valid ZIP archive (failed signature check).' );
+				}
 				// Move out of PHP's upload tmpdir (auto-cleaned mid-request)
 				// and into wp-content/upgrade where we have stable write access.
 				$dest_dir = WP_CONTENT_DIR . '/upgrade';

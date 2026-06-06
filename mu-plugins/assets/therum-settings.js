@@ -6,6 +6,12 @@ var settings=document.querySelector('.th-settings, [data-th-cx]');
 if (!settings) return;
 var ajaxUrl=window.ajaxurl||'/wp-admin/admin-ajax.php';
 var nonce=(settings.querySelector('[data-nonce]')||{dataset:{}}).dataset.nonce||'';
+// Shared failure handler for persistence fetches — without it a dropped request
+// fails silently and the user assumes the setting saved.
+function thSettingsError(e){
+	console.error('[Therum] Settings save failed:', e);
+	if (window.therumToast) window.therumToast('Couldn’t save — check your connection and try again');
+}
 var searchInput=document.getElementById('th-settings-search-input');
 if (searchInput){
 settings.querySelectorAll('.th-settings-nav-item span').forEach(function(s){
@@ -124,7 +130,7 @@ fd.append('action','therum_save_state_field');
 fd.append('field','glassTint');
 fd.append('value',hex);
 fd.append('nonce',nonce);
-fetch(ajaxUrl,{method:'POST',credentials:'same-origin',body:fd});
+fetch(ajaxUrl,{method:'POST',credentials:'same-origin',body:fd}).catch(thSettingsError);
 },250);
 });
 }
@@ -244,7 +250,7 @@ label.classList.toggle('active',input&&String(input.value)===String(v));
 setTimeout(function(){location.reload();},400);
 }
 })
-.catch(function(){});
+.catch(thSettingsError);
 return;
 }
 var dsRow0=e.target.closest('[data-state-field]');
@@ -266,7 +272,7 @@ dsFd0.append('nonce',nonce);
 fetch(ajaxUrl,{method:'POST',credentials:'same-origin',body:dsFd0})
 .then(function(r){return r.json();})
 .then(function(res){if(res&&res.success&&res.data) applyThemeStateToBody(res.data);})
-.catch(function(){});
+.catch(thSettingsError);
 }
 return;
 }
@@ -321,7 +327,7 @@ fd.append('nonce',nonce);
 fetch(ajaxUrl,{method:'POST',credentials:'same-origin',body:fd})
 .then(function(r){return r.json();})
 .then(function(res){if(res&&res.success&&res.data) applyThemeStateToBody(res.data);})
-.catch(function(){});
+.catch(thSettingsError);
 }
 }
 if (e.target.closest('#th-theme-reset')){
@@ -333,7 +339,8 @@ fetch(ajaxUrl,{method:'POST',credentials:'same-origin',body:fd2})
 .then(function(res){
 if (res&&res.success&&res.data) applyThemeStateToBody(res.data);
 setTimeout(function(){location.reload();},350);
-});
+})
+.catch(thSettingsError);
 }
 var viewBtn=e.target.closest('.th-theme-view-btn');
 if (viewBtn){
@@ -354,7 +361,7 @@ var fd4=new FormData();
 fd4.append('action','therum_save_view_pref');
 fd4.append('mode',mode);
 fd4.append('nonce',nonce);
-fetch(ajaxUrl,{method:'POST',credentials:'same-origin',body:fd4});
+fetch(ajaxUrl,{method:'POST',credentials:'same-origin',body:fd4}).catch(thSettingsError);
 }
 },true);
 document.querySelectorAll('.th-code-copy').forEach(function(btn){

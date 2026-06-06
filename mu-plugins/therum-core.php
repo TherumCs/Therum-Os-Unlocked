@@ -109,9 +109,33 @@ add_action( 'init', function() {
 	}
 });
 
+/**
+ * Best-effort client IP for rate-limiting keys.
+ *
+ * Returns REMOTE_ADDR (the real connecting socket address) by default. Only when
+ * the request actually arrives from a trusted reverse proxy — REMOTE_ADDR is in
+ * the THERUM_TRUSTED_PROXY allow-list (comma-separated IPs) — do we honor the
+ * left-most X-Forwarded-For entry. Trusting that header unconditionally would
+ * let an attacker spoof a fresh IP per request and sail past the lockout, so we
+ * don't. Falls back to REMOTE_ADDR if the forwarded value isn't a valid IP.
+ */
+function therum_client_ip(): string {
+	$remote = $_SERVER['REMOTE_ADDR'] ?? '';
+	if ( defined( 'THERUM_TRUSTED_PROXY' ) && THERUM_TRUSTED_PROXY ) {
+		$trusted = array_map( 'trim', explode( ',', (string) THERUM_TRUSTED_PROXY ) );
+		if ( in_array( $remote, $trusted, true ) && ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+			$fwd = trim( explode( ',', $_SERVER['HTTP_X_FORWARDED_FOR'] )[0] );
+			if ( filter_var( $fwd, FILTER_VALIDATE_IP ) ) {
+				return $fwd;
+			}
+		}
+	}
+	return $remote;
+}
+
 // Login rate limiting
 add_action( 'wp_login_failed', function( $username ) {
-	$key      = 'therum_fail_' . md5( $_SERVER['REMOTE_ADDR'] ?? '' );
+	$key      = 'therum_fail_' . md5( therum_client_ip() );
 	$attempts = (int) get_transient( $key );
 	set_transient( $key, $attempts + 1, 15 * MINUTE_IN_SECONDS );
 });
@@ -125,7 +149,7 @@ add_filter( 'option_users_can_register',     '__return_zero', 999 );
 add_filter( 'pre_option_users_can_register', '__return_zero', 999 );
 
 add_filter( 'authenticate', function( $user, $username, $password ) {
-	$key      = 'therum_fail_' . md5( $_SERVER['REMOTE_ADDR'] ?? '' );
+	$key      = 'therum_fail_' . md5( therum_client_ip() );
 	$attempts = (int) get_transient( $key );
 	if ( $attempts >= 5 ) {
 		return new WP_Error( 'too_many_retries', 'Too many failed attempts. Try again in 15 minutes.' );
@@ -134,7 +158,7 @@ add_filter( 'authenticate', function( $user, $username, $password ) {
 }, 30, 3 );
 
 add_action( 'wp_login', function() {
-	delete_transient( 'therum_fail_' . md5( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+	delete_transient( 'therum_fail_' . md5( therum_client_ip() ) );
 });
 
 // Disable file editing if not already set
@@ -225,13 +249,16 @@ add_action( 'admin_init', function() {
 	if ( strlen( $src ) < 200 ) return;
 
 	// Try the WordPress.org salt service first; fall back to local random_bytes.
+	// Use wp_remote_get rather than file_get_contents so TLS verification and
+	// the HTTP API's timeouts/proxy settings apply consistently (a raw stream
+	// can silently skip cert validation on hosts with an incomplete CA bundle).
 	$new_block = '';
-	$body = @file_get_contents(
-		'https://api.wordpress.org/secret-key/1.1/salt/',
-		false,
-		stream_context_create( [ 'http' => [ 'timeout' => 5 ] ] )
-	);
-	if ( $body !== false && strlen( $body ) > 400 && strpos( $body, 'AUTH_KEY' ) !== false ) {
+	$resp = wp_remote_get( 'https://api.wordpress.org/secret-key/1.1/salt/', [
+		'timeout'   => 5,
+		'sslverify' => true,
+	] );
+	$body = is_wp_error( $resp ) ? '' : (string) wp_remote_retrieve_body( $resp );
+	if ( $body !== '' && strlen( $body ) > 400 && strpos( $body, 'AUTH_KEY' ) !== false ) {
 		$new_block = rtrim( $body );
 	} else {
 		$lines = [];

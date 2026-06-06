@@ -103,12 +103,18 @@ final class Server {
 			];
 		} catch ( \Throwable $e ) {
 			if ( $is_notification ) return null;
+			// Don't leak internal exception messages / stack details to the
+			// client — they can carry DB errors, paths, or other infrastructure
+			// detail. Log the specifics server-side under a short reference the
+			// operator can grep for, and return only that reference.
+			$ref = substr( md5( $e->getMessage() . '|' . $e->getFile() . '|' . $e->getLine() ), 0, 8 );
+			error_log( sprintf( '[therum-mcp] internal error ref=%s: %s in %s:%d', $ref, $e->getMessage(), $e->getFile(), $e->getLine() ) );
 			return [
 				'jsonrpc' => '2.0',
 				'id'      => $id,
 				'error'   => [
 					'code'    => -32000,
-					'message' => $e->getMessage(),
+					'message' => 'Internal server error (ref ' . $ref . '). Check server logs for details.',
 				],
 			];
 		}

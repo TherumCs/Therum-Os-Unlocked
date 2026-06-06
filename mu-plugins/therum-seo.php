@@ -311,7 +311,10 @@ class Therum_Auto_SEO {
 		}
 
 		$doc = [ '@context' => 'https://schema.org', '@graph' => $graph ];
-		echo '<script type="application/ld+json">' . wp_json_encode( $doc, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "</script>\n";
+		// JSON_HEX_TAG escapes < and > as < / > so a value containing
+		// "</script>" can't break out of the surrounding tag (the other flags
+		// keep slashes/unicode literal, which on its own would NOT prevent that).
+		echo '<script type="application/ld+json">' . wp_json_encode( $doc, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG ) . "</script>\n";
 	}
 
 	// ═════════════════════════════════════════════════════════════════════

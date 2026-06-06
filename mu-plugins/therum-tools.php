@@ -127,6 +127,10 @@ class Therum_Activity_Log {
 	// ── AJAX: fetch log entries ──────────────────────────────────────────
 	public static function ajax_fetch(): void {
 		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		// Nonce required — this returns the full audit trail; without it a forged
+		// request could exfiltrate it via a logged-in admin's browser (CSRF). A
+		// caller must send _wpnonce for the 'therum_options' action.
+		check_ajax_referer( 'therum_options', '_wpnonce' );
 		global $wpdb;
 		$table  = $wpdb->prefix . self::TABLE_SUFFIX;
 		$offset = max( 0, (int) ( $_GET['offset'] ?? 0 ) );
@@ -440,10 +444,15 @@ add_action( 'wp_ajax_therum_db_optimize', function() {
 			$parent_id, $rev_limit
 		) );
 		if ( empty( $keep_ids ) ) continue;
-		$keep_str = implode( ',', array_map( 'intval', $keep_ids ) );
+		// Build the IN() list from %d placeholders rather than interpolating —
+		// keeps everything inside prepare()'s parameterization (no raw values in
+		// the SQL string, and clean against static analysis).
+		$keep_ids     = array_map( 'intval', $keep_ids );
+		$placeholders = implode( ',', array_fill( 0, count( $keep_ids ), '%d' ) );
 		$del = $wpdb->query( $wpdb->prepare(
-			"DELETE FROM {$wpdb->posts} WHERE post_type = 'revision' AND post_parent = %d AND ID NOT IN ($keep_str)",
-			$parent_id
+			"DELETE FROM {$wpdb->posts} WHERE post_type = 'revision' AND post_parent = %d AND ID NOT IN ($placeholders)",
+			$parent_id,
+			...$keep_ids
 		) );
 		$deleted_revs += (int) $del;
 	}
@@ -480,6 +489,10 @@ add_action( 'wp_ajax_therum_db_optimize', function() {
 
 add_action( 'wp_ajax_therum_check_links', function() {
 	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+	// Nonce required: this endpoint fires up to 50 outbound HEAD requests to
+	// URLs found in post content, so without CSRF protection a forged request
+	// could coerce a logged-in admin's server into scanning arbitrary hosts.
+	check_ajax_referer( 'therum_options', '_wpnonce' );
 
 	global $wpdb;
 	$broken = [];
@@ -574,6 +587,7 @@ add_action( 'admin_head', function() {
 
 add_action( 'wp_ajax_therum_calendar_events', function() {
 	if ( ! current_user_can( 'edit_posts' ) ) wp_send_json_error( 'forbidden' );
+	check_ajax_referer( 'therum_options', '_wpnonce' );
 
 	$start = sanitize_text_field( $_GET['start'] ?? gmdate( 'Y-m-01' ) );
 	$end   = sanitize_text_field( $_GET['end']   ?? gmdate( 'Y-m-t' ) );
@@ -611,6 +625,7 @@ add_action( 'wp_ajax_therum_calendar_events', function() {
 
 add_action( 'wp_ajax_therum_scheduled_overview', function() {
 	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+	check_ajax_referer( 'therum_options', '_wpnonce' );
 
 	$out = [ 'scheduled_posts' => [], 'cron_jobs' => [] ];
 
@@ -768,7 +783,7 @@ function therum_render_tools_settings(): void {
 				if (!wrap) return;
 				wrap.querySelector('[data-th-linkcheck-run]').addEventListener('click', function(){
 					this.disabled = true; this.textContent = 'Scanning…';
-					fetch((window.ajaxurl||'/wp-admin/admin-ajax.php') + '?action=therum_check_links',{credentials:'same-origin'})
+					fetch((window.ajaxurl||'/wp-admin/admin-ajax.php') + '?action=therum_check_links&_wpnonce=<?php echo esc_js( wp_create_nonce( 'therum_options' ) ); ?>',{credentials:'same-origin'})
 					.then(function(r){return r.json();}).then(function(res){
 						var btn = wrap.querySelector('[data-th-linkcheck-run]');
 						btn.disabled = false; btn.textContent = 'Scan for broken links';
@@ -1328,10 +1343,20 @@ add_action( 'wp_ajax_therum_import_content', function() {
 
 		if ( is_wp_error( $new_id ) ) { $skipped++; continue; }
 
-		// Import meta
+		// Import meta. Block keys that carry access-control / credential state or
+		// internal bookkeeping so a crafted export file can't smuggle in
+		// capability or session data alongside ordinary content meta.
 		if ( ! empty( $item['meta'] ) && is_array( $item['meta'] ) ) {
+			$blocked_meta = [
+				'_edit_lock', '_edit_last', '_wp_old_slug',
+				'_capabilities', 'wp_capabilities', '_wp_user_level',
+				'session_tokens', '_wp_persisted_preferences',
+			];
 			foreach ( $item['meta'] as $key => $value ) {
-				if ( in_array( $key, [ '_edit_lock', '_edit_last', '_wp_old_slug' ], true ) ) continue;
+				$key = (string) $key;
+				if ( in_array( $key, $blocked_meta, true ) ) continue;
+				// Disallow capability-bearing keys regardless of prefix variants.
+				if ( stripos( $key, 'capabilities' ) !== false || stripos( $key, 'user_level' ) !== false ) continue;
 				update_post_meta( $new_id, $key, maybe_unserialize( $value ) );
 			}
 		}

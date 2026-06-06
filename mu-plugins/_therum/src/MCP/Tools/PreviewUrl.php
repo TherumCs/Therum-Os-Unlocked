@@ -77,7 +77,18 @@ final class PreviewUrl extends Tool {
 			throw new McpError( -32602, 'No post found matching the given criteria.' );
 		}
 
+		// Per-object authorization. mcp.read alone must not mint working preview
+		// links for unpublished/private content the caller can't actually read.
+		// Published, non-password-protected posts are world-readable, so only
+		// gate the non-public ones on read_post for the resolved post.
 		$is_public = in_array( $post->post_status, [ 'publish' ], true ) && empty( $post->post_password );
+		if ( ! $is_public && ! current_user_can( 'read_post', $post->ID ) ) {
+			throw new McpError(
+				-32604,
+				'Not authorized to preview this post.',
+				[ 'post_id' => $post->ID ]
+			);
+		}
 
 		$url = $is_public
 			? (string) get_permalink( $post )

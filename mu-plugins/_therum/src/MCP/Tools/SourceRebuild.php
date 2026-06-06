@@ -58,8 +58,18 @@ final class SourceRebuild extends Tool {
 		$site   = (string) ( $arguments['site']   ?? 'site-demo' );
 		$reason = (string) ( $arguments['reason'] ?? '' );
 
+		// Hard-validate the site identifier BEFORE it touches a filesystem path.
+		// This tool require()s the resolved file, so an unsanitized value with
+		// "../" would be arbitrary-PHP execution. Allow only a safe slug charset.
+		if ( ! preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $site ) ) {
+			throw new McpError(
+				-32602,
+				'Invalid site identifier — use only letters, digits, hyphen and underscore.'
+			);
+		}
+
 		$rebuild_path = self::resolve_rebuild_path( $site );
-		if ( ! is_file( $rebuild_path ) ) {
+		if ( ! is_file( $rebuild_path ) || ! self::is_path_allowed( $rebuild_path ) ) {
 			throw new McpError(
 				-32000,
 				"rebuild.php not found for site '{$site}'",
@@ -111,8 +121,30 @@ final class SourceRebuild extends Tool {
 	 * for sites that put it elsewhere.
 	 */
 	private static function resolve_rebuild_path( string $site ): string {
-		$default = WP_CONTENT_DIR . '/uploads/bricks-temp/' . $site . '/rebuild.php';
+		$default = self::rebuild_base_dir() . '/' . $site . '/rebuild.php';
 		return (string) apply_filters( 'therum_mcp/source_rebuild_path', $default, $site );
+	}
+
+	/** Canonical base directory that rebuild scripts must live under. */
+	private static function rebuild_base_dir(): string {
+		return WP_CONTENT_DIR . '/uploads/bricks-temp';
+	}
+
+	/**
+	 * Confine an arbitrary rebuild path to the bricks-temp base and require the
+	 * exact filename `rebuild.php`. realpath() collapses any `../` segments and
+	 * resolves symlinks, so a traversal attempt or a symlinked decoy can't escape
+	 * the base. This is the execution-safety backstop behind the site-slug regex
+	 * — it also constrains anything the source_rebuild_path filter returns.
+	 */
+	private static function is_path_allowed( string $path ): bool {
+		$base = realpath( self::rebuild_base_dir() );
+		$real = realpath( $path );
+		if ( $base === false || $real === false ) {
+			return false;
+		}
+		return str_starts_with( $real, $base . DIRECTORY_SEPARATOR )
+			&& basename( $real ) === 'rebuild.php';
 	}
 
 	/**
@@ -125,8 +157,11 @@ final class SourceRebuild extends Tool {
 	 */
 	public static function handler( array $payload ): void {
 		$path = (string) ( $payload['rebuild_path'] ?? '' );
-		if ( ! is_file( $path ) ) {
-			throw new \RuntimeException( "rebuild.php missing at runtime: {$path}" );
+		// Re-validate confinement at execution time — never require() a path on
+		// the payload's say-so alone (defense in depth if the queue row were
+		// ever tampered with between enqueue and run).
+		if ( ! is_file( $path ) || ! self::is_path_allowed( $path ) ) {
+			throw new \RuntimeException( "rebuild.php missing or outside the allowed directory at runtime: {$path}" );
 		}
 
 		// Run rebuild.php in an output buffer. The script writes to stdout

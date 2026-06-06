@@ -75,6 +75,14 @@ final class QueueStatus extends Tool {
 			);
 		}
 
+		// last_error is stored as "message\n<full stack trace>" for server-side
+		// debugging. Only surface the first line (the message) over the API — the
+		// trace exposes file paths and internals to the client. Operators can
+		// read the full trace from the DB / logs.
+		$err_summary = ( $job->last_error !== null && $job->last_error !== '' )
+			? strtok( $job->last_error, "\n" )
+			: null;
+
 		$text = sprintf(
 			"Job #%d\nQueue: %s\nHandler: %s\nStatus: %s\nAttempts: %d / %d\nCreated: %s\nLast error: %s",
 			$job->id,
@@ -84,7 +92,7 @@ final class QueueStatus extends Tool {
 			$job->attempts,
 			$job->max_attempts,
 			$job->created_at,
-			$job->last_error ?? '—'
+			$err_summary ?? '—'
 		);
 
 		return [
@@ -102,7 +110,7 @@ final class QueueStatus extends Tool {
 				'created_at'   => $job->created_at,
 				'completed_at' => $job->completed_at,
 				'failed_at'    => $job->failed_at,
-				'last_error'   => $job->last_error,
+				'last_error'   => $err_summary,
 			],
 		];
 	}

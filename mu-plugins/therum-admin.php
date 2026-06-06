@@ -2423,13 +2423,22 @@ class Therum_List_Page {
 //   3. Provides card + row renderers
 //   4. Calls Therum_List_Page::render()
 
+// Upper bound on rows a Therum list view will pull in one request. These views
+// render every item into the DOM, so an unbounded query (posts_per_page => -1)
+// would exhaust PHP memory on a large site. 2000 covers any realistic hand-
+// curated content set while capping the worst case; override via the constant
+// in wp-config.php if a site genuinely needs more.
+if ( ! defined( 'THERUM_ADMIN_LIST_CAP' ) ) {
+	define( 'THERUM_ADMIN_LIST_CAP', 2000 );
+}
+
 class Therum_Pages_Page {
 
 	public static function render(): void {
 		$pages = get_posts([
 			'post_type'      => 'page',
 			'post_status'    => ['publish','draft','pending','future','trash'],
-			'posts_per_page' => -1,
+			'posts_per_page' => THERUM_ADMIN_LIST_CAP,
 			'orderby'        => 'modified',
 			'order'          => 'DESC',
 		]);
@@ -2721,7 +2730,7 @@ class Therum_Case_Studies_Page {
 		$posts = get_posts([
 			'post_type'      => 'case_study',
 			'post_status'    => ['publish','draft','pending','future','trash'],
-			'posts_per_page' => -1,
+			'posts_per_page' => THERUM_ADMIN_LIST_CAP,
 			'orderby'        => 'modified',
 			'order'          => 'DESC',
 		]);
@@ -2795,7 +2804,7 @@ class Therum_Posts_Page {
 		$posts = get_posts([
 			'post_type'      => 'post',
 			'post_status'    => ['publish','draft','pending','future','trash'],
-			'posts_per_page' => -1,
+			'posts_per_page' => THERUM_ADMIN_LIST_CAP,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
 		]);
@@ -3421,7 +3430,7 @@ class Therum_Templates_Page {
 		$templates = get_posts([
 			'post_type'      => 'bricks_template',
 			'post_status'    => ['publish','draft','pending','future'],
-			'posts_per_page' => -1,
+			'posts_per_page' => THERUM_ADMIN_LIST_CAP,
 			'orderby'        => 'modified',
 			'order'          => 'DESC',
 		]);
@@ -4761,7 +4770,30 @@ class Therum_Connections_Page {
 			'connected_at' => time(),
 		] );
 
+		self::audit_log( 'connected', $id );
 		wp_send_json_success( [ 'id' => $id, 'connected_at' => human_time_diff( time() ) ] );
+	}
+
+	/**
+	 * Append a connect/disconnect entry to the rolling audit log (last 200).
+	 * Called from inside the already-authorized ajax_connect / ajax_disconnect
+	 * handlers — NOT a standalone AJAX action — so it inherits their nonce +
+	 * capability checks rather than running unauthenticated.
+	 *
+	 * @param string $action 'connected' or 'disconnected'
+	 * @param string $id     Provider id (already sanitized by the caller)
+	 */
+	private static function audit_log( string $action, string $id ): void {
+		$entries   = (array) get_option( 'therum_conn_audit_log', [] );
+		$entries[] = [
+			'time'     => time(),
+			'action'   => $action,
+			'provider' => $id,
+			'user'     => wp_get_current_user()->user_login,
+		];
+		$entries = array_slice( $entries, -200 );
+		update_option( 'therum_conn_audit_log', $entries, false );
+		update_option( 'therum_conn_audit_count', count( $entries ), false );
 	}
 
 	/**
@@ -4928,6 +4960,7 @@ class Therum_Connections_Page {
 		if ( ! $id ) wp_send_json_error( 'missing id' );
 
 		self::remove_connection( $id );
+		self::audit_log( 'disconnected', $id );
 		wp_send_json_success( [ 'id' => $id ] );
 	}
 
@@ -6506,19 +6539,11 @@ function therum_ask_gpt( string $prompt, array $args = [] ) {
 	return (string) ( $data['choices'][0]['message']['content'] ?? '' );
 }
 
-// Audit log helper: fires on every connect/disconnect
-add_action( 'wp_ajax_therum_connection_connect', function() {
-	$entries = (array) get_option('therum_conn_audit_log', []);
-	$entries[] = [ 'time' => time(), 'action' => 'connected', 'provider' => sanitize_key($_POST['provider_id'] ?? ''), 'user' => wp_get_current_user()->user_login ];
-	update_option('therum_conn_audit_log', array_slice($entries, -200), false);
-	update_option('therum_conn_audit_count', count($entries) + 1, false);
-}, 20 );
-add_action( 'wp_ajax_therum_connection_disconnect', function() {
-	$entries = (array) get_option('therum_conn_audit_log', []);
-	$entries[] = [ 'time' => time(), 'action' => 'disconnected', 'provider' => sanitize_key($_POST['provider_id'] ?? ''), 'user' => wp_get_current_user()->user_login ];
-	update_option('therum_conn_audit_log', array_slice($entries, -200), false);
-	update_option('therum_conn_audit_count', count($entries) + 1, false);
-}, 20 );
+// Connection connect/disconnect auditing now lives inside the authorized
+// Therum_Connections_Page::ajax_connect / ajax_disconnect handlers (see
+// audit_log()). The old priority-20 wp_ajax closures were removed: they ran
+// without their own nonce/capability checks AND were unreachable anyway, since
+// the priority-10 handlers terminate the request via wp_send_json_*.
 
 
 // ─── REGISTRATION ─────────────────────────────────────────────────────────────
@@ -6851,10 +6876,16 @@ add_action( 'wp_ajax_therum_media_download_zip', function() {
 	check_admin_referer( 'therum_media_zip' );
 	if ( ! class_exists( 'ZipArchive' ) ) wp_die( 'PHP ZipArchive extension is required to download the media library.' );
 
+	// Guard rails so a large library can't build a runaway temp file or hang the
+	// request: cap both the number of files and the total uncompressed bytes.
+	// Override either via wp-config.php. Defaults: 5000 files / 2 GB.
+	$max_files = defined( 'THERUM_MEDIA_ZIP_MAX_FILES' ) ? (int) THERUM_MEDIA_ZIP_MAX_FILES : 5000;
+	$max_bytes = defined( 'THERUM_MEDIA_ZIP_MAX_BYTES' ) ? (int) THERUM_MEDIA_ZIP_MAX_BYTES : 2 * 1024 * 1024 * 1024;
+
 	$ids = get_posts( [
 		'post_type'      => 'attachment',
 		'post_status'    => 'inherit',
-		'posts_per_page' => -1,
+		'posts_per_page' => $max_files,
 		'fields'         => 'ids',
 		'orderby'        => 'date',
 		'order'          => 'DESC',
@@ -6866,18 +6897,34 @@ add_action( 'wp_ajax_therum_media_download_zip', function() {
 	$zip     = new ZipArchive();
 	if ( $zip->open( $tmp_zip, ZipArchive::CREATE | ZipArchive::OVERWRITE ) !== true ) wp_die( 'Could not open temp zip.' );
 
-	$manifest = [ '# Therum media library export — ' . gmdate( 'c' ) ];
-	$added    = 0;
-	$basedir  = trailingslashit( (string) ( $upload['basedir'] ?? '' ) );
+	$manifest  = [ '# Therum media library export — ' . gmdate( 'c' ) ];
+	$added     = 0;
+	$bytes     = 0;
+	$truncated = false;
+	$basedir   = trailingslashit( (string) ( $upload['basedir'] ?? '' ) );
 
 	foreach ( $ids as $id ) {
 		$file = get_attached_file( (int) $id );
 		if ( ! $file || ! file_exists( $file ) ) continue;
+		$size = (int) filesize( $file );
+		// Stop before we blow the byte budget, but always allow at least one file
+		// so a single oversized asset still produces a usable (if partial) export.
+		if ( $added > 0 && ( $bytes + $size ) > $max_bytes ) {
+			$truncated = true;
+			break;
+		}
 		$rel = $basedir && str_starts_with( $file, $basedir ) ? substr( $file, strlen( $basedir ) ) : basename( $file );
 		if ( $zip->addFile( $file, $rel ) ) {
-			$manifest[] = $id . "\t" . $rel . "\t" . filesize( $file );
+			$manifest[] = $id . "\t" . $rel . "\t" . $size;
 			$added++;
+			$bytes += $size;
 		}
+	}
+	if ( $truncated || count( $ids ) >= $max_files ) {
+		$manifest[] = '# NOTE: export truncated at ' . $added . ' files / '
+			. size_format( $bytes ) . ' (limit ' . $max_files . ' files / '
+			. size_format( $max_bytes ) . '). Raise THERUM_MEDIA_ZIP_MAX_FILES / '
+			. 'THERUM_MEDIA_ZIP_MAX_BYTES in wp-config.php to include more.';
 	}
 	$zip->addFromString( 'manifest.txt', implode( "\n", $manifest ) . "\n" );
 	$zip->close();
@@ -6893,6 +6940,7 @@ add_action( 'wp_ajax_therum_media_download_zip', function() {
 	header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
 	header( 'Content-Length: ' . filesize( $tmp_zip ) );
 	header( 'X-Therum-Files: ' . $added );
+	if ( $truncated ) header( 'X-Therum-Truncated: 1' );
 	while ( ob_get_level() ) ob_end_clean();
 	readfile( $tmp_zip );
 	@unlink( $tmp_zip );
@@ -11684,7 +11732,9 @@ add_action( 'admin_init', [ 'Therum_Wizard', 'maybe_redirect' ], 1 );
 add_action( 'admin_menu', [ 'Therum_Wizard', 'register_page'  ] );
 
 add_action( 'wp_ajax_thw_save_step',       [ 'Therum_Wizard', 'ajax_save_step'       ] );
-add_action( 'wp_ajax_thw_skip_step',       [ 'Therum_Wizard', 'ajax_skip_step'       ] );
+// (Per-step skipping is handled by ajax_save_step via the `skipped` flag — see
+// the $skip click handler in the wizard JS. The old thw_skip_step hook pointed
+// at a non-existent Therum_Wizard::ajax_skip_step and would fatal if invoked.)
 add_action( 'wp_ajax_thw_test_server',     [ 'Therum_Wizard', 'ajax_test_server'     ] );
 add_action( 'wp_ajax_thw_create_db',       [ 'Therum_Wizard', 'ajax_create_db'       ] );
 add_action( 'wp_ajax_thw_verify_bricks',   [ 'Therum_Wizard', 'ajax_verify_bricks'   ] );
@@ -12756,6 +12806,14 @@ if (state.edition) {
 		// For now: validate IP format and do a basic TCP check.
 		if ( ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 			wp_send_json_error( [ 'message' => 'Invalid IP address format.' ] );
+		}
+
+		// SSRF guard: a VPS is always a public host, so refuse private and
+		// reserved ranges. This blocks loopback (127.0.0.1), link-local
+		// (169.254.0.0/16, incl. the 169.254.169.254 cloud-metadata endpoint),
+		// and RFC1918 internal addresses (10/8, 172.16/12, 192.168/16, fc00::/7).
+		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+			wp_send_json_error( [ 'message' => 'Refusing to probe a private or reserved address. Enter your server\'s public IP.' ] );
 		}
 
 		$connected = @fsockopen( $ip, 80, $errno, $errstr, 5 );

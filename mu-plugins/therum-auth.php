@@ -800,42 +800,63 @@ class Therum_2FA {
  * Hook the wp_authenticate filter chain. After WP validates user+pass, we get
  * a WP_User. If the user has 2FA, we strip the auth and force a challenge.
  */
+/**
+ * Second leg of login. The challenge form posts a signed, short-lived token
+ * (itself proof that the password was verified during the first leg) plus the
+ * 6-digit code. We verify both here at `authenticate` priority 10 — BEFORE
+ * wp_authenticate_username_password (priority 20) — so a correct code logs the
+ * user in WITHOUT the password ever being round-tripped through the browser.
+ *
+ * Returning a WP_User short-circuits the priority-20 password check (it returns
+ * early when it already has a WP_User), so no empty-password error is raised.
+ * Only fires when a challenge token is present, so application-password and
+ * other programmatic auth paths are untouched.
+ */
+add_filter( 'authenticate', function( $user, $username, $password ) {
+	$token = $_POST['th_2fa_token'] ?? '';
+	$code  = trim( $_POST['th_2fa_code'] ?? '' );
+	if ( ! $token || ! $code ) return $user;
+
+	$payload = th_2fa_decode_token( $token );
+	if ( ! $payload || $payload['exp'] < time() ) {
+		return new WP_Error( '2fa_expired', 'Challenge expired. Sign in again.' );
+	}
+	$cu = get_user_by( 'id', $payload['uid'] );
+	if ( ! $cu || ! Therum_2FA::user_enabled( $cu->ID ) ) {
+		return new WP_Error( '2fa_invalid', 'Challenge invalid. Sign in again.' );
+	}
+
+	// Try TOTP, with single-use (anti-replay) protection.
+	$slot = Therum_2FA::verify( get_user_meta( $cu->ID, 'th_2fa_secret', true ), $code );
+	if ( $slot !== false ) {
+		$last = (int) get_user_meta( $cu->ID, 'th_2fa_last_used_slot', true );
+		if ( $slot === $last ) {
+			return new WP_Error( '2fa_replay', 'That code has already been used. Wait for the next one.' );
+		}
+		update_user_meta( $cu->ID, 'th_2fa_last_used_slot', $slot );
+		return $cu;
+	}
+	// Backup code fallback.
+	if ( Therum_2FA::verify_backup_code( $cu->ID, $code ) ) {
+		return $cu;
+	}
+	return new WP_Error( '2fa_invalid', 'Invalid code. Try again.' );
+}, 10, 3 );
+
+/**
+ * First leg of login. wp_authenticate_user fires only after WP has validated a
+ * real username + password (interactive login — not application passwords). If
+ * the user has 2FA enabled, strip the auth and redirect to the code challenge,
+ * handing along a short-lived signed token.
+ */
 add_filter( 'wp_authenticate_user', function( $user, $password ) {
 	if ( ! ( $user instanceof WP_User ) ) return $user;
 	if ( ! Therum_2FA::user_enabled( $user->ID ) ) return $user;
 
-	// If the request already includes a valid challenge token, let it through.
-	$token = $_POST['th_2fa_token'] ?? '';
-	$code  = trim( $_POST['th_2fa_code'] ?? '' );
-
-	if ( $token && $code ) {
-		$payload = th_2fa_decode_token( $token );
-		if ( $payload && $payload['uid'] === $user->ID && $payload['exp'] > time() ) {
-			// Try TOTP
-			$slot = Therum_2FA::verify( get_user_meta( $user->ID, 'th_2fa_secret', true ), $code );
-			if ( $slot !== false ) {
-				$last = (int) get_user_meta( $user->ID, 'th_2fa_last_used_slot', true );
-				if ( $slot === $last ) {
-					return new WP_Error( '2fa_replay', 'That code has already been used. Wait for the next one.' );
-				}
-				update_user_meta( $user->ID, 'th_2fa_last_used_slot', $slot );
-				return $user;
-			}
-			// Try backup code
-			if ( Therum_2FA::verify_backup_code( $user->ID, $code ) ) {
-				return $user;
-			}
-			return new WP_Error( '2fa_invalid', 'Invalid code. Try again.' );
-		}
-		return new WP_Error( '2fa_expired', 'Challenge expired. Sign in again.' );
-	}
-
-	// First leg of login: password was right, now we need a code. Issue a
-	// short-lived token and redirect to the challenge screen.
 	$token = th_2fa_issue_token( $user->ID );
 	$redirect = add_query_arg([
-		'action'  => 'th_2fa_challenge',
-		'token'   => $token,
+		'action' => 'th_2fa_challenge',
+		'token'  => $token,
 	], wp_login_url() );
 	wp_redirect( $redirect );
 	exit;
@@ -863,7 +884,6 @@ add_action( 'login_form_th_2fa_challenge', function() {
 	<form method="post" action="<?php echo esc_url( wp_login_url() ); ?>" id="loginform" autocomplete="off">
 		<input type="hidden" name="log"         value="<?php echo esc_attr( $user->user_login ); ?>" />
 		<input type="hidden" name="th_2fa_token" value="<?php echo esc_attr( $token ); ?>" />
-		<input type="hidden" name="pwd_already_verified" value="1" />
 
 		<p style="margin: 0 0 6px; font-size: 13px; opacity: 0.85;">
 			Enter the 6-digit code from your authenticator app.
@@ -884,7 +904,6 @@ add_action( 'login_form_th_2fa_challenge', function() {
 			       style="letter-spacing: 0.4em; text-align: center; font-size: 18px; font-family: ui-monospace, Menlo, monospace;" />
 		</p>
 		<p>
-			<input type="hidden" name="pwd" value="<?php echo esc_attr( $_POST['pwd'] ?? '' ); ?>" />
 			<input type="submit" class="button button-primary" value="Verify and sign in" />
 		</p>
 		<p class="th-login-row" style="margin-top: 18px;">
@@ -1018,6 +1037,17 @@ add_action( 'personal_options_update', 'th_2fa_save_profile' );
 add_action( 'edit_user_profile_update', 'th_2fa_save_profile' );
 
 function th_2fa_save_profile( $user_id ) {
+	// Defense-in-depth: only an actor allowed to edit THIS user, and only with a
+	// valid profile-update nonce, may toggle 2FA state. Core checks the nonce in
+	// edit_user() upstream, but the disable button is JS-driven so we re-verify
+	// here to close any CSRF gap on the disable path.
+	if ( ! current_user_can( 'edit_user', $user_id ) ) {
+		return;
+	}
+	if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( $_POST['_wpnonce'], 'update-user_' . $user_id ) ) {
+		return;
+	}
+
 	// Disable
 	if ( ! empty( $_POST['th_2fa_disable'] ) && $_POST['th_2fa_disable'] === '1' ) {
 		delete_user_meta( $user_id, 'th_2fa_secret' );

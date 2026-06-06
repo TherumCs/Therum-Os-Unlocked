@@ -298,6 +298,14 @@ add_action( 'therum_webhook_dispatch', function( $id, $event, $payload ) {
 	if ( ! isset( $hooks[ $id ] ) ) return;
 	$hook = $hooks[ $id ];
 
+	// Event payloads can carry PII (subscriber emails, the registrant's IP, user
+	// roles). Refuse to transmit that over plaintext HTTP — require HTTPS so the
+	// data is encrypted in transit regardless of whether HMAC signing is set up.
+	if ( stripos( (string) ( $hook['url'] ?? '' ), 'https://' ) !== 0 ) {
+		error_log( sprintf( 'Therum webhook %s skipped: endpoint must use HTTPS to receive event "%s".', $id, $event ) );
+		return;
+	}
+
 	$body = wp_json_encode([
 		'event'   => $event,
 		'site'    => home_url(),
@@ -477,7 +485,10 @@ add_action( 'wp_ajax_therum_webhook_save', function() {
 
 	if ( ! $name )   wp_send_json_error( 'name required' );
 	if ( ! $url )    wp_send_json_error( 'url required' );
-	if ( strpos( $url, 'http' ) !== 0 ) wp_send_json_error( 'url must be http(s)' );
+	// Require HTTPS: event payloads can include PII (emails, IPs, roles), so the
+	// endpoint must encrypt in transit. The dispatcher enforces this too as a
+	// backstop for any webhook saved before this check existed.
+	if ( stripos( $url, 'https://' ) !== 0 ) wp_send_json_error( 'Webhook URL must use HTTPS.' );
 
 	if ( ! $id ) {
 		$id = 'wh_' . wp_generate_password( 8, false, false );

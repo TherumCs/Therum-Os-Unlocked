@@ -767,9 +767,13 @@ function therum_render_native_menus() {
  */
 function therum_render_native_menus_overview( $menus, $locations, $menu_locations, $pages, $posts, $categories ) {
 	$nonce = wp_create_nonce( 'therum_menus' );
-	$total_items = 0;
+	// Fetch each menu's items exactly once and reuse the cache below — the render
+	// loop previously called wp_get_nav_menu_items() a second time per menu (N+1).
+	$items_by_menu = [];
+	$total_items   = 0;
 	foreach ( $menus as $m ) {
-		$total_items += count( wp_get_nav_menu_items( $m->term_id ) ?: [] );
+		$items_by_menu[ $m->term_id ] = wp_get_nav_menu_items( $m->term_id ) ?: [];
+		$total_items += count( $items_by_menu[ $m->term_id ] );
 	}
 	?>
 
@@ -798,7 +802,7 @@ function therum_render_native_menus_overview( $menus, $locations, $menu_location
 				</div>
 			</div>
 		<?php else : foreach ( $menus as $menu ) :
-			$menu_items = wp_get_nav_menu_items( $menu->term_id ) ?: [];
+			$menu_items = $items_by_menu[ $menu->term_id ] ?? ( wp_get_nav_menu_items( $menu->term_id ) ?: [] );
 			$loc_for_menu = array_search( $menu->term_id, $menu_locations, true );
 			$loc_label = $loc_for_menu && isset( $locations[ $loc_for_menu ] ) ? $locations[ $loc_for_menu ] : 'No location';
 			$item_count = count( $menu_items );
@@ -2194,6 +2198,55 @@ class Therum_Themes {
 	 * persist across page loads. Whitelist-keyed so only known fields land
 	 * in user_meta — arbitrary client input is rejected.
 	 */
+	/**
+	 * Coerce a single Quick Controls value to match the type of its default,
+	 * applying CSS-safe validation to string fields. Shared by ajax_save_field
+	 * and ajax_save_batch so the rules can't drift between the two entry points.
+	 *
+	 * @param mixed $value    Raw submitted value.
+	 * @param mixed $default  The field's default (its type drives coercion).
+	 * @param string $field   Field key (selects color vs. generic CSS handling).
+	 * @return mixed Bool, int, or sanitized string ready to persist.
+	 */
+	private static function coerce_field_value( $value, $default, string $field ) {
+		if ( is_bool( $default ) ) {
+			return filter_var( $value, FILTER_VALIDATE_BOOLEAN );
+		}
+		if ( is_int( $default ) ) {
+			return (int) $value;
+		}
+		return self::sanitize_css_value( $field, is_string( $value ) ? $value : '' );
+	}
+
+	/**
+	 * Sanitize a string state value for safe emission into an inline <style>
+	 * block. These tokens are later interpolated into CSS (custom properties,
+	 * background-image, etc.), where sanitize_text_field alone would still let a
+	 * crafted value break out of the rule — e.g. `red} body{background:url(...)`
+	 * or `</style>`. Colors are format-validated; every other string is stripped
+	 * of CSS-control characters and dangerous url()/expression() constructs.
+	 */
+	private static function sanitize_css_value( string $field, string $value ): string {
+		$value = sanitize_text_field( $value );
+
+		// Color fields: only #hex (3/6/8) or rgb()/rgba()/hsl()/hsla() forms.
+		if ( $field === 'accent' ) {
+			if ( preg_match( '/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/', $value ) ) return $value;
+			if ( preg_match( '/^(?:rgb|rgba|hsl|hsla)\(\s*[0-9.,%\s\/]+\)$/i', $value ) ) return $value;
+			return ''; // reject; consumer falls back to its default
+		}
+
+		if ( $value === '' || $value === 'none' ) return $value;
+
+		// Generic CSS value (e.g. bgImage gradients): forbid rule/tag break-out
+		// characters and script-bearing url()/expression() constructs. Reject to
+		// a safe sentinel rather than echoing an attacker-controlled fragment.
+		if ( preg_match( '/[{}<>;]|@import|expression\s*\(|url\s*\(\s*["\']?\s*(?:javascript|data|vbscript):/i', $value ) ) {
+			return 'none';
+		}
+		return $value;
+	}
+
 	public static function ajax_save_field(): void {
 		if (!current_user_can('read')) wp_send_json_error('unauthorized', 403);
 		self::verify_theme_nonce();
@@ -2207,15 +2260,8 @@ class Therum_Themes {
 		if (!array_key_exists($field, $defaults)) {
 			wp_send_json_error(['message' => 'Unknown field: ' . $field]);
 		}
-		// Coerce value type from the default
 		$current = self::get_state();
-		if (is_bool($defaults[$field])) {
-			$current[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
-		} elseif (is_int($defaults[$field])) {
-			$current[$field] = (int) $value;
-		} else {
-			$current[$field] = is_string($value) ? sanitize_text_field($value) : '';
-		}
+		$current[$field] = self::coerce_field_value( $value, $defaults[$field], $field );
 		self::save_user_state($current);
 		wp_send_json_success($current);
 	}
@@ -2248,14 +2294,7 @@ class Therum_Themes {
 			$field = preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $field );
 			if ( ! array_key_exists( $field, $defaults ) ) continue;
 
-			// Coerce value type from the default
-			if ( is_bool( $defaults[ $field ] ) ) {
-				$current[ $field ] = filter_var( $value, FILTER_VALIDATE_BOOLEAN );
-			} elseif ( is_int( $defaults[ $field ] ) ) {
-				$current[ $field ] = (int) $value;
-			} else {
-				$current[ $field ] = is_string( $value ) ? sanitize_text_field( $value ) : '';
-			}
+			$current[ $field ] = self::coerce_field_value( $value, $defaults[ $field ], $field );
 			$saved[] = $field;
 		}
 
@@ -2678,7 +2717,12 @@ function therum_cx_render_themes( string $tab_id, array $tab ): void {
 	// Reading `$state['theme']` always returned null and forced the Active
 	// pill onto the Studio card regardless of what was actually applied.
 	$current_theme = $state['palette'] ?? 'studio';
-	$current_mode  = $state['light']  ?? false ? 'light' : 'dark';
+	// State stores the light/dark preference under `mode` ('light' | 'dark' |
+	// 'auto'), not a boolean `light` key — the old expression read a key that
+	// never existed and, thanks to ?? binding tighter than ?:, always resolved
+	// to 'dark'. Treat 'auto' as 'dark' for this indicator (matching the prior
+	// effective default) while letting an explicit 'light' actually show.
+	$current_mode  = ( ( $state['mode'] ?? 'auto' ) === 'light' ) ? 'light' : 'dark';
 	$presets       = class_exists( 'Therum_Themes' ) ? Therum_Themes::presets() : [];
 	$saved         = therum_cx_saved_themes();
 	$starred       = [ 'studio', 'familiar-macos', 'familiar-lucid', 'familiar-xfinity' ];
@@ -3804,12 +3848,35 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	wp_enqueue_script(
 		'therum-swup',
-		'https://unpkg.com/swup@4.8.6/dist/Swup.umd.js',
+		// 4.8.6 never existed on npm (versions skip from 4.8.3 to 4.9.0), so this
+		// 404'd and Swup silently failed to load. Pinned to the real 4.9.0 UMD.
+		'https://unpkg.com/swup@4.9.0/dist/Swup.umd.js',
 		[],
-		'4.8.6',
+		'4.9.0',
 		false   // <head> — needs to be available before footer boot script
 	);
 } );
+
+/**
+ * Subresource Integrity for the third-party CDN libraries. The browser refuses
+ * to execute a script whose bytes don't match the pinned sha384 hash, so a
+ * compromised or swapped CDN file can't run. Hashes are tied to the exact
+ * pinned versions above — bump the version AND the hash together (recompute via
+ * `curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A`).
+ */
+add_filter( 'script_loader_tag', function( $tag, $handle ) {
+	static $sri = [
+		'therum-lenis'  => 'sha384-eD5ubmuCcvTdCADWuSchJYE7wcj2nzNr0itbrh6w/KJyBiltSZ8w3VFRBSWu5YQ8',
+		'therum-popper' => 'sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r',
+		'therum-tippy'  => 'sha384-AiTRpehQ7zqeua0Ypfa6Q4ki/ddhczZxrKtiQbTQUlJIhBkTeyoZP9/W/5ulFt29',
+		'therum-swup'   => 'sha384-LKlKA1JCkFDiUBfg8G6/e3MqT/Nx6KIjDiQ8pCX7YApw6dUSsp2XkFe4rDT2W8eY',
+	];
+	if ( ! isset( $sri[ $handle ] ) ) return $tag;
+	// Avoid double-injecting if another filter already added integrity.
+	if ( strpos( $tag, 'integrity=' ) !== false ) return $tag;
+	$attrs = sprintf( ' integrity="%s" crossorigin="anonymous"', esc_attr( $sri[ $handle ] ) );
+	return str_replace( ' src=', $attrs . ' src=', $tag );
+}, 10, 2 );
 
 /**
  * Mark <body> with a class so PJAX-specific CSS can scope selectors.

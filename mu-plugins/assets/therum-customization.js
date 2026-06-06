@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', function () {
 						method: 'POST', credentials: 'same-origin', body: rfd
 					}).then(function () {
 						setTimeout(function () { location.reload(); }, 350);
+					}).catch(function () {
+						if (window.therumToast) window.therumToast('Reset failed — check your connection and try again');
 					});
 				}
 				if (window.therumToast) window.therumToast('Reset to defaults');
@@ -585,6 +587,10 @@ document.addEventListener('DOMContentLoaded', function () {
 									thCxFlash('Could not toggle Desktop Mode', true);
 									toggle.classList.toggle('is-on'); // revert visual
 								}
+							})
+							.catch(function () {
+								thCxFlash('Network error · Desktop Mode', true);
+								toggle.classList.toggle('is-on');
 							});
 					} else {
 						thCxSaveField(tField, toggle.classList.contains('is-on') ? '1' : '0');

@@ -177,20 +177,30 @@ function thm_rewrite_content_urls( string $old_url, string $new_url, int $attach
 
     global $wpdb;
 
-    $like  = '%' . $wpdb->esc_like( $old_url ) . '%';
-    $posts = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT ID, post_content FROM {$wpdb->posts} WHERE post_status != 'trash' AND post_content LIKE %s",
-            $like
-        )
-    );
-
-    foreach ( $posts as $post ) {
-        $updated = str_replace( $old_url, $new_url, $post->post_content );
-        if ( $updated !== $post->post_content ) {
-            $wpdb->update( $wpdb->posts, [ 'post_content' => $updated ], [ 'ID' => (int) $post->ID ], [ '%s' ], [ '%d' ] );
+    // Process matches in bounded batches via keyset pagination (ID > last seen)
+    // rather than loading every matching post_content blob at once. Safe under
+    // concurrent UPDATEs: a rewritten row no longer matches the LIKE and we
+    // never revisit an ID we've already passed.
+    $like    = '%' . $wpdb->esc_like( $old_url ) . '%';
+    $batch   = 200;
+    $last_id = 0;
+    do {
+        $posts = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT ID, post_content FROM {$wpdb->posts}
+                 WHERE post_status != 'trash' AND post_content LIKE %s AND ID > %d
+                 ORDER BY ID ASC LIMIT %d",
+                $like, $last_id, $batch
+            )
+        );
+        foreach ( $posts as $post ) {
+            $last_id = (int) $post->ID;
+            $updated = str_replace( $old_url, $new_url, $post->post_content );
+            if ( $updated !== $post->post_content ) {
+                $wpdb->update( $wpdb->posts, [ 'post_content' => $updated ], [ 'ID' => (int) $post->ID ], [ '%s' ], [ '%d' ] );
+            }
         }
-    }
+    } while ( count( $posts ) === $batch );
 
     update_post_meta( $attachment_id, '_therum_media_old_url', $old_url );
 }

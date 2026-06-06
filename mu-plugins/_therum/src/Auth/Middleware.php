@@ -16,9 +16,6 @@ namespace Therum\Auth;
  */
 final class Middleware {
 
-	/** Request attribute / static cache key for the resolved Token. */
-	private const REQUEST_TOKEN_KEY = 'therum_token';
-
 	/** @var array<int, ?Token> request-scoped cache, keyed by spl_object_id */
 	private static array $resolved_cache = [];
 
@@ -53,15 +50,11 @@ final class Middleware {
 		// Authenticate as the token's user.
 		wp_set_current_user( $token->user_id );
 
-		// Stash the token on the current request so scope checks can read it.
-		$req = self::current_request();
-		if ( $req instanceof \WP_REST_Request ) {
-			$req->set_attributes( array_merge(
-				$req->get_attributes(),
-				[ self::REQUEST_TOKEN_KEY => $token ]
-			) );
-			self::$resolved_cache[ spl_object_id( $req ) ] = $token;
-		}
+		// NOTE: we intentionally do NOT try to stash the token on the request
+		// here — this filter doesn't receive the WP_REST_Request, and there is
+		// no reliable public accessor for the in-flight request at this point.
+		// The scope gate (require_scope / token_for_request) re-resolves the
+		// token directly from the request it IS handed, which is authoritative.
 
 		// Mark used (don't block on failure).
 		TokenRegistry::mark_used( $token->id, self::client_ip() );
@@ -109,15 +102,34 @@ final class Middleware {
 		return true;
 	}
 
-	/** Returns the Token associated with the request, or null. */
+	/**
+	 * Returns the Therum Token presented on this request, or null.
+	 *
+	 * Resolves the bearer token directly from the request's Authorization header
+	 * — NOT from a previously-stashed attribute. The authentication filter can't
+	 * reach the WP_REST_Request to stash anything, so relying on an attribute
+	 * meant the scope gate always saw null and silently fell back to the user's
+	 * raw capability (scope bypass). Resolving from the request the permission
+	 * callback is handed is the authoritative, tamper-proof source. Result is
+	 * cached per-request to avoid repeating the DB lookup.
+	 */
 	public static function token_for_request( \WP_REST_Request $req ): ?Token {
 		$key = spl_object_id( $req );
 		if ( array_key_exists( $key, self::$resolved_cache ) ) {
 			return self::$resolved_cache[ $key ];
 		}
-		$attrs = $req->get_attributes();
-		$token = $attrs[ self::REQUEST_TOKEN_KEY ] ?? null;
-		return $token instanceof Token ? $token : null;
+
+		$token  = null;
+		$header = (string) $req->get_header( 'authorization' );
+		if ( $header !== '' && stripos( $header, 'bearer ' ) === 0 ) {
+			$plain = trim( substr( $header, 7 ) );
+			if ( str_starts_with( $plain, 'tro_' ) ) {
+				$token = TokenRegistry::find_by_token( $plain );
+			}
+		}
+
+		self::$resolved_cache[ $key ] = $token;
+		return $token;
 	}
 
 	/**
@@ -125,37 +137,28 @@ final class Middleware {
 	 * Returns null if no bearer token is present.
 	 */
 	private static function extract_bearer(): ?string {
-		// Prefer the parsed REST request when we're inside REST dispatch.
-		$req = self::current_request();
-		if ( $req instanceof \WP_REST_Request ) {
-			$header = (string) $req->get_header( 'authorization' );
-			if ( $header !== '' && stripos( $header, 'bearer ' ) === 0 ) {
-				return trim( substr( $header, 7 ) );
-			}
-		}
-
-		// Fallback for non-REST callers (rare, but safe).
+		// This runs from the rest_authentication_errors filter, which doesn't
+		// hand us the WP_REST_Request, so read the Authorization header from the
+		// server superglobals. getallheaders() covers hosts that don't surface
+		// HTTP_AUTHORIZATION to PHP (e.g. some FastCGI setups).
 		$server = $_SERVER['HTTP_AUTHORIZATION']
 			?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
 			?? '';
+		if ( ( ! is_string( $server ) || $server === '' ) && function_exists( 'getallheaders' ) ) {
+			$headers = getallheaders();
+			if ( is_array( $headers ) ) {
+				foreach ( $headers as $name => $value ) {
+					if ( strcasecmp( (string) $name, 'authorization' ) === 0 ) {
+						$server = (string) $value;
+						break;
+					}
+				}
+			}
+		}
 		if ( is_string( $server ) && stripos( $server, 'bearer ' ) === 0 ) {
 			return trim( substr( $server, 7 ) );
 		}
 
-		return null;
-	}
-
-	/**
-	 * Best-effort access to the active WP_REST_Request inside dispatch.
-	 * REST_REQUEST is set by WP for in-flight REST requests; outside of REST,
-	 * this returns null.
-	 */
-	private static function current_request(): ?\WP_REST_Request {
-		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) return null;
-		// WP doesn't expose the request publicly; use the global the REST
-		// server stashes (introduced in WP 5.5+, available via rest_get_server()
-		// → get_dispatch_result() — but that's also not public). We rely on
-		// the request being passed into our permission_callback instead.
 		return null;
 	}
 

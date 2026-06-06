@@ -22,6 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 final class Therum_Renamer {
 
+	/** Rows fetched per batch when rewriting URL references (bounds peak memory). */
+	const REWRITE_BATCH = 200;
+
 	/**
 	 * Derive a slug-cased filename from the attachment's title (preferred) or
 	 * alt text (fallback). Keeps the original extension.
@@ -318,52 +321,78 @@ final class Therum_Renamer {
 			$pairs[] = [ 'from' => $baseurl . $rel_old, 'to' => $baseurl . $rel_new ];
 		}
 
+		// Process matches in bounded batches rather than loading every matching
+		// blob into memory at once. Keyset pagination (primary key > last seen,
+		// ordered ascending) is safe even though we UPDATE rows as we go: an
+		// updated row no longer contains the old URL, and we never revisit an ID
+		// we've already passed. This caps peak memory regardless of dataset size.
+		$batch = self::REWRITE_BATCH;
+
 		// ── post_content (plain str_replace — never serialized) ───────────
 		foreach ( $pairs as $p ) {
-			$like = '%' . $wpdb->esc_like( $p['from'] ) . '%';
-			$rows = $wpdb->get_results( $wpdb->prepare(
-				"SELECT ID, post_content FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status != 'trash'",
-				$like
-			) );
-			foreach ( $rows as $row ) {
-				$new_content = str_replace( $p['from'], $p['to'], $row->post_content );
-				if ( $new_content !== $row->post_content ) {
-					$wpdb->update( $wpdb->posts, [ 'post_content' => $new_content ], [ 'ID' => $row->ID ] );
-					$breakdown['posts']++;
+			$like    = '%' . $wpdb->esc_like( $p['from'] ) . '%';
+			$last_id = 0;
+			do {
+				$rows = $wpdb->get_results( $wpdb->prepare(
+					"SELECT ID, post_content FROM {$wpdb->posts}
+					 WHERE post_content LIKE %s AND post_status != 'trash' AND ID > %d
+					 ORDER BY ID ASC LIMIT %d",
+					$like, $last_id, $batch
+				) );
+				foreach ( $rows as $row ) {
+					$last_id = (int) $row->ID;
+					$new_content = str_replace( $p['from'], $p['to'], $row->post_content );
+					if ( $new_content !== $row->post_content ) {
+						$wpdb->update( $wpdb->posts, [ 'post_content' => $new_content ], [ 'ID' => $row->ID ] );
+						$breakdown['posts']++;
+					}
 				}
-			}
+			} while ( count( $rows ) === $batch );
 		}
 
 		// ── postmeta (handles serialized data via recursive walker) ───────
 		$all_from_urls = array_column( $pairs, 'from' );
-		$or_clauses = array_fill( 0, count( $all_from_urls ), 'meta_value LIKE %s' );
-		$like_values = array_map( fn( $u ) => '%' . $wpdb->esc_like( $u ) . '%', $all_from_urls );
-		$meta_rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT meta_id, meta_value FROM {$wpdb->postmeta} WHERE " . implode( ' OR ', $or_clauses ),
-			...$like_values
-		) );
-		foreach ( $meta_rows as $row ) {
-			$replaced = self::deep_replace( $row->meta_value, $pairs );
-			if ( $replaced !== $row->meta_value ) {
-				$wpdb->update( $wpdb->postmeta, [ 'meta_value' => $replaced ], [ 'meta_id' => $row->meta_id ] );
-				$breakdown['postmeta']++;
+		$or_meta       = implode( ' OR ', array_fill( 0, count( $all_from_urls ), 'meta_value LIKE %s' ) );
+		$like_values   = array_map( fn( $u ) => '%' . $wpdb->esc_like( $u ) . '%', $all_from_urls );
+		$last_id = 0;
+		do {
+			$meta_rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT meta_id, meta_value FROM {$wpdb->postmeta}
+				 WHERE ( {$or_meta} ) AND meta_id > %d
+				 ORDER BY meta_id ASC LIMIT %d",
+				...array_merge( $like_values, [ $last_id, $batch ] )
+			) );
+			foreach ( $meta_rows as $row ) {
+				$last_id  = (int) $row->meta_id;
+				$replaced = self::deep_replace( $row->meta_value, $pairs );
+				if ( $replaced !== $row->meta_value ) {
+					$wpdb->update( $wpdb->postmeta, [ 'meta_value' => $replaced ], [ 'meta_id' => $row->meta_id ] );
+					$breakdown['postmeta']++;
+				}
 			}
-		}
+		} while ( count( $meta_rows ) === $batch );
 
 		// ── options (skip transient/private; same serialized handling) ────
-		$opt_rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT option_id, option_value FROM {$wpdb->options}
-			 WHERE (" . implode( ' OR ', array_fill( 0, count( $all_from_urls ), 'option_value LIKE %s' ) ) . ")
-			 AND option_name NOT LIKE %s AND option_name NOT LIKE %s",
-			...array_merge( $like_values, [ '\_transient\_%', '\_site\_transient\_%' ] )
-		) );
-		foreach ( $opt_rows as $row ) {
-			$replaced = self::deep_replace( $row->option_value, $pairs );
-			if ( $replaced !== $row->option_value ) {
-				$wpdb->update( $wpdb->options, [ 'option_value' => $replaced ], [ 'option_id' => $row->option_id ] );
-				$breakdown['options']++;
+		$or_opt  = implode( ' OR ', array_fill( 0, count( $all_from_urls ), 'option_value LIKE %s' ) );
+		$last_id = 0;
+		do {
+			$opt_rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT option_id, option_value FROM {$wpdb->options}
+				 WHERE ( {$or_opt} )
+				 AND option_name NOT LIKE %s AND option_name NOT LIKE %s
+				 AND option_id > %d
+				 ORDER BY option_id ASC LIMIT %d",
+				...array_merge( $like_values, [ '\_transient\_%', '\_site\_transient\_%', $last_id, $batch ] )
+			) );
+			foreach ( $opt_rows as $row ) {
+				$last_id  = (int) $row->option_id;
+				$replaced = self::deep_replace( $row->option_value, $pairs );
+				if ( $replaced !== $row->option_value ) {
+					$wpdb->update( $wpdb->options, [ 'option_value' => $replaced ], [ 'option_id' => $row->option_id ] );
+					$breakdown['options']++;
+				}
 			}
-		}
+		} while ( count( $opt_rows ) === $batch );
 
 		return [ 'total' => array_sum( $breakdown ), 'breakdown' => $breakdown ];
 	}

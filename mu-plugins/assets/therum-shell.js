@@ -15,6 +15,21 @@ const NONCE = therumShellData.nonce;
 const THEME_NONCE = therumShellData.themeNonce;
 const SB_NONCE = therumShellData.sbNonce;
 const AJAX = therumShellData.ajaxUrl;
+// Shared failure handler for fire-and-forget persistence calls. Without it a
+// dropped network request fails silently and the user thinks their change saved.
+// Logs for debugging and shows a brief, non-blocking toast.
+function thPersistError(err) {
+	console.error('[Therum] Save failed:', err);
+	try {
+		var n = document.createElement('div');
+		n.textContent = 'Couldn’t save — check your connection and try again.';
+		n.setAttribute('role', 'status');
+		n.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:99999;background:#1a1a1a;color:#fff;padding:10px 16px;border-radius:8px;font:13px/1.4 -apple-system,system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;';
+		document.body.appendChild(n);
+		requestAnimationFrame(function () { n.style.opacity = '1'; });
+		setTimeout(function () { n.style.opacity = '0'; setTimeout(function () { n.remove(); }, 250); }, 3200);
+	} catch (e) { /* DOM unavailable — console already has the error */ }
+}
 (function() {
 const nav = document.querySelector('.th-sb-nav');
 if (!nav) return;
@@ -292,7 +307,7 @@ const fd = new FormData();
 fd.append('action', 'therum_save_sidebar');
 fd.append('nonce', SB_NONCE);
 fd.append('layout', JSON.stringify(snapshotLayout()));
-return fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd });
+return fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd }).catch(thPersistError);
 }
 if (doneBtn) doneBtn.addEventListener('click', async () => {
 await saveSidebar();
@@ -303,8 +318,10 @@ if (!confirm('Reset sidebar to defaults? Your custom sections will be lost.')) r
 const fd = new FormData();
 fd.append('action', 'therum_reset_sidebar');
 fd.append('nonce', SB_NONCE);
-await fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd });
-location.reload();
+const ok = await fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd })
+.then(() => true)
+.catch(() => { thPersistError('reset sidebar'); return false; });
+if (ok) location.reload();
 });
 function escapeHtml(s) {
 return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -321,7 +338,7 @@ fd.append('action', 'therum_save_state_field');
 fd.append('field', 'mode');
 fd.append('value', isLight ? 'light' : 'dark');
 fd.append('nonce', THEME_NONCE);
-fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd });
+fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd }).catch(thPersistError);
 });
 }
 const dmBtn = document.getElementById('th-desktop-toggle');
@@ -344,7 +361,8 @@ fetch(AJAX, { method: 'POST', credentials: 'same-origin', body: fd })
 if (res && res.success) {
 setTimeout(() => location.reload(), 300);
 }
-});
+})
+.catch(err => { dmBtn.classList.toggle('is-active'); thPersistError(err); });
 });
 }
 const editBtn = document.getElementById('th-edit-layout-btn');
@@ -385,7 +403,7 @@ const fd = new FormData();
 fd.append('action', 'therum_save_layout');
 fd.append('nonce', NONCE);
 fd.append('layout', JSON.stringify(layout));
-fetch(AJAX, { method: 'POST', body: fd, credentials: 'same-origin' });
+fetch(AJAX, { method: 'POST', body: fd, credentials: 'same-origin' }).catch(thPersistError);
 }
 function flipResize(card, newSize) {
 const cards = Array.from(bento.querySelectorAll('.th-card'));
