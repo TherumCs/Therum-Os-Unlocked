@@ -185,28 +185,42 @@ add_action( 'wp_ajax_therum_activity_log', [ 'Therum_Activity_Log', 'ajax_fetch'
 
 
 // ════════════════════════════════════════════════════════════════════════════
-//  2. REDIRECT MANAGER — 301 redirects for changed slugs
+//  2. REDIRECT MANAGER + 404 MONITOR — native replacement for the Redirection
+//     plugin. 301/302/307/308/410 rules (exact + regex), auto-capture on slug
+//     change, aggregated 404 logging with one-click "create redirect", hit +
+//     last-seen tracking, enable/disable, and import/export.
 // ════════════════════════════════════════════════════════════════════════════
 
 class Therum_Redirects {
 
-	const OPTION_KEY = 'therum_redirects';
+	const OPTION_KEY  = 'therum_redirects';      // redirect rules, keyed by source
+	const OPTION_404  = 'therum_404_log';        // aggregated 404 hits, keyed by path
+	const OPTION_CFG  = 'therum_redirects_cfg';  // { log_404: bool }
+	const MAX_404     = 500;                      // cap distinct logged 404 paths
+	const VALID_CODES = [ 301, 302, 307, 308, 410 ];
 
 	public static function init(): void {
-		// Auto-capture slug changes
+		// Auto-capture slug changes as 301s.
 		add_action( 'post_updated', [ __CLASS__, 'on_slug_change' ], 10, 3 );
-		// Intercept 404s and redirect if we have a match
-		add_action( 'template_redirect', [ __CLASS__, 'maybe_redirect' ] );
+		// Match redirects early (parity with the Redirection plugin), then log
+		// any unmatched 404 at the tail of template_redirect.
+		add_action( 'template_redirect', [ __CLASS__, 'maybe_redirect' ], 1 );
+		add_action( 'template_redirect', [ __CLASS__, 'log_404' ], 999 );
 		// AJAX
-		add_action( 'wp_ajax_therum_redirects_save', [ __CLASS__, 'ajax_save' ] );
+		add_action( 'wp_ajax_therum_redirects_save',   [ __CLASS__, 'ajax_save' ] );
 		add_action( 'wp_ajax_therum_redirects_delete', [ __CLASS__, 'ajax_delete' ] );
+		add_action( 'wp_ajax_therum_redirects_toggle', [ __CLASS__, 'ajax_toggle' ] );
+		add_action( 'wp_ajax_therum_redirects_import', [ __CLASS__, 'ajax_import' ] );
+		add_action( 'wp_ajax_therum_redirects_export', [ __CLASS__, 'ajax_export' ] );
+		add_action( 'wp_ajax_therum_404_clear',        [ __CLASS__, 'ajax_404_clear' ] );
+		add_action( 'wp_ajax_therum_404_toggle',       [ __CLASS__, 'ajax_404_toggle' ] );
 		// Settings section
 		add_action( 'init', function() {
 			if ( class_exists( 'Therum_Settings' ) ) {
 				Therum_Settings::register( 'redirects', [
 					'label'    => 'Redirects',
 					'icon'     => 'external',
-					'desc'     => '301 redirect rules.',
+					'desc'     => '301/302 redirects + 404 monitor.',
 					'priority' => 92,
 					'render'   => [ __CLASS__, 'render_settings' ],
 				] );
@@ -214,20 +228,50 @@ class Therum_Redirects {
 		}, 20 );
 	}
 
+	// ── Config ──────────────────────────────────────────────────────────────
+	private static function cfg(): array {
+		return wp_parse_args( (array) get_option( self::OPTION_CFG, [] ), [ 'log_404' => true ] );
+	}
+
+	// ── Rules CRUD ──────────────────────────────────────────────────────────
 	public static function get_all(): array {
 		return (array) get_option( self::OPTION_KEY, [] );
 	}
 
-	public static function add( string $from, string $to, string $source = 'manual' ): void {
+	/** Normalize a URL or path down to a leading-slash path. */
+	private static function norm_path( string $p ): string {
+		$path = wp_parse_url( $p, PHP_URL_PATH );
+		if ( ! is_string( $path ) || $path === '' ) $path = $p;
+		return '/' . ltrim( $path, '/' );
+	}
+
+	/** Delimit a user regex safely for preg_*. */
+	private static function wrap_regex( string $pattern ): string {
+		return '~' . str_replace( '~', '\~', $pattern ) . '~';
+	}
+
+	/**
+	 * Upsert a redirect rule. Returns false if a regex pattern won't compile.
+	 */
+	public static function add( string $from, string $to, string $source = 'manual', int $code = 301, bool $regex = false ): bool {
+		if ( ! in_array( $code, self::VALID_CODES, true ) ) $code = 301;
+		$key = $regex ? trim( $from ) : self::norm_path( $from );
+		if ( $key === '' || ( $to === '' && 410 !== $code ) ) return false;
+		if ( $regex && @preg_match( self::wrap_regex( $key ), '' ) === false ) return false;
+
 		$rules = self::get_all();
-		$from  = '/' . ltrim( wp_parse_url( $from, PHP_URL_PATH ) ?: $from, '/' );
-		$rules[ $from ] = [
+		$rules[ $key ] = [
 			'to'      => $to,
+			'code'    => $code,
+			'regex'   => $regex,
 			'source'  => $source,
-			'created' => current_time( 'mysql' ),
-			'hits'    => 0,
+			'created' => $rules[ $key ]['created'] ?? current_time( 'mysql' ),
+			'hits'    => (int) ( $rules[ $key ]['hits'] ?? 0 ),
+			'last'    => $rules[ $key ]['last'] ?? null,
+			'enabled' => true,
 		];
 		update_option( self::OPTION_KEY, $rules, false );
+		return true;
 	}
 
 	public static function on_slug_change( $post_id, $post_after, $post_before ): void {
@@ -236,33 +280,106 @@ class Therum_Redirects {
 		$old_url = get_permalink( $post_before );
 		$new_url = get_permalink( $post_after );
 		if ( $old_url && $new_url && $old_url !== $new_url ) {
-			self::add( $old_url, $new_url, 'auto-slug-change' );
+			self::add( $old_url, $new_url, 'auto-slug-change', 301, false );
 			if ( class_exists( 'Therum_Activity_Log' ) ) {
 				Therum_Activity_Log::log( 'redirect_created', $post_after->post_type, $post_id, $post_after->post_title, $old_url . ' → ' . $new_url );
 			}
 		}
 	}
 
+	// ── Front-end matching ────────────────────────────────────────────────────
 	public static function maybe_redirect(): void {
-		if ( ! is_404() ) return;
-		$path  = '/' . ltrim( wp_parse_url( $_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH ) ?: '', '/' );
+		if ( is_admin() ) return;
+		$path  = self::norm_path( (string) ( $_SERVER['REQUEST_URI'] ?? '' ) );
 		$rules = self::get_all();
-		if ( isset( $rules[ $path ] ) ) {
-			// Increment hit counter
-			$rules[ $path ]['hits'] = ( $rules[ $path ]['hits'] ?? 0 ) + 1;
-			update_option( self::OPTION_KEY, $rules, false );
-			wp_redirect( $rules[ $path ]['to'], 301 );
+
+		$match = null; $target = null; $code = 301;
+
+		// 1. Exact path match.
+		if ( isset( $rules[ $path ] ) && ! empty( $rules[ $path ]['enabled'] ) && empty( $rules[ $path ]['regex'] ) ) {
+			$match  = $path;
+			$target = (string) $rules[ $path ]['to'];
+			$code   = (int) ( $rules[ $path ]['code'] ?? 301 );
+		} else {
+			// 2. Regex rules, in definition order.
+			foreach ( $rules as $key => $r ) {
+				if ( empty( $r['regex'] ) || empty( $r['enabled'] ) ) continue;
+				$rx = self::wrap_regex( (string) $key );
+				if ( @preg_match( $rx, $path ) === 1 ) {
+					$match  = $key;
+					$target = (string) @preg_replace( $rx, (string) $r['to'], $path );
+					$code   = (int) ( $r['code'] ?? 301 );
+					break;
+				}
+			}
+		}
+
+		if ( $match === null ) return;
+		// 410 Gone has no target; everything else needs one and must not loop.
+		if ( 410 !== $code ) {
+			if ( $target === '' || self::norm_path( $target ) === $path ) return;
+		}
+
+		$rules[ $match ]['hits'] = (int) ( $rules[ $match ]['hits'] ?? 0 ) + 1;
+		$rules[ $match ]['last'] = current_time( 'mysql' );
+		update_option( self::OPTION_KEY, $rules, false );
+
+		if ( 410 === $code ) {
+			status_header( 410 );
+			nocache_headers();
 			exit;
 		}
+		wp_redirect( $target, in_array( $code, self::VALID_CODES, true ) ? $code : 301 );
+		exit;
 	}
 
+	/** Aggregate unmatched 404s (path → hits/last/referrer/UA), capped. */
+	public static function log_404(): void {
+		if ( is_admin() || ! is_404() ) return;
+		if ( empty( self::cfg()['log_404'] ) ) return;
+		$path = self::norm_path( (string) ( $_SERVER['REQUEST_URI'] ?? '' ) );
+		if ( $path === '/' ) return;
+		foreach ( [ '/favicon.ico', '/robots.txt', '/apple-touch', '/.well-known', '/wp-sitemap', '/sitemap' ] as $ignore ) {
+			if ( str_starts_with( $path, $ignore ) ) return;
+		}
+
+		$log = (array) get_option( self::OPTION_404, [] );
+		if ( isset( $log[ $path ] ) ) {
+			$log[ $path ]['hits'] = (int) ( $log[ $path ]['hits'] ?? 0 ) + 1;
+			$log[ $path ]['last'] = current_time( 'mysql' );
+		} else {
+			// Evict the least-recently-seen entry when at capacity.
+			if ( count( $log ) >= self::MAX_404 ) {
+				uasort( $log, static fn( $a, $b ) => strcmp( (string) ( $a['last'] ?? '' ), (string) ( $b['last'] ?? '' ) ) );
+				array_shift( $log );
+			}
+			$log[ $path ] = [
+				'hits'  => 1,
+				'first' => current_time( 'mysql' ),
+				'last'  => current_time( 'mysql' ),
+				'ref'   => esc_url_raw( (string) ( $_SERVER['HTTP_REFERER'] ?? '' ) ),
+				'ua'    => substr( sanitize_text_field( (string) ( $_SERVER['HTTP_USER_AGENT'] ?? '' ) ), 0, 180 ),
+			];
+		}
+		update_option( self::OPTION_404, $log, false );
+	}
+
+	// ── AJAX: rules ───────────────────────────────────────────────────────────
 	public static function ajax_save(): void {
 		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
 		check_ajax_referer( 'therum_options', 'nonce' );
-		$from = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
-		$to   = sanitize_text_field( wp_unslash( $_POST['to'] ?? '' ) );
-		if ( ! $from || ! $to ) wp_send_json_error( 'from and to are required' );
-		self::add( $from, $to, 'manual' );
+		$from  = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
+		$to    = sanitize_text_field( wp_unslash( $_POST['to'] ?? '' ) );
+		$code  = (int) ( $_POST['code'] ?? 301 );
+		$regex = ! empty( $_POST['regex'] ) && $_POST['regex'] !== '0';
+		if ( $from === '' ) wp_send_json_error( 'A source path is required.' );
+		if ( ! self::add( $from, $to, 'manual', $code, $regex ) ) {
+			wp_send_json_error( $regex ? 'Invalid regex pattern.' : 'A target is required.' );
+		}
+		// Adding a redirect for a logged 404 clears it from the monitor.
+		$log = (array) get_option( self::OPTION_404, [] );
+		$key = self::norm_path( $from );
+		if ( isset( $log[ $key ] ) ) { unset( $log[ $key ] ); update_option( self::OPTION_404, $log, false ); }
 		wp_send_json_success( [ 'count' => count( self::get_all() ) ] );
 	}
 
@@ -276,68 +393,232 @@ class Therum_Redirects {
 		wp_send_json_success();
 	}
 
-	public static function render_settings(): void {
+	public static function ajax_toggle(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		check_ajax_referer( 'therum_options', 'nonce' );
+		$from  = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
 		$rules = self::get_all();
-		$nonce = wp_create_nonce( 'therum_options' );
+		if ( ! isset( $rules[ $from ] ) ) wp_send_json_error( 'unknown rule' );
+		$rules[ $from ]['enabled'] = empty( $rules[ $from ]['enabled'] );
+		update_option( self::OPTION_KEY, $rules, false );
+		wp_send_json_success( [ 'enabled' => $rules[ $from ]['enabled'] ] );
+	}
 
-		if ( function_exists( 'th_settings_group' ) ) {
-			th_settings_group( 'Redirect rules', count( $rules ) . ' active redirect' . ( count( $rules ) === 1 ? '' : 's' ) . '. Auto-created when you change a published page\'s slug.', function() use ( $rules, $nonce ) {
-				?>
-				<div data-th-redirects data-nonce="<?php echo esc_attr( $nonce ); ?>">
-				<div style="display:flex;gap:8px;margin-bottom:14px;">
-					<input type="text" class="th-input" placeholder="/old-path" style="flex:1;" data-th-redir-from />
-					<span style="color:var(--tx3);align-self:center;">→</span>
-					<input type="text" class="th-input" placeholder="/new-path or https://..." style="flex:1;" data-th-redir-to />
-					<button type="button" class="th-btn th-btn-primary" data-th-redir-add>Add</button>
-				</div>
-				<?php if ( empty( $rules ) ): ?>
-					<p style="color:var(--tx3);font-size:13px;">No redirects yet. They're created automatically when you change a published page's slug, or add one manually above.</p>
-				<?php else: ?>
-					<table style="width:100%;font-size:12px;border-collapse:collapse;">
-					<thead><tr style="text-align:left;border-bottom:1px solid var(--bd);">
-						<th style="padding:8px;">From</th><th style="padding:8px;">To</th><th style="padding:8px;">Source</th><th style="padding:8px;">Hits</th><th style="padding:8px;width:60px;"></th>
-					</tr></thead><tbody>
-					<?php foreach ( $rules as $from => $r ): ?>
-					<tr style="border-bottom:1px solid var(--bd);" data-th-redir-row="<?php echo esc_attr( $from ); ?>">
-						<td style="padding:6px 8px;font-family:ui-monospace,monospace;font-size:11px;"><?php echo esc_html( $from ); ?></td>
-						<td style="padding:6px 8px;font-size:11px;color:var(--tx2);"><?php echo esc_html( $r['to'] ); ?></td>
+	public static function ajax_import(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		check_ajax_referer( 'therum_options', 'nonce' );
+		$raw = trim( (string) wp_unslash( $_POST['data'] ?? '' ) );
+		if ( $raw === '' ) wp_send_json_error( 'Nothing to import.' );
+
+		$added = 0;
+		$first = ltrim( $raw )[0] ?? '';
+		if ( $first === '[' || $first === '{' ) {
+			// JSON: array of {from,to,code,regex} (Therum export shape).
+			$rows = json_decode( $raw, true );
+			if ( ! is_array( $rows ) ) wp_send_json_error( 'Invalid JSON.' );
+			foreach ( $rows as $row ) {
+				if ( ! is_array( $row ) ) continue;
+				$from = sanitize_text_field( (string) ( $row['from'] ?? '' ) );
+				$to   = sanitize_text_field( (string) ( $row['to'] ?? '' ) );
+				$code = (int) ( $row['code'] ?? 301 );
+				$rx   = ! empty( $row['regex'] );
+				if ( $from !== '' && self::add( $from, $to, 'import', $code, $rx ) ) $added++;
+			}
+		} else {
+			// CSV: "source,target[,code]" per line (matches Redirection CSV export).
+			foreach ( preg_split( '/\r\n|\r|\n/', $raw ) as $line ) {
+				$line = trim( $line );
+				if ( $line === '' || str_starts_with( $line, '#' ) ) continue;
+				$cols = str_getcsv( $line );
+				$from = sanitize_text_field( trim( (string) ( $cols[0] ?? '' ) ) );
+				$to   = sanitize_text_field( trim( (string) ( $cols[1] ?? '' ) ) );
+				$code = (int) ( $cols[2] ?? 301 );
+				if ( strcasecmp( $from, 'source' ) === 0 ) continue; // header row
+				if ( $from !== '' && $to !== '' && self::add( $from, $to, 'import', $code, false ) ) $added++;
+			}
+		}
+		wp_send_json_success( [ 'added' => $added, 'count' => count( self::get_all() ) ] );
+	}
+
+	public static function ajax_export(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_die( 'forbidden', 403 );
+		check_admin_referer( 'therum_options', '_wpnonce' );
+		$out = [];
+		foreach ( self::get_all() as $from => $r ) {
+			$out[] = [
+				'from'  => (string) $from,
+				'to'    => (string) ( $r['to'] ?? '' ),
+				'code'  => (int) ( $r['code'] ?? 301 ),
+				'regex' => ! empty( $r['regex'] ),
+			];
+		}
+		nocache_headers();
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="therum-redirects-' . gmdate( 'Y-m-d' ) . '.json"' );
+		echo wp_json_encode( $out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		exit;
+	}
+
+	// ── AJAX: 404 monitor ─────────────────────────────────────────────────────
+	public static function ajax_404_clear(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		check_ajax_referer( 'therum_options', 'nonce' );
+		$path = sanitize_text_field( wp_unslash( $_POST['path'] ?? '' ) );
+		if ( $path === '*' ) {
+			update_option( self::OPTION_404, [], false );
+		} else {
+			$log = (array) get_option( self::OPTION_404, [] );
+			unset( $log[ $path ] );
+			update_option( self::OPTION_404, $log, false );
+		}
+		wp_send_json_success();
+	}
+
+	public static function ajax_404_toggle(): void {
+		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'forbidden' );
+		check_ajax_referer( 'therum_options', 'nonce' );
+		$cfg = self::cfg();
+		$cfg['log_404'] = empty( $cfg['log_404'] );
+		update_option( self::OPTION_CFG, $cfg, false );
+		wp_send_json_success( [ 'log_404' => $cfg['log_404'] ] );
+	}
+
+	// ── Settings UI ─────────────────────────────────────────────────────────
+	public static function render_settings(): void {
+		$rules  = self::get_all();
+		$log    = (array) get_option( self::OPTION_404, [] );
+		$log404 = ! empty( self::cfg()['log_404'] );
+		$nonce  = wp_create_nonce( 'therum_options' );
+		$export = wp_nonce_url( admin_url( 'admin-ajax.php?action=therum_redirects_export' ), 'therum_options' );
+		if ( ! function_exists( 'th_settings_group' ) ) return;
+
+		// Most-hit 404s first.
+		uasort( $log, static fn( $a, $b ) => (int) ( $b['hits'] ?? 0 ) <=> (int) ( $a['hits'] ?? 0 ) );
+
+		$code_opts = static function ( int $sel ): string {
+			$labels = [ 301 => '301 Permanent', 302 => '302 Temporary', 307 => '307 Temporary', 308 => '308 Permanent', 410 => '410 Gone' ];
+			$h = '';
+			foreach ( $labels as $c => $l ) $h .= '<option value="' . $c . '"' . selected( $sel, $c, false ) . '>' . esc_html( $l ) . '</option>';
+			return $h;
+		};
+
+		th_settings_group( 'Redirect rules', count( $rules ) . ' rule' . ( count( $rules ) === 1 ? '' : 's' ) . '. Auto-created on slug change, or add your own (exact path or regex).', function () use ( $rules, $nonce, $export, $code_opts ) {
+			?>
+			<div data-th-redirects data-nonce="<?php echo esc_attr( $nonce ); ?>">
+			<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+				<input type="text" class="th-input" placeholder="/old-path  (or regex)" style="flex:2;min-width:160px;" data-th-redir-from />
+				<span style="color:var(--tx3);align-self:center;">→</span>
+				<input type="text" class="th-input" placeholder="/new-path or https://…" style="flex:2;min-width:160px;" data-th-redir-to />
+				<select class="th-input" data-th-redir-code style="flex:0 0 auto;"><?php echo $code_opts( 301 ); // phpcs:ignore ?></select>
+				<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--tx2);"><input type="checkbox" data-th-redir-regex /> regex</label>
+				<button type="button" class="th-btn th-btn-primary" data-th-redir-add>Add</button>
+			</div>
+			<div style="display:flex;gap:10px;margin-bottom:14px;font-size:12px;">
+				<a class="th-btn" href="<?php echo esc_url( $export ); ?>">Export JSON</a>
+				<button type="button" class="th-btn" data-th-redir-import-toggle>Import…</button>
+			</div>
+			<div data-th-redir-import style="display:none;margin-bottom:14px;">
+				<textarea class="th-input" data-th-redir-import-data rows="4" style="width:100%;font-family:ui-monospace,monospace;font-size:11px;" placeholder="Paste CSV (source,target,code) or a Therum JSON export"></textarea>
+				<button type="button" class="th-btn th-btn-primary" style="margin-top:6px;" data-th-redir-import-run>Import</button>
+			</div>
+			<?php if ( empty( $rules ) ): ?>
+				<p style="color:var(--tx3);font-size:13px;">No redirects yet. Created automatically when you change a published page's slug, or add one above.</p>
+			<?php else: ?>
+				<table style="width:100%;font-size:12px;border-collapse:collapse;">
+				<thead><tr style="text-align:left;border-bottom:1px solid var(--bd);">
+					<th style="padding:8px;">From</th><th style="padding:8px;">To</th><th style="padding:8px;">Code</th><th style="padding:8px;">Source</th><th style="padding:8px;">Hits</th><th style="padding:8px;width:90px;"></th>
+				</tr></thead><tbody>
+				<?php foreach ( $rules as $from => $r ):
+					$enabled = ! empty( $r['enabled'] ); ?>
+					<tr style="border-bottom:1px solid var(--bd);<?php echo $enabled ? '' : 'opacity:.5;'; ?>" data-th-redir-row="<?php echo esc_attr( $from ); ?>">
+						<td style="padding:6px 8px;font-family:ui-monospace,monospace;font-size:11px;"><?php echo esc_html( $from ); ?><?php echo ! empty( $r['regex'] ) ? ' <span style="color:var(--ac);font-size:9px;">RE</span>' : ''; ?></td>
+						<td style="padding:6px 8px;font-size:11px;color:var(--tx2);"><?php echo esc_html( (string) ( $r['to'] ?? '' ) ); ?></td>
+						<td style="padding:6px 8px;color:var(--tx3);"><?php echo (int) ( $r['code'] ?? 301 ); ?></td>
 						<td style="padding:6px 8px;"><span style="padding:2px 8px;border-radius:4px;background:var(--sf2);font-size:11px;"><?php echo esc_html( $r['source'] ?? 'manual' ); ?></span></td>
 						<td style="padding:6px 8px;color:var(--tx3);"><?php echo (int) ( $r['hits'] ?? 0 ); ?></td>
-						<td style="padding:6px 8px;text-align:right;"><button type="button" class="th-btn" style="padding:4px 8px;font-size:11px;color:var(--err);" data-th-redir-del="<?php echo esc_attr( $from ); ?>">Delete</button></td>
+						<td style="padding:6px 8px;text-align:right;white-space:nowrap;">
+							<button type="button" class="th-btn" style="padding:4px 7px;font-size:11px;" data-th-redir-toggle="<?php echo esc_attr( $from ); ?>"><?php echo $enabled ? 'On' : 'Off'; ?></button>
+							<button type="button" class="th-btn" style="padding:4px 7px;font-size:11px;color:var(--err);" data-th-redir-del="<?php echo esc_attr( $from ); ?>">Delete</button>
+						</td>
 					</tr>
-					<?php endforeach; ?>
-					</tbody></table>
-				<?php endif; ?>
-				</div>
-				<script>
-				(function(){
-					var wrap = document.querySelector('[data-th-redirects]');
-					if (!wrap) return;
-					var nonce = wrap.dataset.nonce;
-					var ajax = window.ajaxurl || '/wp-admin/admin-ajax.php';
-					wrap.querySelector('[data-th-redir-add]').addEventListener('click', function(){
-						var f = wrap.querySelector('[data-th-redir-from]').value.trim();
-						var t = wrap.querySelector('[data-th-redir-to]').value.trim();
-						if (!f || !t) return;
-						var fd = new FormData();
-						fd.append('action','therum_redirects_save');fd.append('from',f);fd.append('to',t);fd.append('nonce',nonce);
-						fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(){location.reload();});
-					});
-					wrap.querySelectorAll('[data-th-redir-del]').forEach(function(btn){
-						btn.addEventListener('click', function(){
-							var fd = new FormData();
-							fd.append('action','therum_redirects_delete');fd.append('from',btn.dataset.thRedirDel);fd.append('nonce',nonce);
-							fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(){
-								var row = btn.closest('[data-th-redir-row]');
-								if (row) row.remove();
-							});
-						});
-					});
-				})();
-				</script>
-				<?php
-			} );
-		}
+				<?php endforeach; ?>
+				</tbody></table>
+			<?php endif; ?>
+			</div>
+			<script>
+			(function(){
+				var wrap = document.querySelector('[data-th-redirects]');
+				if (!wrap) return;
+				var nonce = wrap.dataset.nonce;
+				var ajax = window.ajaxurl || '/wp-admin/admin-ajax.php';
+				function post(data, cb){ var fd=new FormData(); fd.append('nonce',nonce); Object.keys(data).forEach(function(k){fd.append(k,data[k]);}); fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(cb).catch(function(){ if(window.therumToast)window.therumToast('Network error'); }); }
+				wrap.querySelector('[data-th-redir-add]').addEventListener('click', function(){
+					var f=wrap.querySelector('[data-th-redir-from]').value.trim();
+					var t=wrap.querySelector('[data-th-redir-to]').value.trim();
+					var c=wrap.querySelector('[data-th-redir-code]').value;
+					var rx=wrap.querySelector('[data-th-redir-regex]').checked?'1':'0';
+					if(!f) return;
+					post({action:'therum_redirects_save',from:f,to:t,code:c,regex:rx}, function(res){ if(res&&res.success){location.reload();} else if(window.therumToast){window.therumToast((res&&res.data)||'Could not save');} });
+				});
+				wrap.querySelectorAll('[data-th-redir-del]').forEach(function(btn){ btn.addEventListener('click', function(){ post({action:'therum_redirects_delete',from:btn.dataset.thRedirDel}, function(){ var row=btn.closest('[data-th-redir-row]'); if(row)row.remove(); }); }); });
+				wrap.querySelectorAll('[data-th-redir-toggle]').forEach(function(btn){ btn.addEventListener('click', function(){ post({action:'therum_redirects_toggle',from:btn.dataset.thRedirToggle}, function(res){ if(res&&res.success){ btn.textContent=res.data.enabled?'On':'Off'; btn.closest('[data-th-redir-row]').style.opacity=res.data.enabled?'':'.5'; } }); }); });
+				var impT=wrap.querySelector('[data-th-redir-import-toggle]'), impBox=wrap.querySelector('[data-th-redir-import]');
+				if(impT){ impT.addEventListener('click', function(){ impBox.style.display=impBox.style.display==='none'?'':'none'; }); }
+				var impRun=wrap.querySelector('[data-th-redir-import-run]');
+				if(impRun){ impRun.addEventListener('click', function(){ var d=wrap.querySelector('[data-th-redir-import-data]').value; if(!d.trim())return; post({action:'therum_redirects_import',data:d}, function(res){ if(res&&res.success){ if(window.therumToast)window.therumToast('Imported '+res.data.added); location.reload(); } else if(window.therumToast){window.therumToast((res&&res.data)||'Import failed');} }); }); }
+				// "Create redirect" prefill coming from the 404 table.
+				document.addEventListener('th-redir-prefill', function(e){ wrap.querySelector('[data-th-redir-from]').value=e.detail; wrap.querySelector('[data-th-redir-to]').focus(); wrap.scrollIntoView({behavior:'smooth',block:'center'}); });
+			})();
+			</script>
+			<?php
+		} );
+
+		th_settings_group( '404 monitor', count( $log ) . ' tracked path' . ( count( $log ) === 1 ? '' : 's' ) . '. Logs requests that hit a 404 so you can redirect the ones that matter.', function () use ( $log, $log404, $nonce ) {
+			?>
+			<div data-th-404 data-nonce="<?php echo esc_attr( $nonce ); ?>">
+			<div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
+				<label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" data-th-404-log <?php checked( $log404 ); ?> /> Log 404 errors</label>
+				<?php if ( ! empty( $log ) ): ?><button type="button" class="th-btn" style="font-size:12px;color:var(--err);" data-th-404-clear-all>Clear all</button><?php endif; ?>
+			</div>
+			<?php if ( empty( $log ) ): ?>
+				<p style="color:var(--tx3);font-size:13px;">No 404s logged<?php echo $log404 ? ' yet.' : ' — logging is off.'; ?></p>
+			<?php else: ?>
+				<table style="width:100%;font-size:12px;border-collapse:collapse;">
+				<thead><tr style="text-align:left;border-bottom:1px solid var(--bd);">
+					<th style="padding:8px;">Path</th><th style="padding:8px;">Hits</th><th style="padding:8px;">Last seen</th><th style="padding:8px;">Referrer</th><th style="padding:8px;width:120px;"></th>
+				</tr></thead><tbody>
+				<?php foreach ( $log as $path => $h ): ?>
+					<tr style="border-bottom:1px solid var(--bd);" data-th-404-row="<?php echo esc_attr( $path ); ?>">
+						<td style="padding:6px 8px;font-family:ui-monospace,monospace;font-size:11px;"><?php echo esc_html( $path ); ?></td>
+						<td style="padding:6px 8px;color:var(--tx3);"><?php echo (int) ( $h['hits'] ?? 0 ); ?></td>
+						<td style="padding:6px 8px;color:var(--tx3);font-size:11px;"><?php echo esc_html( (string) ( $h['last'] ?? '' ) ); ?></td>
+						<td style="padding:6px 8px;color:var(--tx3);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( (string) ( $h['ref'] ?? '' ) ?: '—' ); ?></td>
+						<td style="padding:6px 8px;text-align:right;white-space:nowrap;">
+							<button type="button" class="th-btn th-btn-primary" style="padding:4px 7px;font-size:11px;" data-th-404-redir="<?php echo esc_attr( $path ); ?>">→ Redirect</button>
+							<button type="button" class="th-btn" style="padding:4px 7px;font-size:11px;color:var(--err);" data-th-404-del="<?php echo esc_attr( $path ); ?>">×</button>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody></table>
+			<?php endif; ?>
+			</div>
+			<script>
+			(function(){
+				var wrap=document.querySelector('[data-th-404]');
+				if(!wrap) return;
+				var nonce=wrap.dataset.nonce;
+				var ajax=window.ajaxurl||'/wp-admin/admin-ajax.php';
+				function post(data, cb){ var fd=new FormData(); fd.append('nonce',nonce); Object.keys(data).forEach(function(k){fd.append(k,data[k]);}); fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(cb).catch(function(){}); }
+				var t=wrap.querySelector('[data-th-404-log]');
+				if(t){ t.addEventListener('change', function(){ post({action:'therum_404_toggle'}, function(){}); }); }
+				var ca=wrap.querySelector('[data-th-404-clear-all]');
+				if(ca){ ca.addEventListener('click', function(){ if(!confirm('Clear the entire 404 log?'))return; post({action:'therum_404_clear',path:'*'}, function(){location.reload();}); }); }
+				wrap.querySelectorAll('[data-th-404-del]').forEach(function(b){ b.addEventListener('click', function(){ post({action:'therum_404_clear',path:b.dataset.th404Del}, function(){ var row=b.closest('[data-th-404-row]'); if(row)row.remove(); }); }); });
+				wrap.querySelectorAll('[data-th-404-redir]').forEach(function(b){ b.addEventListener('click', function(){ document.dispatchEvent(new CustomEvent('th-redir-prefill',{detail:b.dataset.th404Redir})); }); });
+			})();
+			</script>
+			<?php
+		} );
 	}
 }
 
