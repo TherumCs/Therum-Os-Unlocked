@@ -156,11 +156,17 @@ final class CssAdapter {
 	}
 
 	/**
-	 * Strip anything that would let a value break out of the declaration.
-	 * Conservative — drop semicolons, braces, angle brackets.
+	 * Strip anything that would let a value break out of the declaration or smuggle
+	 * script. Design-system tokens are colors / lengths / font names — never
+	 * url(), expression(), or @import — so those constructs are removed wholesale
+	 * rather than parsed. Comments and backslash escapes are dropped first so they
+	 * can't hide or reconstruct a blocked keyword (e.g. `\65 xpression`).
 	 */
 	private static function cssval( string $v ): string {
-		$v = str_replace( [ ';', '{', '}', '<', '>' ], '', $v );
+		$v = preg_replace( '#/\*.*?\*/#s', '', $v ) ?? '';          // CSS comments
+		$v = str_replace( [ ';', '{', '}', '<', '>', '\\' ], '', $v ); // break-out chars + escapes
+		$v = preg_replace( '/(?:url|expression|image-set|@import)\s*\(/i', '', $v ) ?? $v;
+		$v = preg_replace( '/(?:javascript|vbscript|data)\s*:/i', '', $v ) ?? $v;
 		return trim( $v );
 	}
 }

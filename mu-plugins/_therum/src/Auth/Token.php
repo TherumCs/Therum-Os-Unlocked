@@ -27,6 +27,7 @@ final class Token {
 	 * @param ?string       $last_used_at  MySQL DATETIME or null if never used.
 	 * @param ?string       $last_used_ip  IPv4/IPv6 or null.
 	 * @param ?string       $revoked_at    MySQL DATETIME or null if active.
+	 * @param ?string       $expires_at    MySQL DATETIME (UTC) or null = never expires.
 	 */
 	public function __construct(
 		public readonly int $id,
@@ -38,6 +39,7 @@ final class Token {
 		public readonly ?string $last_used_at = null,
 		public readonly ?string $last_used_ip = null,
 		public readonly ?string $revoked_at = null,
+		public readonly ?string $expires_at = null,
 	) {}
 
 	/**
@@ -62,8 +64,14 @@ final class Token {
 		return $this->revoked_at !== null;
 	}
 
+	/** True once the (optional) expiry timestamp has passed. */
+	public function is_expired(): bool {
+		if ( $this->expires_at === null || $this->expires_at === '' ) return false;
+		return strtotime( $this->expires_at . ' UTC' ) < time();
+	}
+
 	public function is_active(): bool {
-		return ! $this->is_revoked();
+		return ! $this->is_revoked() && ! $this->is_expired();
 	}
 
 	/**
@@ -82,6 +90,7 @@ final class Token {
 			last_used_at: isset( $row['last_used_at'] ) ? (string) $row['last_used_at'] : null,
 			last_used_ip: isset( $row['last_used_ip'] ) ? (string) $row['last_used_ip'] : null,
 			revoked_at:   isset( $row['revoked_at'] )   ? (string) $row['revoked_at']   : null,
+			expires_at:   isset( $row['expires_at'] ) && $row['expires_at'] !== null ? (string) $row['expires_at'] : null,
 		);
 	}
 }

@@ -19,7 +19,7 @@ namespace Therum\Auth;
 final class TokenRegistry {
 
 	private const TABLE       = 'therum_tokens';
-	private const DB_VERSION  = 1;
+	private const DB_VERSION  = 2; // v2: added expires_at column
 	private const VERSION_OPT = 'therum_tokens_db_version';
 
 	private const TOKEN_PREFIX = 'tro_';
@@ -53,6 +53,7 @@ final class TokenRegistry {
 			last_used_at DATETIME NULL DEFAULT NULL,
 			last_used_ip VARCHAR(45) NULL DEFAULT NULL,
 			revoked_at DATETIME NULL DEFAULT NULL,
+			expires_at DATETIME NULL DEFAULT NULL,
 			PRIMARY KEY (id),
 			UNIQUE KEY token_hash (token_hash),
 			KEY user_id (user_id),
@@ -68,14 +69,15 @@ final class TokenRegistry {
 	/**
 	 * Issue a new token for a user with the requested scopes.
 	 *
-	 * @param  int                          $user_id   WP user the token authenticates as
-	 * @param  string                       $name      Human label
-	 * @param  list<string>                 $scopes    Requested scopes (will be filtered by user's caps)
-	 * @return array{token: string, object: Token}    The plaintext token (show ONCE) + Token value object
+	 * @param  int                          $user_id     WP user the token authenticates as
+	 * @param  string                       $name        Human label
+	 * @param  list<string>                 $scopes      Requested scopes (will be filtered by user's caps)
+	 * @param  ?int                         $ttl_seconds Optional lifetime in seconds; null = never expires
+	 * @return array{token: string, object: Token}      The plaintext token (show ONCE) + Token value object
 	 *
 	 * @throws \RuntimeException on insert failure
 	 */
-	public static function issue( int $user_id, string $name, array $scopes ): array {
+	public static function issue( int $user_id, string $name, array $scopes, ?int $ttl_seconds = null ): array {
 		$scopes = Scopes::allowed_for_user( $scopes, $user_id );
 		if ( empty( $scopes ) ) {
 			throw new \RuntimeException( 'No grantable scopes for this user.' );
@@ -86,6 +88,10 @@ final class TokenRegistry {
 		$plain    = self::TOKEN_PREFIX . $body;
 		$prefix12 = substr( $plain, 0, self::PREFIX_LENGTH );
 		$hash     = hash( 'sha256', $plain );
+		$now      = current_time( 'mysql', true );
+		$expires  = ( $ttl_seconds !== null && $ttl_seconds > 0 )
+			? gmdate( 'Y-m-d H:i:s', time() + $ttl_seconds )
+			: null;
 
 		global $wpdb;
 		$inserted = $wpdb->insert(
@@ -96,9 +102,10 @@ final class TokenRegistry {
 				'token_hash' => $hash,
 				'prefix'     => $prefix12,
 				'scopes'     => implode( ' ', $scopes ),
-				'created_at' => current_time( 'mysql', true ),
+				'created_at' => $now,
+				'expires_at' => $expires,
 			],
-			[ '%s', '%d', '%s', '%s', '%s', '%s' ]
+			[ '%s', '%d', '%s', '%s', '%s', '%s', '%s' ]
 		);
 
 		if ( $inserted === false ) {
@@ -115,7 +122,8 @@ final class TokenRegistry {
 				user_id:    $user_id,
 				prefix:     $prefix12,
 				scopes:     $scopes,
-				created_at: current_time( 'mysql', true ),
+				created_at: $now,
+				expires_at: $expires,
 			),
 		];
 	}
@@ -141,6 +149,7 @@ final class TokenRegistry {
 
 		$token = Token::from_row( $row );
 		if ( $token->is_revoked() ) return null;
+		if ( $token->is_expired() ) return null;
 		if ( ! get_userdata( $token->user_id ) ) return null;
 
 		return $token;

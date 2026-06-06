@@ -156,6 +156,16 @@ final class SourceRebuild extends Tool {
 	 * @param array<string, mixed> $payload
 	 */
 	public static function handler( array $payload ): void {
+		// Re-authorize at execution time. A token can be revoked, expired, or the
+		// user demoted between enqueue and when the worker actually runs the job,
+		// so re-verify the enqueuer still holds the capability this tool requires
+		// rather than trusting the job was authorized when it was created.
+		$queued_by = (int) ( $payload['queued_by'] ?? 0 );
+		$required  = \Therum\Auth\Scopes::required_cap( ( new self() )->required_scope() );
+		if ( $queued_by <= 0 || ! user_can( $queued_by, $required ) ) {
+			throw new \RuntimeException( "Rebuild job not authorized at runtime (user {$queued_by} lacks '{$required}')." );
+		}
+
 		$path = (string) ( $payload['rebuild_path'] ?? '' );
 		// Re-validate confinement at execution time — never require() a path on
 		// the payload's say-so alone (defense in depth if the queue row were

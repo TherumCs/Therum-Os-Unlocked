@@ -19,6 +19,12 @@ final class Middleware {
 	/** @var array<int, ?Token> request-scoped cache, keyed by spl_object_id */
 	private static array $resolved_cache = [];
 
+	/** Max failed bearer-token auths per IP before throttling kicks in. */
+	private const MAX_FAILED_AUTH = 20;
+
+	/** Sliding window (seconds) over which failed attempts are counted. */
+	private const FAIL_WINDOW = 900; // 15 minutes
+
 	/**
 	 * `rest_authentication_errors` filter callback. Authenticates the user
 	 * when a Therum token is present and valid; passes through otherwise so
@@ -38,14 +44,31 @@ final class Middleware {
 		// arrive as Basic auth) to WP core, and leave unknown bearer schemes alone.
 		if ( ! str_starts_with( $token_plain, 'tro_' ) ) return $existing;
 
+		// Throttle brute-force / token-guessing: too many recent failures from
+		// this IP and we refuse to even look up the token until the window cools.
+		$rl_key = self::rate_key();
+		if ( (int) get_transient( $rl_key ) >= self::MAX_FAILED_AUTH ) {
+			return new \WP_Error(
+				'therum_token_throttled',
+				'Too many failed token attempts. Try again later.',
+				[ 'status' => 429 ]
+			);
+		}
+
 		$token = TokenRegistry::find_by_token( $token_plain );
 		if ( $token === null ) {
+			// Count the failure (sliding window) before rejecting.
+			$fails = (int) get_transient( $rl_key );
+			set_transient( $rl_key, $fails + 1, self::FAIL_WINDOW );
 			return new \WP_Error(
 				'therum_token_invalid',
 				'Invalid or revoked Therum token.',
 				[ 'status' => 401 ]
 			);
 		}
+
+		// Success — clear this IP's failure counter.
+		delete_transient( $rl_key );
 
 		// Authenticate as the token's user.
 		wp_set_current_user( $token->user_id );
@@ -165,5 +188,10 @@ final class Middleware {
 	private static function client_ip(): string {
 		$ip = $_SERVER['REMOTE_ADDR'] ?? '';
 		return is_string( $ip ) ? $ip : '';
+	}
+
+	/** Transient key for the per-IP failed-auth counter. */
+	private static function rate_key(): string {
+		return 'therum_tok_fail_' . md5( self::client_ip() );
 	}
 }

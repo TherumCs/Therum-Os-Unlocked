@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.23' );
+define( 'THERUM_OS_VERSION', '1.9.24' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
