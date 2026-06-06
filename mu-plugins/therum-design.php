@@ -3037,7 +3037,9 @@ function therum_cx_render_quick_controls( string $current_mode ): void {
 	<div class="th-cx-panel-body">
 
 		<?php
-		$dm_on = get_user_meta( get_current_user_id(), 'therum_desktop_mode', true ) === '1';
+		$dm_on = function_exists( 'therum_desktop_mode_active_for_user' )
+			? therum_desktop_mode_active_for_user()
+			: ( get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) === '1' );
 		therum_cx_panel_group( 'Appearance', [
 			[ 'seg', 'Mode', $s( 'mode', 'auto' ), [ 'light' => 'Light', 'dark' => 'Dark', 'auto' => 'Auto' ], 'mode' ],
 			[ 'toggle', 'Desktop Mode', $dm_on, 'desktopMode' ],

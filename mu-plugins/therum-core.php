@@ -175,19 +175,24 @@ if ( ! defined( 'DISALLOW_FILE_EDIT' ) ) {
 // Helper: detect "is DM running for this user right now?"
 if ( ! function_exists( 'therum_desktop_mode_active_for_user' ) ) {
 	function therum_desktop_mode_active_for_user(): bool {
+		// Prefer the plugin's own canonical helper — it checks the per-user flag
+		// AND applies the `desktop_mode_mode_enabled` filter, matching exactly
+		// what DM's own render gates use. (If this function exists, the plugin
+		// is loaded.)
+		if ( function_exists( 'desktop_mode_is_enabled' ) ) {
+			return (bool) desktop_mode_is_enabled();
+		}
+		// Fallback for early-hook contexts where the helper isn't defined yet:
+		// read DM's real opt-in meta directly. NOTE: the flag is `desktop_mode_mode`
+		// (a previous guess at `desktop_mode_enabled` et al. never matched, which
+		// is why Therum's shell failed to yield and double-rendered over DM).
+		$uid = get_current_user_id();
+		if ( ! $uid ) return false;
 		if ( ! function_exists( 'is_plugin_active' ) ) {
-			// Pull WP's plugin helpers in early-hook contexts.
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		if ( ! is_plugin_active( 'desktop-mode/desktop-mode.php' ) ) return false;
-		$uid = get_current_user_id();
-		if ( ! $uid ) return false;
-		// DM's per-user opt-in flag — checked across known meta keys so
-		// minor naming differences across DM versions don't break detection.
-		foreach ( [ 'desktop_mode_enabled', '_desktop_mode_enabled', 'desktop_mode' ] as $key ) {
-			if ( get_user_meta( $uid, $key, true ) ) return true;
-		}
-		return false;
+		return '1' === (string) get_user_meta( $uid, 'desktop_mode_mode', true );
 	}
 }
 

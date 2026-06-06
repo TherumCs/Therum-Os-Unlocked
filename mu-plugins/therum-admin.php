@@ -1081,7 +1081,11 @@ add_action( 'in_admin_header', function() {
         </button>
         <?php
         $dm_installed = function_exists( 'is_plugin_active' ) && is_plugin_active( 'desktop-mode/desktop-mode.php' );
-        $dm_user_on   = get_user_meta( get_current_user_id(), 'therum_desktop_mode', true ) === '1';
+        // Reflect the Desktop Mode plugin's REAL per-user flag, not Therum's
+        // legacy mirror — so the button state matches what's actually rendering.
+        $dm_user_on   = function_exists( 'therum_desktop_mode_active_for_user' )
+            ? therum_desktop_mode_active_for_user()
+            : ( get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) === '1' );
         ?>
         <button class="th-top-btn<?php echo $dm_user_on ? ' is-active' : ''; ?>" id="th-desktop-toggle" title="Desktop Mode" data-dm-installed="<?php echo $dm_installed ? '1' : '0'; ?>">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -10060,10 +10064,46 @@ add_action( 'wp_ajax_therum_toggle_desktop_mode', function() {
 		wp_send_json_error( 'Invalid nonce.', 403 );
 	}
 	$user_id = get_current_user_id();
-	$current = get_user_meta( $user_id, 'therum_desktop_mode', true );
-	$new_val = $current === '1' ? '0' : '1';
-	update_user_meta( $user_id, 'therum_desktop_mode', $new_val );
+
+	// Desktop Mode is owned by the companion plugin; its per-user flag
+	// (`desktop_mode_mode`) is the single source of truth that both DM's render
+	// gates and Therum's shell-yield consult. Toggle THAT so Therum's button
+	// genuinely enters/exits the windowed OS. (The old code flipped a private
+	// `therum_desktop_mode` meta that nothing rendered from — the button lit up
+	// but nothing happened.) Mirror the legacy key for any older reads.
+	if ( ! function_exists( 'is_plugin_active' ) ) require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	if ( ! is_plugin_active( 'desktop-mode/desktop-mode.php' ) ) {
+		wp_send_json_error( [ 'message' => 'The Desktop Mode plugin is not active.', 'installed' => false ], 409 );
+	}
+	$current = '1' === (string) get_user_meta( $user_id, 'desktop_mode_mode', true );
+	$new_val = $current ? '0' : '1';
+	update_user_meta( $user_id, 'desktop_mode_mode', $new_val );
+	update_user_meta( $user_id, 'therum_desktop_mode', $new_val ); // legacy mirror
 	wp_send_json_success( [ 'active' => $new_val === '1' ] );
+} );
+
+// Guaranteed exit. When Desktop Mode is active for the user, Therum's shell
+// (and its topbar toggle) yields — so add an unmistakable "Exit Desktop Mode"
+// node to the WP admin bar (which DM keeps visible) that turns it back off.
+add_action( 'admin_bar_menu', function( $bar ) {
+	if ( ! is_admin_bar_showing() ) return;
+	if ( ! function_exists( 'therum_desktop_mode_active_for_user' ) || ! therum_desktop_mode_active_for_user() ) return;
+	$bar->add_node( [
+		'id'    => 'therum-exit-desktop',
+		'title' => '⊗ Exit Desktop Mode',
+		'href'  => wp_nonce_url( admin_url( 'admin-post.php?action=therum_exit_desktop' ), 'therum_exit_desktop' ),
+		'meta'  => [ 'title' => 'Turn off Desktop Mode and return to the Therum shell' ],
+	] );
+}, 100 );
+
+add_action( 'admin_post_therum_exit_desktop', function() {
+	if ( ! current_user_can( 'read' ) ) wp_die( 'Forbidden', 403 );
+	check_admin_referer( 'therum_exit_desktop' );
+	$user_id = get_current_user_id();
+	update_user_meta( $user_id, 'desktop_mode_mode', '0' );
+	update_user_meta( $user_id, 'therum_desktop_mode', '0' );
+	wp_safe_redirect( admin_url( 'admin.php?page=therum' ) );
+	exit;
 } );
 
 // Register the page itself + repoint sidebar Settings nav at it.
