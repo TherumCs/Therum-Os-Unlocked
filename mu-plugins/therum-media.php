@@ -391,3 +391,235 @@ function thm_admin_scripts(): void {
     </script>
     <?php
 }
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  REGENERATE THUMBNAILS — delete + re-create all intermediate image sizes
+//
+//  Single:  AJAX therum_regen_thumbnail  (one attachment ID)
+//  Batch:   AJAX therum_regen_all        (all images, streamed in chunks)
+// ════════════════════════════════════════════════════════════════════════════
+
+add_action( 'wp_ajax_therum_regen_thumbnail', function() {
+	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( 'forbidden' );
+
+	$id = (int) ( $_POST['id'] ?? 0 );
+	if ( ! $id ) wp_send_json_error( 'no id' );
+
+	$nonce = $_POST['nonce'] ?? '';
+	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) && ! wp_verify_nonce( $nonce, 'therum_layout' ) ) {
+		wp_send_json_error( 'bad nonce' );
+	}
+
+	$result = therum_regenerate_single( $id );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( $result->get_error_message() );
+	}
+
+	wp_send_json_success( $result );
+} );
+
+add_action( 'wp_ajax_therum_regen_all', function() {
+	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( 'forbidden' );
+
+	$nonce = $_POST['nonce'] ?? '';
+	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) && ! wp_verify_nonce( $nonce, 'therum_layout' ) ) {
+		wp_send_json_error( 'bad nonce' );
+	}
+
+	$offset = max( 0, (int) ( $_POST['offset'] ?? 0 ) );
+	$batch  = min( 20, max( 1, (int) ( $_POST['batch'] ?? 10 ) ) );
+
+	// Get image attachments
+	$ids = get_posts( [
+		'post_type'      => 'attachment',
+		'post_mime_type' => 'image',
+		'post_status'    => 'inherit',
+		'posts_per_page' => $batch,
+		'offset'         => $offset,
+		'fields'         => 'ids',
+		'orderby'        => 'ID',
+		'order'          => 'ASC',
+	] );
+
+	$total = (int) wp_count_posts( 'attachment' )->inherit;
+	// Count only images
+	$total_images = (int) ( new WP_Query( [
+		'post_type'      => 'attachment',
+		'post_mime_type' => 'image',
+		'post_status'    => 'inherit',
+		'posts_per_page' => 1,
+		'fields'         => 'ids',
+	] ) )->found_posts;
+
+	$done    = [];
+	$errors  = [];
+
+	foreach ( $ids as $id ) {
+		$result = therum_regenerate_single( $id );
+		if ( is_wp_error( $result ) ) {
+			$errors[] = [ 'id' => $id, 'error' => $result->get_error_message() ];
+		} else {
+			$done[] = $result;
+		}
+	}
+
+	$has_more = ( $offset + $batch ) < $total_images;
+
+	wp_send_json_success( [
+		'done'        => $done,
+		'errors'      => $errors,
+		'offset'      => $offset,
+		'batch'       => $batch,
+		'next_offset' => $offset + $batch,
+		'total'       => $total_images,
+		'has_more'    => $has_more,
+		'progress'    => min( 100, round( ( $offset + count( $ids ) ) / max( 1, $total_images ) * 100 ) ),
+	] );
+} );
+
+/**
+ * Regenerate all intermediate sizes for a single image attachment.
+ * Deletes old thumbnails, regenerates from the original full-size file.
+ *
+ * @param int $id Attachment ID
+ * @return array|WP_Error  Result summary or error
+ */
+function therum_regenerate_single( int $id ) {
+	if ( ! wp_attachment_is_image( $id ) ) {
+		return new WP_Error( 'not_image', 'Attachment #' . $id . ' is not an image.' );
+	}
+
+	$file = get_attached_file( $id );
+	if ( ! $file || ! file_exists( $file ) ) {
+		return new WP_Error( 'missing_file', 'Original file not found for #' . $id );
+	}
+
+	// Load image editor functions
+	if ( ! function_exists( 'wp_generate_attachment_metadata' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+	}
+
+	$old_meta = wp_get_attachment_metadata( $id );
+
+	// Delete old intermediate sizes (thumbnails, medium, large, etc.)
+	if ( ! empty( $old_meta['sizes'] ) && is_array( $old_meta['sizes'] ) ) {
+		$upload_dir = wp_upload_dir();
+		$base_dir   = trailingslashit( $upload_dir['basedir'] );
+		$sub_dir    = ! empty( $old_meta['file'] ) ? trailingslashit( dirname( $old_meta['file'] ) ) : '';
+
+		foreach ( $old_meta['sizes'] as $size_name => $size_data ) {
+			$thumb_file = $base_dir . $sub_dir . $size_data['file'];
+			if ( file_exists( $thumb_file ) ) {
+				@unlink( $thumb_file );
+			}
+		}
+	}
+
+	// Regenerate all sizes from the original
+	$new_meta = wp_generate_attachment_metadata( $id, $file );
+	if ( is_wp_error( $new_meta ) || empty( $new_meta ) ) {
+		return new WP_Error( 'regen_failed', 'Could not regenerate metadata for #' . $id );
+	}
+
+	wp_update_attachment_metadata( $id, $new_meta );
+
+	$sizes_count = is_array( $new_meta['sizes'] ?? null ) ? count( $new_meta['sizes'] ) : 0;
+
+	return [
+		'id'    => $id,
+		'title' => get_the_title( $id ),
+		'sizes' => $sizes_count,
+		'file'  => basename( $file ),
+	];
+}
+
+// ── JS for regenerate buttons (single + all) ─────────────────────────────
+add_action( 'admin_footer', function() {
+	$page = $_GET['page'] ?? '';
+	if ( $page !== 'therum-media' ) return;
+	$nonce = wp_create_nonce( 'therum_options' );
+	?>
+<script id="therum-regen-js">
+(function() {
+  var ajax = window.ajaxurl || '/wp-admin/admin-ajax.php';
+  var nonce = '<?php echo esc_js( $nonce ); ?>';
+
+  // Single regenerate — from kebab menu button[data-th-regen]
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-th-regen]');
+    if (!btn) return;
+    e.preventDefault();
+    var id = btn.dataset.thRegen;
+    btn.textContent = 'Regenerating…';
+    btn.disabled = true;
+    var fd = new FormData();
+    fd.append('action', 'therum_regen_thumbnail');
+    fd.append('id', id);
+    fd.append('nonce', nonce);
+    fetch(ajax, { method: 'POST', credentials: 'same-origin', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.success) {
+          btn.textContent = res.data.sizes + ' sizes regenerated';
+          btn.style.color = 'var(--ok)';
+          if (window.therumToast) window.therumToast(res.data.file + ': ' + res.data.sizes + ' thumbnails regenerated');
+        } else {
+          btn.textContent = 'Error: ' + (res.data || 'unknown');
+          btn.style.color = 'var(--err)';
+        }
+      });
+  });
+
+  // Regenerate all — from toolbar button[data-th-regen-all]
+  var regenAllBtn = document.querySelector('[data-th-regen-all]');
+  if (regenAllBtn) {
+    regenAllBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (!confirm('Regenerate thumbnails for ALL images in the library? This may take a while for large libraries.')) return;
+
+      regenAllBtn.textContent = 'Starting…';
+      regenAllBtn.style.pointerEvents = 'none';
+
+      var processed = 0;
+      var errors = 0;
+      var total = 0;
+
+      function runBatch(offset) {
+        var fd = new FormData();
+        fd.append('action', 'therum_regen_all');
+        fd.append('offset', offset);
+        fd.append('batch', '10');
+        fd.append('nonce', nonce);
+        fetch(ajax, { method: 'POST', credentials: 'same-origin', body: fd })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (!res.success) {
+              regenAllBtn.textContent = 'Error — try again';
+              regenAllBtn.style.pointerEvents = '';
+              return;
+            }
+            var d = res.data;
+            total = d.total;
+            processed += d.done.length;
+            errors += d.errors.length;
+            regenAllBtn.textContent = 'Regenerating… ' + d.progress + '% (' + processed + '/' + total + ')';
+
+            if (d.has_more) {
+              runBatch(d.next_offset);
+            } else {
+              regenAllBtn.textContent = 'Done — ' + processed + ' images, ' + (processed > 0 ? 'all sizes regenerated' : 'nothing to process');
+              regenAllBtn.style.pointerEvents = '';
+              if (errors > 0) regenAllBtn.textContent += ' (' + errors + ' errors)';
+              if (window.therumToast) window.therumToast(processed + ' images regenerated' + (errors ? ', ' + errors + ' errors' : ''));
+            }
+          });
+      }
+
+      runBatch(0);
+    });
+  }
+})();
+</script>
+	<?php
+} );

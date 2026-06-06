@@ -3106,6 +3106,7 @@ class Therum_Media_Page {
 			'action_buttons' => [
 				['label'=>'Upload', 'icon'=>'import', 'primary'=>true, 'href'=>admin_url('media-new.php')],
 				['label'=>'Bulk rename', 'icon'=>'edit2', 'href'=>'#', 'attrs' => ['data-th-bulk-rename' => '1']],
+				['label'=>'Regenerate thumbnails', 'icon'=>'media', 'href'=>'#', 'attrs' => ['data-th-regen-all' => '1']],
 				['label'=>'Download library', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_media_download_zip'), 'therum_media_zip' )],
 			],
 			'density_slider'  => true,
@@ -3165,6 +3166,15 @@ class Therum_Media_Page {
 			$out[] = ['label' => 'Download',  'href' => $url, 'icon' => 'import', 'download' => $basename ?: basename($url)];
 			$out[] = ['label' => 'View file', 'href' => $url, 'icon' => 'external', 'target' => '_blank'];
 			$out[] = ['label' => 'Copy URL',  'copy' => $url, 'icon' => 'export'];
+		}
+		// Regenerate thumbnails (images only)
+		if ( wp_attachment_is_image( $a->ID ) ) {
+			$out[] = [
+				'label'  => 'Regenerate thumbnails',
+				'button' => true,
+				'icon'   => 'media',
+				'data'   => [ 'th-regen' => (string) $a->ID ],
+			];
 		}
 		if ($delete) $out[] = ['label' => 'Delete permanently', 'href' => $delete, 'icon' => 'logout', 'danger' => true];
 		return $out;
