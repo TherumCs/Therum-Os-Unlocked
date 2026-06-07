@@ -1574,7 +1574,22 @@ class Therum_Themes {
 	const USER_META_KEY    = 'therum_theme_state';
 
 	public static function presets(): array {
-		return self::foundations();
+		return array_merge( self::foundations(), self::desktop() );
+	}
+
+	/**
+	 * THE 5 DESKTOP THEMES (D1–D5). Each reskins the admin chrome after a real
+	 * OS surface — the admin experience changes drastically per theme. Signature
+	 * CSS lives in assets/therum-theme-desktop.css keyed by `body.theme-dk-*`.
+	 */
+	public static function desktop(): array {
+		return [
+			'dk-sonoma'   => [ 'name' => 'D1 · Sonoma',   'desc' => 'macOS — translucent vibrancy, traffic-light dots, rounded glass.',   'group' => 'desktop', 'mode' => 'light', 'accent' => '#007AFF', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'system', 'radius' => 'large',  'shadow' => 'soft', 'glass' => true,  'bgImage' => 'none', 'palette' => 'dk-sonoma',   'previewMain' => '#E9E7F0', 'previewRail' => '#007AFF' ],
+			'dk-cupertino'=> [ 'name' => 'D2 · Cupertino','desc' => 'iOS — bright cards, system blue, large pill controls, springy.',     'group' => 'desktop', 'mode' => 'light', 'accent' => '#0A84FF', 'density' => 'breathing',   'sidebar' => 'full', 'sidebarStyle' => 'minimal', 'font' => 'system', 'radius' => 'pilly',  'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'dk-cupertino','previewMain' => '#F2F2F7', 'previewRail' => '#0A84FF' ],
+			'dk-fluent'   => [ 'name' => 'D3 · Fluent',   'desc' => 'Windows 11 — mica acrylic, restrained accent, square-ish cards.',    'group' => 'desktop', 'mode' => 'light', 'accent' => '#0067C0', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'system', 'radius' => 'medium', 'shadow' => 'soft', 'glass' => true,  'bgImage' => 'none', 'palette' => 'dk-fluent',   'previewMain' => '#EDEBF0', 'previewRail' => '#0067C0' ],
+			'dk-visionos' => [ 'name' => 'D4 · visionOS', 'desc' => 'Spatial — deep ultra-frosted glass floating on dark, white text.',   'group' => 'desktop', 'mode' => 'dark',  'accent' => '#E5E5EA', 'density' => 'breathing',   'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'system', 'radius' => 'pilly',  'shadow' => 'soft', 'glass' => true,  'bgImage' => 'none', 'palette' => 'dk-visionos', 'previewMain' => '#15171C', 'previewRail' => '#C9CBD6' ],
+			'dk-hud'      => [ 'name' => 'D5 · Sentinel HUD', 'desc' => 'Dark HUD — near-black, neon cyan glow, mono labels, sharp edges.', 'group' => 'desktop', 'mode' => 'dark',  'accent' => '#00E5FF', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'solid',   'font' => 'mono',   'radius' => 'sharp',  'shadow' => 'flat', 'glass' => false, 'bgImage' => 'none', 'palette' => 'dk-hud',      'previewMain' => '#070A0E', 'previewRail' => '#00E5FF' ],
+		];
 	}
 
 	/**
@@ -2550,6 +2565,17 @@ add_action( 'admin_enqueue_scripts', function() {
 			filemtime( $fd_path )
 		);
 	}
+
+	// 5 desktop themes (D1–D5) — palette + signature chrome per OS surface.
+	$dk_path = __DIR__ . '/assets/therum-theme-desktop.css';
+	if ( file_exists( $dk_path ) ) {
+		wp_enqueue_style(
+			'therum-theme-desktop',
+			plugins_url( 'assets/therum-theme-desktop.css', __FILE__ ),
+			[ 'therum-theme-foundations' ],
+			filemtime( $dk_path )
+		);
+	}
 } );
 
 
@@ -2785,6 +2811,22 @@ add_action( 'init', function() {
 		'render'   => 'therum_cx_render_site_identity',
 	] );
 
+	Therum_Customization::register( 'behavior', [
+		'label'    => 'Behavior',
+		'section'  => 'behavior',
+		'priority' => 50,
+		'desc'     => 'Admin menu, landing page, list density.',
+		'render'   => 'therum_cx_render_behavior',
+	] );
+
+	Therum_Customization::register( 'advanced', [
+		'label'    => 'Advanced',
+		'section'  => 'advanced',
+		'priority' => 60,
+		'desc'     => 'Custom admin CSS, import & export.',
+		'render'   => 'therum_cx_render_advanced',
+	] );
+
 	// ─── Tabs intentionally NOT registered ────────────────────────────────
 	// The four tabs below — Login screen, List page, Dashboard, Editor —
 	// were scaffolded with no backend save/load. Their controls were pure
@@ -2926,10 +2968,11 @@ function therum_cx_render_theme_store( array $presets, string $current_theme, ar
 		$g = $t['group'] ?? 'other';
 		$groups[ $g ][ $id ] = $t;
 	}
-	$group_order  = [ 'studio-new', 'foundations', 'surfaces', 'familiar', 'therum', 'mecha', 'experimental', 'glass-spatial', 'other' ];
+	$group_order  = [ 'studio-new', 'foundations', 'desktop', 'surfaces', 'familiar', 'therum', 'mecha', 'experimental', 'glass-spatial', 'other' ];
 	$group_labels = [
 		'studio-new'    => 'Studio · New',
 		'foundations'   => 'Foundations',
+		'desktop'       => 'Desktop',
 		'surfaces'      => 'Surfaces',
 		'familiar'      => 'Familiar',
 		'therum'        => 'Therum',
@@ -4221,3 +4264,167 @@ add_filter( 'body_class', function ( array $classes ) {
 	}
 	return $classes;
 } );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  STUDIO · BEHAVIOR  — real, per-user admin behaviors (persist + take effect)
+// ════════════════════════════════════════════════════════════════════════════
+
+function therum_behavior_state(): array {
+	$defaults = [ 'login_landing' => 'default', 'fold_menu' => false, 'rows_per_page' => 0 ];
+	$uid = get_current_user_id();
+	$s   = $uid ? get_user_meta( $uid, 'therum_behavior', true ) : [];
+	return is_array( $s ) ? array_merge( $defaults, $s ) : $defaults;
+}
+
+function therum_cx_render_behavior( string $tab_id, array $tab ): void {
+	$s    = therum_behavior_state();
+	$opts = [ 'default' => 'WordPress default', 'dashboard' => 'Dashboard', 'therum' => 'Therum', 'posts' => 'Posts', 'pages' => 'Pages' ];
+	?>
+	<div class="th-cx-page-head"><div>
+		<div class="th-cx-page-eyebrow">Studio · Behavior</div>
+		<h2 class="th-cx-page-title">Behavior</h2>
+		<p class="th-cx-page-sub">How the admin behaves for your account — where you land after login, the menu state, and list density. Saves to your user profile and takes effect immediately.</p>
+	</div></div>
+	<div class="th-cx-card" data-th-behavior>
+		<div class="th-cx-field">
+			<label class="th-cx-field-label">Landing page after login</label>
+			<select class="th-cx-select" data-behavior="login_landing">
+				<?php foreach ( $opts as $k => $lbl ): ?>
+				<option value="<?php echo esc_attr( $k ); ?>" <?php selected( $s['login_landing'], $k ); ?>><?php echo esc_html( $lbl ); ?></option>
+				<?php endforeach; ?>
+			</select>
+		</div>
+		<div class="th-cx-field">
+			<label class="th-cx-field-label">List rows per page <span style="color:var(--tx3)">(0 = WordPress default)</span></label>
+			<input class="th-cx-input" type="number" min="0" max="200" value="<?php echo (int) $s['rows_per_page']; ?>" data-behavior="rows_per_page" />
+		</div>
+		<div class="th-cx-toggle" data-behavior-toggle="fold_menu">
+			<span class="th-cx-toggle-label">Collapse the WordPress admin menu by default</span>
+			<span class="th-cx-toggle-sw <?php echo $s['fold_menu'] ? 'is-on' : ''; ?>"></span>
+		</div>
+		<div class="th-cx-save-row">
+			<button type="button" class="th-cx-btn is-primary" data-behavior-save>Save behavior</button>
+			<span class="th-cx-save-note" data-behavior-note></span>
+		</div>
+	</div>
+	<?php
+}
+
+add_action( 'wp_ajax_therum_save_behavior', function () {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
+	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	$landing = sanitize_key( $_POST['login_landing'] ?? 'default' );
+	if ( ! in_array( $landing, [ 'default', 'dashboard', 'therum', 'posts', 'pages' ], true ) ) $landing = 'default';
+	$fold = ! empty( $_POST['fold_menu'] ) && $_POST['fold_menu'] !== 'false';
+	$rows = max( 0, min( 200, (int) ( $_POST['rows_per_page'] ?? 0 ) ) );
+	$state = [ 'login_landing' => $landing, 'fold_menu' => $fold, 'rows_per_page' => $rows ];
+	update_user_meta( get_current_user_id(), 'therum_behavior', $state );
+	set_user_setting( 'mfold', $fold ? 'f' : 'o' ); // apply menu fold immediately
+	wp_send_json_success( $state );
+} );
+
+// Apply: login landing redirect.
+add_filter( 'login_redirect', function ( $redirect_to, $requested, $user ) {
+	if ( ! ( $user instanceof WP_User ) || ! $user->exists() ) return $redirect_to;
+	$s       = get_user_meta( $user->ID, 'therum_behavior', true );
+	$landing = is_array( $s ) ? ( $s['login_landing'] ?? 'default' ) : 'default';
+	switch ( $landing ) {
+		case 'therum':    return admin_url( 'admin.php?page=therum' );
+		case 'posts':     return admin_url( 'edit.php' );
+		case 'pages':     return admin_url( 'edit.php?post_type=page' );
+		case 'dashboard': return admin_url( 'index.php' );
+	}
+	return $redirect_to;
+}, 20, 3 );
+
+// Apply: list rows per page.
+add_filter( 'edit_posts_per_page', function ( $per_page, $post_type ) {
+	$r = (int) ( therum_behavior_state()['rows_per_page'] ?? 0 );
+	return $r > 0 ? $r : $per_page;
+}, 20, 2 );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  STUDIO · ADVANCED  — custom admin CSS + theme import/export (real saves)
+// ════════════════════════════════════════════════════════════════════════════
+
+function therum_get_custom_admin_css(): string {
+	$uid = get_current_user_id();
+	$css = $uid ? get_user_meta( $uid, 'therum_admin_custom_css', true ) : '';
+	return is_string( $css ) ? $css : '';
+}
+
+// Author is a manage_options user (already trusted with theme/plugin file edit);
+// this only prevents breaking out of the <style> wrapper.
+function therum_sanitize_admin_css( string $css ): string {
+	return str_ireplace( [ '</style', '<script', '</script', 'javascript:', 'expression(' ], '', $css );
+}
+
+function therum_cx_render_advanced( string $tab_id, array $tab ): void {
+	$css    = therum_get_custom_admin_css();
+	$state  = class_exists( 'Therum_Themes' ) ? Therum_Themes::get_state() : [];
+	$export = wp_json_encode( $state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+	?>
+	<div class="th-cx-page-head"><div>
+		<div class="th-cx-page-eyebrow">Studio · Advanced</div>
+		<h2 class="th-cx-page-title">Advanced</h2>
+		<p class="th-cx-page-sub">Custom admin CSS and theme import / export. Custom CSS is injected on every admin page after the active theme — scope rules with <code>body.theme-…</code> selectors.</p>
+	</div></div>
+
+	<div class="th-cx-card">
+		<label class="th-cx-field-label">Custom admin CSS</label>
+		<textarea class="th-cx-textarea" data-custom-css spellcheck="false" style="min-height:200px" placeholder="/* e.g. */ body.theme-fd-violet #th-top { box-shadow: 0 0 24px rgba(124,92,255,.4); }"><?php echo esc_textarea( $css ); ?></textarea>
+		<div class="th-cx-save-row">
+			<button type="button" class="th-cx-btn is-primary" data-custom-css-save>Save CSS</button>
+			<span class="th-cx-save-note" data-custom-css-note></span>
+		</div>
+	</div>
+
+	<div class="th-cx-card" style="margin-top:16px">
+		<label class="th-cx-field-label">Export theme</label>
+		<p class="th-cx-page-sub" style="margin:4px 0 8px">Your current theme state as JSON.</p>
+		<textarea class="th-cx-textarea" readonly data-export-json style="min-height:140px"><?php echo esc_textarea( $export ); ?></textarea>
+		<div class="th-cx-save-row"><button type="button" class="th-cx-btn" data-export-download>⤓ Download .json</button></div>
+	</div>
+
+	<div class="th-cx-card" style="margin-top:16px">
+		<label class="th-cx-field-label">Import theme</label>
+		<p class="th-cx-page-sub" style="margin:4px 0 8px">Paste a theme JSON export and apply it to your account. Unknown keys are ignored.</p>
+		<textarea class="th-cx-textarea" data-import-json spellcheck="false" style="min-height:140px" placeholder='{ "palette": "fd-violet", "mode": "auto", ... }'></textarea>
+		<div class="th-cx-save-row">
+			<button type="button" class="th-cx-btn is-primary" data-import-apply>Import &amp; apply</button>
+			<span class="th-cx-save-note" data-import-note></span>
+		</div>
+	</div>
+	<?php
+}
+
+add_action( 'wp_ajax_therum_save_custom_css', function () {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
+	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	$css = therum_sanitize_admin_css( (string) wp_unslash( $_POST['css'] ?? '' ) );
+	update_user_meta( get_current_user_id(), 'therum_admin_custom_css', $css );
+	wp_send_json_success( [ 'len' => strlen( $css ) ] );
+} );
+
+add_action( 'wp_ajax_therum_import_theme', function () {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
+	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	if ( ! class_exists( 'Therum_Themes' ) ) wp_send_json_error( 'Theme engine unavailable.', 500 );
+	$data = json_decode( (string) wp_unslash( $_POST['json'] ?? '' ), true );
+	if ( ! is_array( $data ) ) wp_send_json_error( 'Invalid JSON.', 400 );
+	$clean = array_intersect_key( $data, Therum_Themes::default_state() );
+	if ( empty( $clean ) ) wp_send_json_error( 'No recognizable theme keys found.', 400 );
+	$state = array_merge( Therum_Themes::get_state(), $clean );
+	Therum_Themes::save_user_state( $state );
+	wp_send_json_success( $state );
+} );
+
+// Inject saved custom admin CSS on every admin page, after theme styles.
+add_action( 'admin_head', function () {
+	$css = therum_get_custom_admin_css();
+	if ( $css !== '' ) {
+		echo "\n<style id=\"therum-custom-admin-css\">\n" . $css . "\n</style>\n";
+	}
+}, 999 );

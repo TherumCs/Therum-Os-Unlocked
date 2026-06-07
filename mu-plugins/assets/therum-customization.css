@@ -63,6 +63,12 @@
 .th-cx-nav-group[open]>summary .th-cx-nav-caret{transform:rotate(45deg)}
 .th-cx-nav-soon{padding:var(--s1) var(--s3) var(--s3);color:var(--tx3);font-size:var(--t-xs);line-height:var(--lh-snug)}
 .th-cx-nav-soon em{color:var(--tx2);font-style:normal;font-weight:var(--w-sb)}
+/* Studio panels (Behavior / Advanced) */
+.th-cx-card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:var(--s5);display:flex;flex-direction:column;gap:var(--s3)}
+.th-cx-save-row{display:flex;align-items:center;gap:var(--s3);margin-top:var(--s2)}
+.th-cx-save-note{font-size:var(--t-xs);color:var(--tx3)}
+.th-cx-save-note.is-ok{color:#16a34a}
+.th-cx-save-note.is-err{color:#ef4444}
 
 /* Main column */
 .th-cx-main{min-width:0}

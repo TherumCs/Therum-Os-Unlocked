@@ -702,3 +702,89 @@ document.addEventListener('DOMContentLoaded', function () {
 		});
 	});
 });
+
+// ── Studio · Behavior + Advanced (real saves) ──────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+	var root = document.querySelector('[data-th-cx]');
+	if (!root) return;
+	var nonce = (root.dataset.nonce || '');
+	var url   = window.ajaxurl || '/wp-admin/admin-ajax.php';
+
+	function post(action, fields) {
+		var body = new URLSearchParams();
+		body.set('action', action);
+		body.set('nonce', nonce);
+		Object.keys(fields).forEach(function (k) { body.set(k, fields[k]); });
+		return fetch(url, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: body.toString()
+		}).then(function (r) { return r.json(); });
+	}
+	function note(el, msg, ok) {
+		if (!el) return;
+		el.textContent = msg;
+		el.className = 'th-cx-save-note ' + (ok ? 'is-ok' : 'is-err');
+	}
+
+	// Behavior: fold-menu toggle flips its switch
+	document.addEventListener('click', function (e) {
+		var t = e.target.closest('[data-behavior-toggle] .th-cx-toggle-sw');
+		if (t) { t.classList.toggle('is-on'); }
+	});
+
+	// Behavior: save
+	var bSave = document.querySelector('[data-behavior-save]');
+	if (bSave) bSave.addEventListener('click', function () {
+		var wrap = document.querySelector('[data-th-behavior]');
+		var landing = (wrap.querySelector('[data-behavior="login_landing"]') || {}).value || 'default';
+		var rows = (wrap.querySelector('[data-behavior="rows_per_page"]') || {}).value || '0';
+		var foldSw = wrap.querySelector('[data-behavior-toggle="fold_menu"] .th-cx-toggle-sw');
+		var fold = foldSw && foldSw.classList.contains('is-on') ? '1' : 'false';
+		var noteEl = document.querySelector('[data-behavior-note]');
+		note(noteEl, 'Saving…', true);
+		post('therum_save_behavior', { login_landing: landing, rows_per_page: rows, fold_menu: fold })
+			.then(function (res) { note(noteEl, res && res.success ? 'Saved.' : ((res && res.data) || 'Save failed.'), !!(res && res.success)); })
+			.catch(function () { note(noteEl, 'Network error.', false); });
+	});
+
+	// Advanced: save custom CSS
+	var cssSave = document.querySelector('[data-custom-css-save]');
+	if (cssSave) cssSave.addEventListener('click', function () {
+		var ta = document.querySelector('[data-custom-css]');
+		var noteEl = document.querySelector('[data-custom-css-note]');
+		note(noteEl, 'Saving…', true);
+		post('therum_save_custom_css', { css: ta ? ta.value : '' })
+			.then(function (res) { note(noteEl, res && res.success ? 'Saved. Reload any admin page to see it.' : 'Save failed.', !!(res && res.success)); })
+			.catch(function () { note(noteEl, 'Network error.', false); });
+	});
+
+	// Advanced: export download
+	var exp = document.querySelector('[data-export-download]');
+	if (exp) exp.addEventListener('click', function () {
+		var ta = document.querySelector('[data-export-json]');
+		if (!ta) return;
+		var blob = new Blob([ta.value], { type: 'application/json' });
+		var a = document.createElement('a');
+		a.href = URL.createObjectURL(blob);
+		a.download = 'therum-theme.json';
+		document.body.appendChild(a); a.click();
+		setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+	});
+
+	// Advanced: import & apply
+	var imp = document.querySelector('[data-import-apply]');
+	if (imp) imp.addEventListener('click', function () {
+		var ta = document.querySelector('[data-import-json]');
+		var noteEl = document.querySelector('[data-import-note]');
+		if (!ta || !ta.value.trim()) { note(noteEl, 'Paste a theme JSON first.', false); return; }
+		note(noteEl, 'Importing…', true);
+		post('therum_import_theme', { json: ta.value })
+			.then(function (res) {
+				if (res && res.success) { note(noteEl, 'Imported — reloading…', true); setTimeout(function () { location.reload(); }, 600); }
+				else { note(noteEl, (res && res.data) || 'Import failed.', false); }
+			})
+			.catch(function () { note(noteEl, 'Network error.', false); });
+	});
+});
