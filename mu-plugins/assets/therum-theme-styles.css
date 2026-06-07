@@ -1,0 +1,130 @@
+/* ============================================================================
+ * THERUM OS · THEME ENGINE — LAYER 1: COLOR CONTRACT + VISUAL STYLES
+ * ----------------------------------------------------------------------------
+ * Two things live here:
+ *   1. The COLOR-TOKEN CONTRACT every Layer-3 theme must fill in.
+ *   2. The VISUAL-STYLE vocabulary (surface/depth/accent/canvas/viz) — composable
+ *      treatments that RENDER using those tokens. A theme = pick a canvas + a
+ *      surface + a depth + an accent behaviour + a radius level + a palette.
+ *
+ * Nothing here hard-codes a colour. Themes set the tokens below; these classes
+ * just consume them. Quick Controls (Layer 4) override the same tokens live.
+ * ========================================================================== */
+
+/* ── COLOR CONTRACT — the variables a theme MUST define ─────────────────────
+ * Sensible neutral defaults so a half-defined theme still renders.            */
+.th-os {
+	--th-canvas:      #fafafa;   /* page background           */
+	--th-canvas-2:    #f1f1f3;   /* secondary canvas / wells  */
+	--th-surface:     #ffffff;   /* card / panel              */
+	--th-surface-2:   #f7f7f9;   /* nested surface            */
+	--th-surface-3:   #eeeef1;   /* input / track             */
+	--th-text:        #16181d;   /* primary text              */
+	--th-text-2:      #5b606b;   /* secondary text            */
+	--th-text-3:      #9aa0ac;   /* muted / labels            */
+	--th-border:      #e6e7ec;   /* hairline                  */
+	--th-border-2:    #d6d8df;   /* stronger border           */
+	--th-accent:      #2f6bff;   /* brand/theme accent        */
+	--th-accent-2:    #6f8cff;   /* accent gradient end       */
+	--th-accent-ink:  #ffffff;   /* text/icon on accent       */
+	--th-ok:          #16a34a;
+	--th-warn:        #f59e0b;
+	--th-err:         #ef4444;
+
+	/* Resolved on the theme: how the accent paints (set by accent style). */
+	--th-accent-fill: var(--th-accent);
+	color: var(--th-text);
+	background: var(--th-canvas);
+	font-family: var(--th-font-sans);
+	font-size: var(--th-fs-body);
+	line-height: var(--th-lh-normal);
+}
+
+/* ============================================================================
+ * CANVAS treatments — how the page background is painted
+ * ========================================================================== */
+.th-canvas-solid     { background: var(--th-canvas); }
+.th-canvas-gradient  { background: radial-gradient(120% 120% at 0% 0%, var(--th-canvas-2), var(--th-canvas) 60%); }
+.th-canvas-wash      { background:
+	radial-gradient(60% 80% at 100% 0%, color-mix(in srgb, var(--th-accent) 18%, transparent), transparent 60%),
+	var(--th-canvas); }
+.th-canvas-photo     { background: var(--th-canvas-photo, var(--th-canvas)) center / cover no-repeat fixed; }
+
+/* ============================================================================
+ * SURFACE treatments — how cards/panels are rendered
+ * ========================================================================== */
+.th-surface {                      /* base card; depth/border layered on */
+	background: var(--th-surface);
+	border-radius: var(--th-radius);
+	padding: var(--th-pad-card);
+}
+.th-surf-flat       { box-shadow: none; border: 1px solid var(--th-border); }
+.th-surf-soft       { box-shadow: var(--th-e1); border: 1px solid color-mix(in srgb, var(--th-border) 60%, transparent); }
+.th-surf-floating   { box-shadow: var(--th-e2); border: none; }
+.th-surf-elevated   { box-shadow: var(--th-e3); border: 1px solid color-mix(in srgb, var(--th-border) 40%, transparent); }
+.th-surf-outlined   { box-shadow: none; border: 1.5px solid var(--th-border-2); }
+
+.th-surf-glass {
+	background: color-mix(in srgb, var(--th-surface) 55%, transparent);
+	-webkit-backdrop-filter: blur(var(--th-glass-blur, 18px)) saturate(1.4);
+	backdrop-filter: blur(var(--th-glass-blur, 18px)) saturate(1.4);
+	border: 1px solid color-mix(in srgb, #fff 18%, transparent);
+	box-shadow: var(--th-e2);
+}
+.th-surf-gradient {                /* Milkinside-style tactile micro-gradient */
+	background: linear-gradient(160deg,
+		color-mix(in srgb, var(--th-surface) 100%, #fff 6%),
+		var(--th-surface) 55%,
+		color-mix(in srgb, var(--th-surface) 100%, var(--th-accent) 6%));
+	box-shadow: var(--th-e2), inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent);
+	border: 1px solid color-mix(in srgb, var(--th-border) 50%, transparent);
+}
+
+/* Spotlight / contrast card — the recurring "one inverted card" primitive.
+ * Flips a card to the opposite end of the value scale (dark-on-light or
+ * light-on-dark) regardless of theme. */
+.th-spotlight {
+	background: var(--th-spotlight-bg, var(--th-text));
+	color: var(--th-spotlight-ink, var(--th-canvas));
+	--th-text: var(--th-spotlight-ink, var(--th-canvas));
+	--th-text-2: color-mix(in srgb, var(--th-spotlight-ink, var(--th-canvas)) 70%, transparent);
+	--th-border: color-mix(in srgb, var(--th-spotlight-ink, var(--th-canvas)) 14%, transparent);
+}
+
+/* Solid colour-block card — each card a different fill (ref 07). */
+.th-blockcard { background: var(--th-block, var(--th-surface-2)); color: var(--th-block-ink, var(--th-text)); border: none; }
+
+/* ============================================================================
+ * ACCENT behaviour — how the accent expresses
+ * ========================================================================== */
+.th-accent-solid    { --th-accent-fill: var(--th-accent); }
+.th-accent-gradient { --th-accent-fill: linear-gradient(120deg, var(--th-accent), var(--th-accent-2)); }
+.th-accent-glow     { --th-accent-fill: var(--th-accent); --th-accent-shadow: 0 0 0 1px color-mix(in srgb, var(--th-accent) 40%, transparent), 0 0 24px color-mix(in srgb, var(--th-accent) 45%, transparent); }
+.th-accent-semantic { /* up/down use --th-ok / --th-err instead of brand accent */ }
+
+.th-accent-btn {
+	background: var(--th-accent-fill);
+	color: var(--th-accent-ink);
+	border: none;
+	border-radius: var(--th-radius-pill);
+	box-shadow: var(--th-accent-shadow, none);
+	min-height: var(--th-ctl-md);
+	font-weight: var(--th-fw-semibold);
+}
+
+/* ============================================================================
+ * DEPTH — map a single knob to an elevation tier
+ * ========================================================================== */
+.th-depth-flat     .th-surface, .th-surface.th-depth-flat     { box-shadow: var(--th-e0); }
+.th-depth-soft     .th-surface, .th-surface.th-depth-soft     { box-shadow: var(--th-e1); }
+.th-depth-raised   .th-surface, .th-surface.th-depth-raised   { box-shadow: var(--th-e2); }
+.th-depth-floating .th-surface, .th-surface.th-depth-floating { box-shadow: var(--th-e3); }
+
+/* ============================================================================
+ * DATA-VIZ palettes — line/area/bar rendering modes
+ * ========================================================================== */
+.th-viz-minimal  { --th-viz-line: var(--th-text-2); --th-viz-fill: transparent; --th-viz-grid: transparent; }
+.th-viz-rich     { --th-viz-line: var(--th-accent); --th-viz-fill: color-mix(in srgb, var(--th-accent) 12%, transparent); --th-viz-grid: var(--th-border); }
+.th-viz-area     { --th-viz-line: var(--th-accent); --th-viz-fill: linear-gradient(var(--th-accent), transparent); }
+.th-viz-glow     { --th-viz-line: var(--th-accent); --th-viz-fill: transparent; --th-viz-glow: drop-shadow(0 0 6px color-mix(in srgb, var(--th-accent) 60%, transparent)); }
+.th-viz-semantic { --th-viz-up: var(--th-ok); --th-viz-down: var(--th-err); }
