@@ -4527,7 +4527,7 @@ add_action( 'admin_head', function () {
 		$g['g1'], $g['g2'], $g['g3'], (int) $g['angle']
 	);
 	if ( ! empty( $g['flat'] ) ) {
-		$css .= sprintf( 'body.theme-m01{background:%s;}', $g['g1'] );
+		$css .= sprintf( 'body.theme-m01 #th-shell{background:%s;}', $g['g1'] );
 	}
 	echo "\n<style id=\"therum-m01-grad\">{$css}</style>\n";
 }, 1000 );

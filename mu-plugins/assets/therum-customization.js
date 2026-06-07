@@ -816,7 +816,8 @@ document.addEventListener('DOMContentLoaded', function () {
 		b.style.setProperty('--m01-g1',g1); b.style.setProperty('--m01-g2',g2);
 		b.style.setProperty('--m01-g3',g3); b.style.setProperty('--m01-g-angle',ang+'deg');
 		var av = wrap.querySelector('[data-grad-angleval]'); if (av) av.textContent = ang+'°';
-		b.style.background = flat ? g1 : '';     // flat overrides; clear restores the var gradient
+		var shell = document.getElementById('th-shell');   // gradient paints #th-shell
+		if (shell) shell.style.background = flat ? g1 : ''; // flat = solid; clear restores var gradient
 	}
 	function save(){
 		clearTimeout(saveT);
