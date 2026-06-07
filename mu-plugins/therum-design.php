@@ -3133,27 +3133,10 @@ function therum_cx_render_saved_themes( array $saved ): void {
  * user_meta('therum_saved_themes') with a CRUD UI.
  */
 function therum_cx_saved_themes(): array {
-	return [
-		'studio-pink' => [
-			'name'   => 'Studio · Pink',
-			'meta'   => 'saved Apr 28 · 2 days ago',
-			'swatch' => '#f5389a',
-			'tokens' => [ 'DARK', 'INTER', 'ROUND', 'GLASS' ],
-			'active' => true,
-		],
-		'lucid-office' => [
-			'name'   => 'Lucid · Office',
-			'meta'   => 'saved May 2 · 11 days ago',
-			'swatch' => '#00d4ff',
-			'tokens' => [ 'DARK', 'INTER', 'MED', 'BREATH' ],
-		],
-		'editorial-reading' => [
-			'name'   => 'Editorial · Reading',
-			'meta'   => 'saved May 8 · 5 days ago',
-			'swatch' => '#fafaf7',
-			'tokens' => [ 'LIGHT', 'CRIMSON', 'MED', 'BREATH' ],
-		],
-	];
+	// Real per-user store — no demo data. Empty until the user saves a theme.
+	$uid   = get_current_user_id();
+	$saved = $uid ? get_user_meta( $uid, 'therum_saved_themes', true ) : [];
+	return is_array( $saved ) ? $saved : [];
 }
 
 /**

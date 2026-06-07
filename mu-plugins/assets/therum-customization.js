@@ -166,15 +166,25 @@ document.addEventListener('DOMContentLoaded', function () {
 		dark:  { '--bg':'#0a0a0a','--sf':'#141414','--sf2':'#1a1a1a','--tx':'#fafafa','--tx2':'#a0a0a0','--tx3':'#6a6a6a','--bd':'rgba(255,255,255,.10)','--bd2':'rgba(255,255,255,.20)' }
 	};
 	function thApplyMode(mode) {
-		var key = mode;
+		// Foundation themes set --bg/--sf/--tx/... on body.theme-* (the BODY
+		// element). :root vars are shadowed by that, so mode must write to BODY
+		// to actually override the active theme palette.
+		var keys = ['--bg', '--sf', '--sf2', '--tx', '--tx2', '--tx3', '--bd', '--bd2'];
 		if (mode === 'auto') {
-			var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-			key = prefersLight ? 'light' : 'dark';
+			// Auto = follow the active theme's own palette: clear forced vars.
+			keys.forEach(function (k) { document.body.style.removeProperty(k); });
+			document.body.classList.remove('light');
+			return;
 		}
-		var set = TH_MODES[key];
+		var set = TH_MODES[mode];
 		if (!set) return;
-		thSetVars(set);
-		document.body.classList.toggle('light', key === 'light');
+		// Force light/dark surfaces+text while keeping the theme's accent (--ac
+		// is not in TH_MODES, so it is preserved).
+		keys.forEach(function (k) {
+			if (set[k] != null) document.body.style.setProperty(k, set[k]);
+			else document.body.style.removeProperty(k);
+		});
+		document.body.classList.toggle('light', mode === 'light');
 	}
 
 	// Label → segment handler map.
