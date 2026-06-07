@@ -92,6 +92,76 @@ final class Therum_Theme_Engine {
 		add_filter( 'admin_body_class',      [ __CLASS__, 'body_class' ] );
 		add_action( 'admin_footer',          [ __CLASS__, 'switcher' ] );
 		add_action( 'wp_ajax_therum_apply_theme', [ __CLASS__, 'ajax_apply' ] );
+
+		// Register a section in the Customization screen — the place you actually
+		// go to manage themes (more discoverable than the floating switcher).
+		add_action( 'init', function() {
+			if ( class_exists( 'Therum_Settings' ) ) {
+				Therum_Settings::register( 'theme-studio', [
+					'label'    => 'Theme Studio',
+					'icon'     => 'palette',
+					'desc'     => 'New theme engine (beta) — pick a foundation theme.',
+					'priority' => 1,
+					'render'   => [ __CLASS__, 'render_section' ],
+				] );
+			}
+		}, 21 );
+	}
+
+	/** The Customization → Theme Studio section: theme cards + Apply. */
+	public static function render_section(): void {
+		$active = self::active();
+		$nonce  = wp_create_nonce( 'therum_apply_theme' );
+		$themes = self::themes();
+		$group  = function_exists( 'th_settings_group' );
+
+		if ( $group ) th_settings_group( 'Theme Studio · beta', 'A ground-up theme engine. Pick a foundation theme — it repaints the whole admin live and sticks per-user. The full studio (15 dashboard + 5 desktop themes, live editor) is in progress.', function() use ( $active, $nonce, $themes ) {
+			self::render_cards( $active, $nonce, $themes );
+		} );
+		else self::render_cards( $active, $nonce, $themes );
+	}
+
+	private static function render_cards( string $active, string $nonce, array $themes ): void {
+		?>
+		<div data-th-studio data-nonce="<?php echo esc_attr( $nonce ); ?>"
+			style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;">
+			<?php
+			$cards = array_merge( [ '' => [ 'name' => 'Default (legacy)', 'ref' => 'old 60-preset system', 'mode' => '', 'pal' => [ 'bg'=>'#fafafa','sf2'=>'#eee','ac'=>'#888' ] ] ], $themes );
+			foreach ( $cards as $id => $t ):
+				$p = $t['pal']; $is = ( $active === $id ); ?>
+				<button type="button" class="th-studio-card" data-theme="<?php echo esc_attr( $id ); ?>"
+					style="text-align:left;cursor:pointer;border:2px solid <?php echo $is ? 'var(--ac)' : 'var(--bd)'; ?>;border-radius:12px;overflow:hidden;background:var(--sf);padding:0;">
+					<span style="display:block;height:84px;background:<?php echo esc_attr($p['bg']); ?>;position:relative;">
+						<span style="position:absolute;left:14px;top:16px;width:60%;height:18px;border-radius:6px;background:<?php echo esc_attr($p['sf2']); ?>;"></span>
+						<span style="position:absolute;left:14px;top:42px;width:40%;height:12px;border-radius:5px;background:<?php echo esc_attr($p['sf2']); ?>;"></span>
+						<span style="position:absolute;right:14px;bottom:14px;width:34px;height:34px;border-radius:50%;background:<?php echo esc_attr($p['ac']); ?>;"></span>
+					</span>
+					<span style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;">
+						<span>
+							<span style="display:block;font:600 13px/1.2 var(--f);color:var(--tx);"><?php echo esc_html($t['name']); ?></span>
+							<span style="display:block;font:400 11px/1.3 var(--f);color:var(--tx3);margin-top:2px;"><?php echo esc_html($t['ref']); ?></span>
+						</span>
+						<?php if ( $is ): ?><span style="font:600 10px/1 var(--f);color:var(--ac);text-transform:uppercase;letter-spacing:.06em;">Active</span><?php endif; ?>
+					</span>
+				</button>
+			<?php endforeach; ?>
+		</div>
+		<script>
+		(function(){
+			var w=document.querySelector('[data-th-studio]'); if(!w) return;
+			w.querySelectorAll('.th-studio-card').forEach(function(b){
+				b.addEventListener('click',function(){
+					b.style.opacity=.5;
+					var fd=new FormData(); fd.append('action','therum_apply_theme');
+					fd.append('theme',b.dataset.theme); fd.append('nonce',w.dataset.nonce);
+					fetch((window.ajaxurl||'/wp-admin/admin-ajax.php'),{method:'POST',credentials:'same-origin',body:fd})
+						.then(function(r){return r.json();}).then(function(){ location.reload(); })
+						.catch(function(){ b.style.opacity=1; if(window.therumToast)window.therumToast('Could not apply'); });
+				});
+			});
+		})();
+		</script>
+		<?php
 	}
 
 	/** Load the Layer-0 base + Layer-1 styles whenever a new theme is active. */
