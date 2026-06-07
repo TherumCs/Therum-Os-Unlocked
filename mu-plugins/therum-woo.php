@@ -331,6 +331,178 @@ add_filter('therum_admin_nav_items', function(array $items): array {
 	return $items;
 }, 30);
 
+// ════════════════════════════════════════════════════════════════════════════
+//  STORE PERFORMANCE — HPOS (High-Performance Order Storage) + Legacy REST API.
+//  Surfaces WooCommerce's biggest performance/footprint levers in Therum's own
+//  Settings, guarded by DB engine (HPOS needs MySQL/MariaDB — it can't run on
+//  the SQLite drop-in) and by WooCommerce being active.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Is HPOS currently authoritative (orders stored in custom tables)? */
+function thwp_hpos_active(): bool {
+	if ( class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' ) ) {
+		return (bool) \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+	}
+	return get_option( 'woocommerce_custom_orders_table_enabled' ) === 'yes';
+}
+
+/** Detect the Legacy REST API: the standalone plugin OR WC's built-in v1–v3 API. */
+function thwp_legacy_rest_status(): array {
+	if ( ! function_exists( 'get_plugins' ) ) require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	$all     = function_exists( 'get_plugins' ) ? get_plugins() : [];
+	$files   = [];
+	foreach ( $all as $file => $data ) {
+		if ( stripos( (string) ( $data['Name'] ?? '' ), 'Legacy REST API' ) !== false ) $files[] = $file;
+	}
+	$active = false;
+	foreach ( $files as $f ) {
+		if ( is_plugin_active( $f ) ) { $active = true; break; }
+	}
+	$builtin = get_option( 'woocommerce_api_enabled' ) === 'yes';
+	return [
+		'plugin_files' => $files,
+		'duplicate'    => count( $files ) > 1,
+		'active'       => $active || $builtin,
+		'builtin'      => $builtin,
+	];
+}
+
+add_action( 'init', function() {
+	if ( ! class_exists( 'Therum_Settings' ) || ! Therum_Woo_Bridge::woo_active() ) return;
+	Therum_Settings::register( 'store-perf', [
+		'label'    => 'Store performance',
+		'icon'     => 'gauge',
+		'desc'     => 'HPOS + legacy API — WooCommerce speed & footprint.',
+		'priority' => 64,
+		'render'   => 'thwp_render_store_perf',
+	] );
+}, 21 );
+
+function thwp_render_store_perf(): void {
+	if ( ! function_exists( 'th_settings_group' ) ) return;
+	$nonce  = wp_create_nonce( 'therum_options' );
+	$sqlite = function_exists( 'therum_is_sqlite' ) && therum_is_sqlite();
+
+	// ── HPOS ──────────────────────────────────────────────────────────────
+	$hpos_on   = thwp_hpos_active();
+	$sync_on   = get_option( 'woocommerce_custom_orders_table_data_sync_enabled' ) === 'yes';
+	$wc_feat   = admin_url( 'admin.php?page=wc-settings&tab=advanced&section=features' );
+	th_settings_group( 'High-Performance Order Storage (HPOS)', 'Stores orders in dedicated tables instead of wp_posts/postmeta — faster order queries, smaller footprint, better at scale. WooCommerce\'s recommended default.', function () use ( $sqlite, $hpos_on, $sync_on, $wc_feat, $nonce ) {
+		?>
+		<div data-th-hpos data-nonce="<?php echo esc_attr( $nonce ); ?>">
+		<?php if ( $sqlite ): ?>
+			<p style="font-size:13px;color:var(--tx2);margin:0 0 6px;"><strong style="color:var(--tx);">Status:</strong> <span style="color:var(--tx3);">Unavailable on SQLite.</span></p>
+			<p style="font-size:12px;color:var(--tx3);margin:0;">HPOS requires MySQL/MariaDB — WooCommerce's HPOS queries don't translate through the SQLite drop-in. This appears on your production (MySQL) deploy, where you can enable it here.</p>
+		<?php elseif ( $hpos_on ): ?>
+			<p style="font-size:13px;margin:0 0 8px;"><span style="color:var(--ok);font-weight:600;">✓ Active</span> — orders are stored in custom order tables.<?php echo $sync_on ? ' <span style="color:var(--tx3);">Sync to posts is on.</span>' : ''; ?></p>
+			<a class="th-btn" href="<?php echo esc_url( $wc_feat ); ?>">Manage in WooCommerce →</a>
+		<?php else: ?>
+			<p style="font-size:13px;margin:0 0 10px;"><strong style="color:var(--tx);">Status:</strong> <span style="color:var(--warn,#f59e0b);">Off</span> — orders are in wp_posts/postmeta.</p>
+			<button type="button" class="th-btn th-btn-primary" data-th-hpos-enable>Enable HPOS</button>
+			<a class="th-btn" href="<?php echo esc_url( $wc_feat ); ?>" style="margin-left:8px;">Manage in WooCommerce →</a>
+			<p style="font-size:12px;color:var(--tx3);margin:10px 0 0;">Creates the order tables and turns on sync. On a store with existing orders, HPOS becomes authoritative once the background sync completes (finish the switch from WooCommerce → Features if prompted).</p>
+		<?php endif; ?>
+		</div>
+		<script>
+		(function(){
+			var w=document.querySelector('[data-th-hpos]'); if(!w) return;
+			var b=w.querySelector('[data-th-hpos-enable]'); if(!b) return;
+			b.addEventListener('click', function(){
+				b.disabled=true; b.textContent='Enabling…';
+				var fd=new FormData(); fd.append('action','therum_enable_hpos'); fd.append('nonce',w.dataset.nonce);
+				fetch(window.ajaxurl||'/wp-admin/admin-ajax.php',{method:'POST',credentials:'same-origin',body:fd})
+				.then(function(r){return r.json();}).then(function(res){
+					if(window.therumToast) window.therumToast((res&&res.data&&res.data.message)|| (res&&res.success?'HPOS enabled':'Could not enable HPOS'));
+					if(res&&res.success){ setTimeout(function(){location.reload();},600); } else { b.disabled=false; b.textContent='Enable HPOS'; }
+				}).catch(function(){ b.disabled=false; b.textContent='Enable HPOS'; if(window.therumToast)window.therumToast('Network error'); });
+			});
+		})();
+		</script>
+		<?php
+	} );
+
+	// ── Legacy REST API ────────────────────────────────────────────────────
+	$legacy = thwp_legacy_rest_status();
+	th_settings_group( 'Legacy REST API', 'The old WooCommerce REST API (v1–v3), removed from WooCommerce core in 9.0 and shipped only as a legacy add-on. Deprecated and an unnecessary attack surface — disable it unless an old integration still needs it.', function () use ( $legacy, $nonce ) {
+		?>
+		<div data-th-legacy data-nonce="<?php echo esc_attr( $nonce ); ?>">
+		<?php if ( $legacy['active'] ): ?>
+			<p style="font-size:13px;margin:0 0 10px;"><span style="color:var(--warn,#f59e0b);font-weight:600;">⚠ Active</span> — <?php echo $legacy['builtin'] ? 'WooCommerce\'s built-in legacy API is on.' : 'the legacy add-on plugin is active.'; ?></p>
+			<button type="button" class="th-btn th-btn-primary" data-th-legacy-off>Disable Legacy REST API</button>
+			<?php if ( $legacy['duplicate'] ): ?>
+				<p style="font-size:12px;color:var(--warn,#f59e0b);margin:10px 0 0;">⚠ <?php echo (int) count( $legacy['plugin_files'] ); ?> copies of the plugin are installed — after disabling, delete the extra one from <a href="<?php echo esc_url( admin_url( 'plugins.php' ) ); ?>">Plugins</a>.</p>
+			<?php endif; ?>
+		<?php else: ?>
+			<p style="font-size:13px;margin:0;"><span style="color:var(--ok);font-weight:600;">✓ Off</span> — nothing to do.<?php echo $legacy['duplicate'] ? ' <span style="color:var(--warn,#f59e0b);">(Duplicate plugin copies installed — delete extras from Plugins.)</span>' : ''; ?></p>
+		<?php endif; ?>
+		</div>
+		<script>
+		(function(){
+			var w=document.querySelector('[data-th-legacy]'); if(!w) return;
+			var b=w.querySelector('[data-th-legacy-off]'); if(!b) return;
+			b.addEventListener('click', function(){
+				if(!confirm('Disable the Legacy REST API? Any integration still using the v1–v3 API will stop working.')) return;
+				b.disabled=true; b.textContent='Disabling…';
+				var fd=new FormData(); fd.append('action','therum_disable_legacy_rest'); fd.append('nonce',w.dataset.nonce);
+				fetch(window.ajaxurl||'/wp-admin/admin-ajax.php',{method:'POST',credentials:'same-origin',body:fd})
+				.then(function(r){return r.json();}).then(function(res){
+					if(window.therumToast) window.therumToast((res&&res.data&&res.data.message)||(res&&res.success?'Legacy REST API disabled':'Could not disable'));
+					if(res&&res.success){ setTimeout(function(){location.reload();},600); } else { b.disabled=false; b.textContent='Disable Legacy REST API'; }
+				}).catch(function(){ b.disabled=false; b.textContent='Disable Legacy REST API'; if(window.therumToast)window.therumToast('Network error'); });
+			});
+		})();
+		</script>
+		<?php
+	} );
+}
+
+add_action( 'wp_ajax_therum_enable_hpos', function() {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( [ 'message' => 'Forbidden' ], 403 );
+	check_ajax_referer( 'therum_options', 'nonce' );
+	if ( function_exists( 'therum_is_sqlite' ) && therum_is_sqlite() ) {
+		wp_send_json_error( [ 'message' => 'HPOS needs MySQL/MariaDB — not available on SQLite.' ] );
+	}
+	if ( ! class_exists( 'WooCommerce' ) ) wp_send_json_error( [ 'message' => 'WooCommerce is not active.' ] );
+
+	// Feature flag on + create the HPOS tables (idempotent).
+	update_option( 'woocommerce_feature_custom_order_tables_enabled', 'yes' );
+	if ( class_exists( '\WC_Install' ) && method_exists( '\WC_Install', 'create_tables' ) ) {
+		\WC_Install::create_tables();
+	}
+	// Always keep posts in sync (safe — dual-write, no data move).
+	update_option( 'woocommerce_custom_orders_table_data_sync_enabled', 'yes' );
+
+	// Only flip authoritative immediately when there are no existing orders to
+	// migrate; otherwise let the background sync run and let the operator make
+	// the switch from WooCommerce → Features once sync completes.
+	$has_orders = false;
+	if ( function_exists( 'wc_get_orders' ) ) {
+		$probe = wc_get_orders( [ 'limit' => 1, 'return' => 'ids', 'status' => 'any' ] );
+		$has_orders = ! empty( $probe );
+	}
+	if ( ! $has_orders ) {
+		update_option( 'woocommerce_custom_orders_table_enabled', 'yes' );
+		wp_send_json_success( [ 'message' => 'HPOS enabled — orders now use custom tables.' ] );
+	}
+	wp_send_json_success( [ 'message' => 'HPOS tables created and sync started. It becomes authoritative once existing orders finish syncing — finish the switch in WooCommerce → Features.' ] );
+} );
+
+add_action( 'wp_ajax_therum_disable_legacy_rest', function() {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( [ 'message' => 'Forbidden' ], 403 );
+	check_ajax_referer( 'therum_options', 'nonce' );
+	// Turn off WC's built-in legacy API…
+	update_option( 'woocommerce_api_enabled', 'no' );
+	// …and deactivate the legacy add-on plugin(s) if present.
+	$st = thwp_legacy_rest_status();
+	if ( ! empty( $st['plugin_files'] ) ) {
+		if ( ! function_exists( 'deactivate_plugins' ) ) require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		foreach ( $st['plugin_files'] as $f ) {
+			if ( is_plugin_active( $f ) ) deactivate_plugins( $f );
+		}
+	}
+	wp_send_json_success( [ 'message' => 'Legacy REST API disabled.' ] );
+} );
+
 // Inject a Revenue card into the dashboard bento.
 //
 // Note on SQLite + HPOS: the SQLite drop-in can't translate WC's HPOS-specific
