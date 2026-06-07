@@ -1574,7 +1574,23 @@ class Therum_Themes {
 	const USER_META_KEY    = 'therum_theme_state';
 
 	public static function presets(): array {
-		return array_merge( self::foundations(), self::desktop() );
+		// Starting over: themes are now full MORPHS (each restyles + relocates
+		// the whole chrome to look like its reference), not palette recolors.
+		// Built one at a time, verified in preview, then ported here.
+		return self::morph_themes();
+	}
+
+	/**
+	 * THE MORPH THEMES. Each ships a dedicated stylesheet (assets/theme-<palette>.css)
+	 * scoped to body.theme-<palette> that transforms the entire admin — sidebar,
+	 * topbar, canvas, cards, type — to look like its reference dashboard. The
+	 * theme only restyles the live menu data, so every section/page stays
+	 * reachable (sections become dropdowns; auto-added plugin pages included).
+	 */
+	public static function morph_themes(): array {
+		return [
+			'theme-01' => [ 'name' => '01 · Warm Studio', 'desc' => 'Crextio — top pill-nav, warm ivory canvas, golden accent, very-rounded soft bento, one dark spotlight card.', 'group' => 'foundations', 'mode' => 'light', 'accent' => '#F2C20E', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'm01', 'previewMain' => '#F4ECD4', 'previewRail' => '#1A1916' ],
+		];
 	}
 
 	/**
@@ -2575,6 +2591,21 @@ add_action( 'admin_enqueue_scripts', function() {
 			[ 'therum-theme-foundations' ],
 			filemtime( $dk_path )
 		);
+	}
+
+	// MORPH THEMES — each ships its own stylesheet, scoped to body.theme-<palette>,
+	// that transforms the whole chrome. Loaded last so the morph wins. Add one
+	// line per morph theme as they are built + verified.
+	foreach ( [ 'theme-m01' ] as $morph ) {
+		$mp = __DIR__ . '/assets/' . $morph . '.css';
+		if ( file_exists( $mp ) ) {
+			wp_enqueue_style(
+				'therum-' . $morph,
+				plugins_url( 'assets/' . $morph . '.css', __FILE__ ),
+				[ 'therum-theme-palettes' ],
+				filemtime( $mp )
+			);
+		}
 	}
 } );
 

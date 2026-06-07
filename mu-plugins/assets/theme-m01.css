@@ -1,0 +1,92 @@
+/* ============================================================================
+ * THERUM OS · THEME 01 — "Warm Studio" (Crextio morph)
+ * A FULL morph, not a recolor: the sidebar relocates to a top pill-nav, the
+ * topbar/canvas/cards all transform. Scoped to body.theme-m01 so it only
+ * applies when this theme is active. Targets the real chrome classes:
+ *   #th-shell · #th-sb (.th-sb-header/.th-logo/.th-site-info/.th-sb-search/
+ *   .th-sb-nav/.th-sb-item/.th-sb-section/.th-sb-section-label/
+ *   .th-sb-section-items/.th-sb-child/.th-sb-footer) · #th-top · #th-content
+ *   · .th-lp-* · .th-studio-card-* · .th-card · .th-btn(-primary)
+ *
+ * NO DEAD ENDS: sections become hover dropdowns so every menu item — plus any
+ * plugin page WordPress auto-adds (it lands in its section or "More") — stays
+ * reachable. The theme restyles the live menu data; it never hardcodes it.
+ * ========================================================================== */
+body.theme-m01{
+  --ink:#1C1A16; --ink2:#7A7466; --ink3:#A8A292; --ac:#F2C20E; --dark:#1A1916;
+  background:linear-gradient(165deg,#F5EFE0 0%,#F4ECD4 44%,#F7E7AE 100%);
+}
+
+/* shell → vertical stack so the sidebar becomes a TOP BAR */
+body.theme-m01 #th-shell{display:flex;flex-direction:column;background:transparent}
+body.theme-m01 #th-sb{flex-direction:row;align-items:center;gap:12px;padding:16px 28px;background:transparent;border:none}
+
+/* brand → logo only (compact) */
+body.theme-m01 .th-sb-header{flex:0 0 auto;border:none}
+body.theme-m01 .th-logo{background:#fff;color:var(--ink);box-shadow:0 4px 14px rgba(120,90,10,.12)}
+body.theme-m01 .th-site-info{display:none}
+
+/* search → compact, in the bar */
+body.theme-m01 .th-sb-search{flex:0 0 auto;width:188px;padding:0}
+body.theme-m01 .th-sb-search-box{background:#fff;box-shadow:0 4px 16px rgba(120,90,10,.07);color:var(--ink2);border:none}
+
+/* nav → centered pill cluster */
+body.theme-m01 .th-sb-nav{flex:1;flex-direction:row;justify-content:center;gap:2px;background:#fff;border-radius:14px;padding:6px;box-shadow:0 4px 16px rgba(120,90,10,.07)}
+body.theme-m01 .th-sb-nav>.th-sb-item,
+body.theme-m01 .th-sb-section-label{color:var(--ink2);padding:9px 14px;border-radius:10px;white-space:nowrap}
+body.theme-m01 .th-sb-nav>.th-sb-item>svg,
+body.theme-m01 .th-sb-section-label>svg{display:none}                 /* text pills like the ref */
+body.theme-m01 .th-sb-nav>.th-sb-item:hover,
+body.theme-m01 .th-sb-section-label:hover{color:var(--ink);background:#FBF6EA}
+body.theme-m01 .th-sb-nav>.th-sb-item.active{background:var(--dark);color:#fff}
+body.theme-m01 .th-sb-section-name{flex:0 0 auto}
+/* edit-mode controls don't belong in the top bar */
+body.theme-m01 .th-sb-section-rename,
+body.theme-m01 .th-sb-section-x,
+body.theme-m01 .th-sb-grip,
+body.theme-m01 .th-sb-reset,
+body.theme-m01 .th-sb-done{display:none}
+
+/* sections → dropdown flyouts (every item stays reachable) */
+body.theme-m01 .th-sb-section{position:relative}
+body.theme-m01 .th-sb-section-items{position:absolute;top:calc(100% + 8px);left:0;min-width:214px;background:#fff;border-radius:14px;padding:8px;box-shadow:0 16px 44px rgba(80,60,10,.16);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .14s ease,transform .14s ease,visibility .14s;z-index:60}
+body.theme-m01 .th-sb-section:hover .th-sb-section-items,
+body.theme-m01 .th-sb-section:focus-within .th-sb-section-items{opacity:1;visibility:visible;transform:none}
+body.theme-m01 .th-sb-section-items .th-sb-item{color:var(--ink2);width:100%;justify-content:flex-start}
+body.theme-m01 .th-sb-section-items .th-sb-item:hover{background:#FBF6EA;color:var(--ink)}
+body.theme-m01 .th-sb-section-items .th-sb-item.active{background:var(--dark);color:#fff}
+body.theme-m01 .th-sb-children{padding-left:14px}
+body.theme-m01 .th-sb-child{color:var(--ink2);border-radius:8px}
+body.theme-m01 .th-sb-child:hover{background:#FBF6EA;color:var(--ink)}
+
+/* footer → right cluster */
+body.theme-m01 .th-sb-footer{margin-top:0;margin-left:0;flex:0 0 auto;background:#fff;border-radius:14px;padding:6px 8px;box-shadow:0 4px 16px rgba(120,90,10,.07);border:none}
+
+/* topbar → light icon chips */
+body.theme-m01 #th-top{border:none}
+body.theme-m01 #th-top button,
+body.theme-m01 #th-top .th-top-btn{background:#fff;color:var(--ink2);box-shadow:0 3px 12px rgba(120,90,10,.06);border:none}
+
+/* page header */
+body.theme-m01 .th-lp-meta{color:var(--ink2)}
+body.theme-m01 .th-lp-meta-dot{background:var(--ac)}
+body.theme-m01 .th-lp-title{font-size:40px;font-weight:600;color:var(--ink);letter-spacing:-.02em}
+body.theme-m01 .th-lp-sub{color:var(--ink2)}
+
+/* cards (studio + generic bento) → very rounded, soft, cream */
+body.theme-m01 .th-studio-card,
+body.theme-m01 .th-card{background:#fff;border:none;border-radius:24px;box-shadow:0 10px 30px rgba(120,90,10,.08)}
+body.theme-m01 .th-studio-card-hero{height:120px;margin:8px 8px 0;border-radius:18px}
+body.theme-m01 .th-studio-card-name,
+body.theme-m01 .th-studio-card-tagline,
+body.theme-m01 .th-card h3{color:var(--ink)}
+body.theme-m01 .th-studio-card-desc{color:var(--ink2)}
+body.theme-m01 .th-studio-card-foot{border-top:1px solid #F0E8D6}
+body.theme-m01 .th-studio-card-link{color:var(--ink3)}
+body.theme-m01 .th-studio-footnote{color:var(--ink3)}
+
+/* buttons */
+body.theme-m01 .th-btn{background:#FBF6EA;color:var(--ink);border:1px solid #EFE6D2}
+body.theme-m01 .th-btn:hover{border-color:var(--ac);color:var(--ink)}
+body.theme-m01 .th-btn-primary,
+body.theme-m01 .th-btn.th-btn-primary{background:var(--ac);color:#1A1916;border:none}
