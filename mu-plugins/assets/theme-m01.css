@@ -12,10 +12,32 @@
  * plugin page WordPress auto-adds (it lands in its section or "More") — stays
  * reachable. The theme restyles the live menu data; it never hardcodes it.
  * ========================================================================== */
+/* Self-hosted fonts (latin) — no third-party requests. */
+@font-face{font-family:'Poppins';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/poppins-600.woff2) format('woff2')}
+@font-face{font-family:'Poppins';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/poppins-700.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/jakarta-400.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/jakarta-500.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/jakarta-600.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/jakarta-700.woff2) format('woff2')}
+
 body.theme-m01{
   --ink:#1C1A16; --ink2:#7A7466; --ink3:#A8A292; --ac:#F2C20E; --dark:#1A1916;
-  background:linear-gradient(165deg,#F5EFE0 0%,#F4ECD4 44%,#F7E7AE 100%);
+  /* gradient is customizable via Quick Controls (Canvas gradient) */
+  --m01-g1:#F5EFE0; --m01-g2:#F4ECD4; --m01-g3:#F7E7AE; --m01-g-angle:165deg;
+  --m01-font:'Plus Jakarta Sans', ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --m01-display:'Poppins', var(--m01-font);
+  background:linear-gradient(var(--m01-g-angle), var(--m01-g1) 0%, var(--m01-g2) 46%, var(--m01-g3) 100%);
+  font-family:var(--m01-font);
 }
+/* body text → Jakarta */
+body.theme-m01 #th-sb,body.theme-m01 #th-top,body.theme-m01 #th-content,
+body.theme-m01 .th-sb-item,body.theme-m01 .th-sb-section-label,body.theme-m01 .th-sb-child,
+body.theme-m01 .th-lp-sub,body.theme-m01 .th-studio-card-desc,body.theme-m01 .th-studio-card-tagline,
+body.theme-m01 .th-btn{font-family:var(--m01-font)}
+/* display text → Poppins (geometric, like the reference headline) */
+body.theme-m01 .th-lp-title,body.theme-m01 .th-logo,body.theme-m01 .th-studio-card-name,
+body.theme-m01 .th-studio-card-mark,body.theme-m01 .th-card h3,body.theme-m01 .th-stat-val,
+body.theme-m01 .th-lp-meta{font-family:var(--m01-display);letter-spacing:-.01em}
 
 /* shell → vertical stack so the sidebar becomes a TOP BAR */
 body.theme-m01 #th-shell{display:flex;flex-direction:column;background:transparent}

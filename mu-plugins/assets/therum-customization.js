@@ -798,3 +798,48 @@ document.addEventListener('DOMContentLoaded', function () {
 			.catch(function () { note(noteEl, 'Network error.', false); });
 	});
 });
+
+// ── Theme 01 · Canvas gradient control ─────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+	var wrap = document.querySelector('[data-m01-grad]');
+	if (!wrap) return;
+	var root  = document.querySelector('[data-th-cx]');
+	var nonce = root ? (root.dataset.nonce || '') : '';
+	var url   = window.ajaxurl || '/wp-admin/admin-ajax.php';
+	var b     = document.body;
+	var saveT;
+
+	function val(k){ var el = wrap.querySelector('[data-grad="'+k+'"]'); return el ? (k==='flat'?el.checked:el.value) : null; }
+
+	function apply(){
+		var g1=val('g1'), g2=val('g2'), g3=val('g3'), ang=val('angle'), flat=val('flat');
+		b.style.setProperty('--m01-g1',g1); b.style.setProperty('--m01-g2',g2);
+		b.style.setProperty('--m01-g3',g3); b.style.setProperty('--m01-g-angle',ang+'deg');
+		var av = wrap.querySelector('[data-grad-angleval]'); if (av) av.textContent = ang+'°';
+		b.style.background = flat ? g1 : '';     // flat overrides; clear restores the var gradient
+	}
+	function save(){
+		clearTimeout(saveT);
+		saveT = setTimeout(function(){
+			var body = new URLSearchParams();
+			body.set('action','therum_save_m01_gradient'); body.set('nonce',nonce);
+			body.set('g1',val('g1')); body.set('g2',val('g2')); body.set('g3',val('g3'));
+			body.set('angle',val('angle')); body.set('flat', val('flat') ? '1' : 'false');
+			fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).catch(function(){});
+		}, 350);
+	}
+	function changed(){ apply(); save(); }
+
+	wrap.querySelectorAll('[data-grad]').forEach(function(el){ el.addEventListener('input', changed); });
+	wrap.querySelectorAll('.th-cx-grad-preset').forEach(function(p){
+		p.addEventListener('click', function(){
+			wrap.querySelectorAll('.th-cx-grad-preset').forEach(function(x){ x.classList.remove('is-on'); });
+			p.classList.add('is-on');
+			wrap.querySelector('[data-grad="g1"]').value = p.dataset.g1;
+			wrap.querySelector('[data-grad="g2"]').value = p.dataset.g2;
+			wrap.querySelector('[data-grad="g3"]').value = p.dataset.g3;
+			var fl = wrap.querySelector('[data-grad="flat"]'); if (fl) fl.checked = false;
+			changed();
+		});
+	});
+});

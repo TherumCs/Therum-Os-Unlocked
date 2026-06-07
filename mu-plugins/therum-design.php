@@ -3195,6 +3195,13 @@ function therum_cx_render_quick_controls( string $current_mode ): void {
 	<div class="th-cx-panel-body">
 
 		<?php
+		// Theme-specific controls — Canvas gradient appears only for Theme 01.
+		if ( ( $state['palette'] ?? '' ) === 'm01' && function_exists( 'therum_cx_render_m01_gradient_control' ) ) {
+			therum_cx_render_m01_gradient_control();
+		}
+		?>
+
+		<?php
 		$dm_on = function_exists( 'therum_desktop_mode_active_for_user' )
 			? therum_desktop_mode_active_for_user()
 			: ( get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) === '1' );
@@ -4442,3 +4449,85 @@ add_action( 'admin_head', function () {
 		echo "\n<style id=\"therum-custom-admin-css\">\n" . $css . "\n</style>\n";
 	}
 }, 999 );
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  THEME 01 · CANVAS GRADIENT — customizable, per-user, live + persisted
+// ════════════════════════════════════════════════════════════════════════════
+
+function therum_m01_gradient(): array {
+	$d   = [ 'g1' => '#F5EFE0', 'g2' => '#F4ECD4', 'g3' => '#F7E7AE', 'angle' => 165, 'flat' => false ];
+	$uid = get_current_user_id();
+	$v   = $uid ? get_user_meta( $uid, 'therum_m01_gradient', true ) : [];
+	return is_array( $v ) ? array_merge( $d, $v ) : $d;
+}
+
+function therum_cx_render_m01_gradient_control(): void {
+	$g = therum_m01_gradient();
+	$presets = [
+		'Butter' => [ '#F5EFE0', '#F4ECD4', '#F7E7AE' ],
+		'Blush'  => [ '#F6ECEC', '#F3DEDE', '#F7CFD8' ],
+		'Mint'   => [ '#EAF1EA', '#DFEEDF', '#C9E7CF' ],
+		'Sky'    => [ '#EAEEF6', '#DCE6F4', '#C7D8F2' ],
+		'Linen'  => [ '#F4F2EE', '#EDE9E1', '#E6E0D6' ],
+		'Slate'  => [ '#23262E', '#2E323C', '#3A3F4B' ],
+	];
+	?>
+	<div class="th-cx-grad" data-m01-grad>
+		<div class="th-cx-grad-head">Canvas gradient <span>Theme 01</span></div>
+		<div class="th-cx-grad-presets">
+			<?php foreach ( $presets as $name => $c ):
+				$on = ( strtolower( $c[0] ) === strtolower( $g['g1'] ) && strtolower( $c[2] ) === strtolower( $g['g3'] ) );
+				?>
+				<button type="button" class="th-cx-grad-preset<?php echo $on ? ' is-on' : ''; ?>" title="<?php echo esc_attr( $name ); ?>"
+					data-g1="<?php echo esc_attr( $c[0] ); ?>" data-g2="<?php echo esc_attr( $c[1] ); ?>" data-g3="<?php echo esc_attr( $c[2] ); ?>"
+					style="background:linear-gradient(165deg,<?php echo esc_attr( $c[0] ); ?>,<?php echo esc_attr( $c[2] ); ?>)"></button>
+			<?php endforeach; ?>
+		</div>
+		<div class="th-cx-grad-stops">
+			<label>From<input type="color" data-grad="g1" value="<?php echo esc_attr( $g['g1'] ); ?>"></label>
+			<label>Mid<input type="color" data-grad="g2" value="<?php echo esc_attr( $g['g2'] ); ?>"></label>
+			<label>To<input type="color" data-grad="g3" value="<?php echo esc_attr( $g['g3'] ); ?>"></label>
+		</div>
+		<div class="th-cx-grad-angle">
+			<span>Angle</span>
+			<input type="range" min="0" max="360" value="<?php echo (int) $g['angle']; ?>" data-grad="angle">
+			<b data-grad-angleval><?php echo (int) $g['angle']; ?>&deg;</b>
+		</div>
+		<label class="th-cx-grad-flat"><span>Flat (no gradient)</span><input type="checkbox" data-grad="flat" <?php checked( ! empty( $g['flat'] ) ); ?>></label>
+	</div>
+	<?php
+}
+
+add_action( 'wp_ajax_therum_save_m01_gradient', function () {
+	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
+	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	$hex = function ( $v, $fb ) {
+		$v = is_string( $v ) ? trim( $v ) : '';
+		return preg_match( '/^#[0-9a-fA-F]{6}$/', $v ) ? $v : $fb;
+	};
+	$g = [
+		'g1'    => $hex( $_POST['g1'] ?? '', '#F5EFE0' ),
+		'g2'    => $hex( $_POST['g2'] ?? '', '#F4ECD4' ),
+		'g3'    => $hex( $_POST['g3'] ?? '', '#F7E7AE' ),
+		'angle' => max( 0, min( 360, (int) ( $_POST['angle'] ?? 165 ) ) ),
+		'flat'  => ! empty( $_POST['flat'] ) && $_POST['flat'] !== 'false',
+	];
+	update_user_meta( get_current_user_id(), 'therum_m01_gradient', $g );
+	wp_send_json_success( $g );
+} );
+
+// Emit the saved gradient as CSS vars on every admin page when Theme 01 is active.
+add_action( 'admin_head', function () {
+	$state = class_exists( 'Therum_Themes' ) ? Therum_Themes::get_state() : [];
+	if ( ( $state['palette'] ?? '' ) !== 'm01' ) return;
+	$g   = therum_m01_gradient();
+	$css = sprintf(
+		'body.theme-m01{--m01-g1:%s;--m01-g2:%s;--m01-g3:%s;--m01-g-angle:%ddeg;}',
+		$g['g1'], $g['g2'], $g['g3'], (int) $g['angle']
+	);
+	if ( ! empty( $g['flat'] ) ) {
+		$css .= sprintf( 'body.theme-m01{background:%s;}', $g['g1'] );
+	}
+	echo "\n<style id=\"therum-m01-grad\">{$css}</style>\n";
+}, 1000 );

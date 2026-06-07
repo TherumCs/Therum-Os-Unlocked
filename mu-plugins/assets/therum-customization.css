@@ -69,6 +69,20 @@
 .th-cx-save-note{font-size:var(--t-xs);color:var(--tx3)}
 .th-cx-save-note.is-ok{color:#16a34a}
 .th-cx-save-note.is-err{color:#ef4444}
+/* Theme 01 · Canvas gradient control (Quick Controls) */
+.th-cx-grad{background:var(--sf2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:12px}
+.th-cx-grad-head{font-size:12px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:8px}
+.th-cx-grad-head span{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em}
+.th-cx-grad-presets{display:flex;gap:8px;flex-wrap:wrap}
+.th-cx-grad-preset{width:34px;height:26px;border-radius:8px;cursor:pointer;border:2px solid transparent;padding:0}
+.th-cx-grad-preset.is-on{border-color:var(--tx)}
+.th-cx-grad-stops{display:flex;gap:8px}
+.th-cx-grad-stops label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--tx3);text-align:center}
+.th-cx-grad-stops input[type=color]{width:100%;height:30px;border:1px solid var(--bd);border-radius:7px;background:var(--sf);cursor:pointer;padding:2px}
+.th-cx-grad-angle{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--tx2)}
+.th-cx-grad-angle input{flex:1}
+.th-cx-grad-angle b{font-size:11px;color:var(--tx);width:38px;text-align:right}
+.th-cx-grad-flat{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:var(--tx)}
 
 /* Main column */
 .th-cx-main{min-width:0}
