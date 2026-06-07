@@ -1575,6 +1575,50 @@ class Therum_Themes {
 
 	public static function presets(): array {
 		return [
+			// ── Studio · New — the 2025 dashboard-study foundation themes ──────
+			'warm' => [
+				'name' => '01 · Warm', 'desc' => 'Cream canvas, gold accent. Human, airy HR/SaaS.', 'group' => 'studio-new',
+				'mode' => 'light', 'accent' => '#E6A817', 'density' => 'comfortable',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'warm',
+				'previewMain' => '#FBF8F1', 'previewRail' => '#E6A817',
+			],
+			'coral' => [
+				'name' => '02 · Coral', 'desc' => 'Cool neutral, coral pop. Data-rich fintech.', 'group' => 'studio-new',
+				'mode' => 'light', 'accent' => '#EE5340', 'density' => 'comfortable',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'soft',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'coral',
+				'previewMain' => '#F2F2F3', 'previewRail' => '#EE5340',
+			],
+			'float' => [
+				'name' => '03 · Float', 'desc' => 'Tinted canvas, floating white cards. Calm premium.', 'group' => 'studio-new',
+				'mode' => 'light', 'accent' => '#4F6BED', 'density' => 'breathing',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'float',
+				'previewMain' => '#E4E7F0', 'previewRail' => '#4F6BED',
+			],
+			'monochrome' => [
+				'name' => '07 · Mono', 'desc' => 'Black, white, one accent. Editorial minimal.', 'group' => 'studio-new',
+				'mode' => 'light', 'accent' => '#111111', 'density' => 'comfortable',
+				'sidebar' => 'full', 'sidebarStyle' => 'minimal', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'flat',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'monochrome', 'cardStyle' => 'bare',
+				'previewMain' => '#FAFAFA', 'previewRail' => '#111111',
+			],
+			'violet' => [
+				'name' => '09 · Violet', 'desc' => 'Near-black, violet gradient. Premium dark crypto.', 'group' => 'studio-new',
+				'mode' => 'dark', 'accent' => '#7C5CFF', 'density' => 'comfortable',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'soft',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'violet',
+				'previewMain' => '#0C0C10', 'previewRail' => '#7C5CFF',
+			],
+			'spatial' => [
+				'name' => '11 · Spatial', 'desc' => 'Dark teal, frosted glass. Calm spatial IoT.', 'group' => 'studio-new',
+				'mode' => 'dark', 'accent' => '#34D399', 'density' => 'breathing',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft',
+				'glass' => true, 'bgImage' => 'none', 'palette' => 'spatial',
+				'previewMain' => '#1C2422', 'previewRail' => '#34D399',
+			],
+
 			'studio' => [
 				'name' => 'Studio', 'desc' => 'Bamleon front-end. Pitch black. Hot-pink pop.', 'group' => 'foundations',
 				'mode' => 'dark', 'accent' => '#f5389a', 'density' => 'standard',
@@ -2013,6 +2057,7 @@ class Therum_Themes {
 
 	public static function groups(): array {
 		return [
+			'studio-new'    => ['label' => 'Studio · New',  'desc' => 'The new theme engine — foundation themes from the 2025 dashboard study.'],
 			'foundations'   => ['label' => 'Foundations',   'desc' => 'Core working themes — pick once, forget.'],
 			'surfaces'      => ['label' => 'Surfaces',      'desc' => 'Glass, gradient, frost — pure atmosphere plays.'],
 			'glass-spatial' => ['label' => 'Glass & Spatial','desc' => 'Frosted, layered, atmospheric.'],

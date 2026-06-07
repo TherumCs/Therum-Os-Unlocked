@@ -24,3 +24,11 @@ body.theme-familiar-lucid.light{--bg:#f8fafc;--sf:#ffffff;--sf2:#f1f5f9;--bd:#e2
 
 
 
+
+/* ── Studio · New (2025 dashboard-study foundation themes) ─────────────────── */
+body.theme-warm{--bg:#FBF8F1;--sf:#FFFFFF;--sf2:#F4EFE6;--sf3:#ECE6DA;--bd:rgba(40,30,10,.10);--bd2:rgba(40,30,10,.18);--tx:#1A1714;--tx2:#6B6455;--tx3:#A89F8C;--ac:#E6A817;--ac-h:#C8900F;--ac-s:rgba(230,168,23,.12)}
+body.theme-coral{--bg:#F2F2F3;--sf:#FFFFFF;--sf2:#ECECEE;--sf3:#E4E4E7;--bd:rgba(0,0,0,.08);--bd2:rgba(0,0,0,.16);--tx:#16181D;--tx2:#5B606B;--tx3:#9AA0AC;--ac:#EE5340;--ac-h:#D63E2C;--ac-s:rgba(238,83,64,.10)}
+body.theme-float{--bg:#E4E7F0;--sf:#FFFFFF;--sf2:#EFF1F7;--sf3:#E7EAF2;--bd:rgba(40,50,80,.10);--bd2:rgba(40,50,80,.18);--tx:#1F2430;--tx2:#5A6072;--tx3:#97A0B5;--ac:#4F6BED;--ac-h:#3A55D6;--ac-s:rgba(79,107,237,.10)}
+body.theme-monochrome{--bg:#FAFAFA;--sf:#FFFFFF;--sf2:#F2F2F2;--sf3:#EAEAEA;--bd:rgba(0,0,0,.10);--bd2:rgba(0,0,0,.20);--tx:#0A0A0A;--tx2:#555555;--tx3:#999999;--ac:#111111;--ac-h:#000000;--ac-s:rgba(0,0,0,.06)}
+body.theme-violet{--bg:#0C0C10;--sf:#16161C;--sf2:#1E1E26;--sf3:#26262E;--bd:rgba(255,255,255,.08);--bd2:rgba(255,255,255,.16);--tx:#F2F2F5;--tx2:#A6A6B2;--tx3:#6E6E7A;--ac:#7C5CFF;--ac-h:#6A48F0;--ac-s:rgba(124,92,255,.16)}
+body.theme-spatial{--bg:#1C2422;--sf:#243029;--sf2:#2C3A33;--sf3:#35453C;--bd:rgba(255,255,255,.10);--bd2:rgba(255,255,255,.18);--tx:#EAF0EC;--tx2:#A7B5AD;--tx3:#6E7B74;--ac:#34D399;--ac-h:#22B883;--ac-s:rgba(52,211,153,.16)}
