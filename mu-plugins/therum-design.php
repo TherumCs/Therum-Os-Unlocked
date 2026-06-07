@@ -2902,17 +2902,17 @@ function therum_cx_render_themes( string $tab_id, array $tab ): void {
 	$hidden        = [ 'familiar-vercel' ];
 
 	?>
-	<div class="th-cx-page-head">
-		<div>
-			<div class="th-cx-page-eyebrow">Customization · Themes</div>
-			<h2 class="th-cx-page-title">Themes &amp; customize</h2>
-			<p class="th-cx-page-sub">Browse and install themes from the store, manage your saved customs, and fine-tune every design token via the customize panel on the right. Everything theme-related, one surface.</p>
-		</div>
-		<button type="button" class="th-cx-btn is-primary" data-th-cx-save>💾 Save current as theme</button>
-	</div>
-
 	<div class="th-cx-themes-split">
 		<div class="th-cx-themes-content">
+
+			<div class="th-cx-page-head">
+				<div>
+					<div class="th-cx-page-eyebrow">Customization · Themes</div>
+					<h2 class="th-cx-page-title">Themes &amp; customize</h2>
+					<p class="th-cx-page-sub">Browse and install themes from the store, manage your saved customs, and fine-tune every design token via the customize panel on the right. Everything theme-related, one surface.</p>
+				</div>
+				<button type="button" class="th-cx-btn is-primary" data-th-cx-save>💾 Save current as theme</button>
+			</div>
 
 			<?php therum_cx_render_active_card( $current_theme, $presets ); ?>
 

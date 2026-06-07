@@ -289,7 +289,7 @@ body.light .th-cx-themes-tab-count { background: rgba(0,0,0,.06) }
  *  THEMES PAGE — store + saved + customize panel (2-col split inside page)
  *  ─────────────────────────────────────────────────────────────────────── */
 
-.th-cx-themes-split{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:flex-start;margin-top:18px}
+.th-cx-themes-split{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:flex-start;margin-top:0}
 .th-cx-themes-content{display:flex;flex-direction:column;gap:var(--s7,32px);min-width:0}
 
 /* Store / Saved tab switch */

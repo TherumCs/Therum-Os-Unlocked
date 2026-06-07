@@ -21,14 +21,27 @@
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/jakarta-700.woff2) format('woff2')}
 
 body.theme-m01{
-  --ink:#1C1A16; --ink2:#7A7466; --ink3:#A8A292; --ac:#F2C20E; --dark:#1A1916;
+  /* BASE PALETTE TOKENS — the whole chrome reads these. Without them the admin
+     stays on the dark defaults (this is why it "didn't change"). */
+  --bg:#F4ECD4; --sf:#FFFFFF; --sf2:#FBF6EA; --sf3:#F0E8D6;
+  --tx:#1C1A16; --tx2:#7A7466; --tx3:#A8A292;
+  --bd:rgba(40,30,10,.10); --bd2:rgba(40,30,10,.18);
+  --ac:#F2C20E; --ac-h:#D9A800; --ac-s:rgba(242,194,14,.12);
+  --ink:#1C1A16; --ink2:#7A7466; --ink3:#A8A292; --dark:#1A1916;
   /* gradient is customizable via Quick Controls (Canvas gradient) */
   --m01-g1:#F5EFE0; --m01-g2:#F4ECD4; --m01-g3:#F7E7AE; --m01-g-angle:165deg;
   --m01-font:'Plus Jakarta Sans', ui-sans-serif, -apple-system, system-ui, sans-serif;
   --m01-display:'Poppins', var(--m01-font);
   background:linear-gradient(var(--m01-g-angle), var(--m01-g1) 0%, var(--m01-g2) 46%, var(--m01-g3) 100%);
+  color:var(--tx);
   font-family:var(--m01-font);
 }
+/* let the body gradient show through the chrome wrappers */
+body.theme-m01 #th-main,
+body.theme-m01 #th-content,
+body.theme-m01 #wpwrap,
+body.theme-m01 #wpcontent,
+body.theme-m01 .th-cx{background:transparent}
 /* body text → Jakarta */
 body.theme-m01 #th-sb,body.theme-m01 #th-top,body.theme-m01 #th-content,
 body.theme-m01 .th-sb-item,body.theme-m01 .th-sb-section-label,body.theme-m01 .th-sb-child,
