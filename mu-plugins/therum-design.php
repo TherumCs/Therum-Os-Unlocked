@@ -2871,8 +2871,9 @@ function therum_cx_render_theme_store( array $presets, string $current_theme, ar
 		$g = $t['group'] ?? 'other';
 		$groups[ $g ][ $id ] = $t;
 	}
-	$group_order  = [ 'foundations', 'surfaces', 'familiar', 'therum', 'mecha', 'experimental', 'glass-spatial', 'other' ];
+	$group_order  = [ 'studio-new', 'foundations', 'surfaces', 'familiar', 'therum', 'mecha', 'experimental', 'glass-spatial', 'other' ];
 	$group_labels = [
+		'studio-new'    => 'Studio · New',
 		'foundations'   => 'Foundations',
 		'surfaces'      => 'Surfaces',
 		'familiar'      => 'Familiar',
