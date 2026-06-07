@@ -2600,7 +2600,7 @@ final class Therum_Customization {
 		$tabs = self::tabs();
 		$want = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( (string) $_GET['tab'] ) ) : '';
 		if ( $want && isset( $tabs[ $want ] ) ) return $want;
-		return $want ?: ( array_key_first( $tabs ) ?: 'active' );
+		return array_key_first( $tabs ) ?: 'themes';
 	}
 
 	public static function render(): void {
@@ -2613,9 +2613,9 @@ final class Therum_Customization {
 		<div class="wrap"><div class="th-cx" data-th-cx data-nonce="<?php echo esc_attr( wp_create_nonce( 'therum_theme' ) ); ?>">
 			<div class="th-cx-head">
 				<div>
-					<div class="th-cx-eyebrow">Admin · Customization</div>
-					<h1 class="th-cx-title">Customization</h1>
-					<p class="th-cx-sub">Themes, branding, login, list-page defaults, dashboard layout, editor preferences. One surface for everything visual.</p>
+					<div class="th-cx-eyebrow">Admin · Studio</div>
+					<h1 class="th-cx-title">Studio</h1>
+					<p class="th-cx-sub">Pick what to edit on the left, see it live in the center, tune it on the right. Themes, brand kit, and behavior — one surface.</p>
 				</div>
 			</div>
 
@@ -2638,36 +2638,52 @@ final class Therum_Customization {
 	}
 
 	private static function render_nav( array $tabs, string $cur ): void {
+		// Studio left rail — collapsible accordion groups ("what to edit").
+		// The old "Customization" group is retired: the Themes studio is the
+		// center canvas, not a left-nav destination. Groups render as native
+		// <details> accordions (no JS); the group holding the current tab opens.
 		$sections = [
-			'main'     => 'Customization',
-			'brand'    => 'Brand',
-			'defaults' => 'Defaults',
+			'studio'   => [ 'label' => 'Studio',    'desc' => 'Theme store and live customize panel.' ],
+			'brand'    => [ 'label' => 'Brand Kit',  'desc' => 'Identity, logo, colors and fonts.' ],
+			'behavior' => [ 'label' => 'Behavior',   'desc' => 'Dashboard layout, navigation, editor defaults.' ],
+			'advanced' => [ 'label' => 'Advanced',   'desc' => 'Custom CSS, import and export.' ],
 		];
 		$grouped = [];
 		foreach ( $tabs as $id => $t ) {
-			$sect = $t['section'] ?? 'main';
+			$sect = $t['section'] ?? 'studio';
 			$grouped[ $sect ][ $id ] = $t;
+		}
+		// Which group holds the current tab? That one opens; otherwise Studio.
+		$cur_section = '';
+		foreach ( $grouped as $sid => $items ) {
+			if ( isset( $items[ $cur ] ) ) { $cur_section = $sid; break; }
 		}
 		?>
 		<aside class="th-cx-nav">
-			<?php foreach ( $sections as $sect_id => $sect_label ):
-				if ( empty( $grouped[ $sect_id ] ) ) continue; ?>
-				<div class="th-cx-nav-section"><?php echo esc_html( $sect_label ); ?></div>
-				<?php foreach ( $grouped[ $sect_id ] as $id => $t ):
-					$href = add_query_arg( [ 'page' => 'therum-customization', 'tab' => $id ], admin_url( 'admin.php' ) );
-					$cls  = 'th-cx-nav-item' . ( $cur === $id ? ' is-active' : '' );
-					?>
-					<a class="<?php echo esc_attr( $cls ); ?>" href="<?php echo esc_url( $href ); ?>">
-						<span class="th-cx-nav-item-dot"></span>
-						<?php echo esc_html( $t['label'] ); ?>
-						<?php if ( ! empty( $t['count'] ) ): ?>
-						<span class="th-cx-nav-item-count"><?php echo esc_html( $t['count'] ); ?></span>
-						<?php endif; ?>
-					</a>
-				<?php endforeach; ?>
-				<?php if ( $sect_id !== array_key_last( $sections ) && ! empty( $grouped[ $sect_id ] ) ): ?>
-				<div class="th-cx-nav-divider"></div>
-				<?php endif; ?>
+			<?php foreach ( $sections as $sect_id => $sect ):
+				$items = $grouped[ $sect_id ] ?? [];
+				$open  = ( $sect_id === $cur_section ) || ( $cur_section === '' && $sect_id === 'studio' );
+				?>
+				<details class="th-cx-nav-group"<?php echo $open ? ' open' : ''; ?>>
+					<summary class="th-cx-nav-section">
+						<span><?php echo esc_html( $sect['label'] ); ?></span>
+						<span class="th-cx-nav-caret" aria-hidden="true"></span>
+					</summary>
+					<?php if ( $items ): foreach ( $items as $id => $t ):
+						$href = add_query_arg( [ 'page' => 'therum-customization', 'tab' => $id ], admin_url( 'admin.php' ) );
+						$cls  = 'th-cx-nav-item' . ( $cur === $id ? ' is-active' : '' );
+						?>
+						<a class="<?php echo esc_attr( $cls ); ?>" href="<?php echo esc_url( $href ); ?>">
+							<span class="th-cx-nav-item-dot"></span>
+							<?php echo esc_html( $t['label'] ); ?>
+							<?php if ( ! empty( $t['count'] ) ): ?>
+							<span class="th-cx-nav-item-count"><?php echo esc_html( $t['count'] ); ?></span>
+							<?php endif; ?>
+						</a>
+					<?php endforeach; else: ?>
+						<div class="th-cx-nav-soon"><?php echo esc_html( $sect['desc'] ); ?> <em>Coming soon.</em></div>
+					<?php endif; ?>
+				</details>
 			<?php endforeach; ?>
 		</aside>
 		<?php
@@ -2730,19 +2746,15 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 add_action( 'init', function() {
 	if ( ! class_exists( 'Therum_Customization' ) ) return;
 
-	Therum_Customization::register( 'active', [
-		'label'    => 'Active theme',
-		'section'  => 'main',
-		'priority' => 10,
-		'desc'     => 'The theme currently driving the admin chrome.',
-		'render'   => 'therum_cx_render_active',
-	] );
+	// 'active' is no longer a left-nav destination — the active-theme summary
+	// card renders at the top of the Themes studio canvas itself. The renderer
+	// (therum_cx_render_active) stays defined for reference / direct linking.
 
 	$presets_total = class_exists( 'Therum_Themes' ) ? count( Therum_Themes::presets() ) : 0;
 	Therum_Customization::register( 'themes', [
 		'label'    => 'Themes',
-		'section'  => 'main',
-		'priority' => 20,
+		'section'  => 'studio',
+		'priority' => 10,
 		'desc'     => 'Theme store · saved themes · customize panel — one surface.',
 		'count'    => (string) $presets_total,
 		'render'   => 'therum_cx_render_themes',

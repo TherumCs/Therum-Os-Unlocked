@@ -53,6 +53,16 @@
 .th-cx-nav-item-count{margin-left:auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:var(--t-xs);color:var(--tx3);opacity:.7;letter-spacing:var(--tr-mono)}
 .th-cx-nav-item.is-active .th-cx-nav-item-count{color:var(--ac);opacity:.9}
 .th-cx-nav-divider{height:1px;background:var(--bd);margin:var(--s2) var(--s3)}
+/* Accordion groups (native <details>) — Studio / Brand Kit / Behavior / Advanced */
+.th-cx-nav-group{border:0;margin:0;padding:0}
+.th-cx-nav-group+.th-cx-nav-group{border-top:1px solid var(--bd)}
+.th-cx-nav-group>summary.th-cx-nav-section{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);cursor:pointer;list-style:none;user-select:none;border-radius:7px;transition:color .15s ease}
+.th-cx-nav-group>summary.th-cx-nav-section::-webkit-details-marker{display:none}
+.th-cx-nav-group>summary.th-cx-nav-section:hover{color:var(--tx2)}
+.th-cx-nav-caret{width:7px;height:7px;border-right:1.5px solid var(--tx3);border-bottom:1.5px solid var(--tx3);transform:rotate(-45deg);transition:transform .18s ease;opacity:.7;margin-right:var(--s1)}
+.th-cx-nav-group[open]>summary .th-cx-nav-caret{transform:rotate(45deg)}
+.th-cx-nav-soon{padding:var(--s1) var(--s3) var(--s3);color:var(--tx3);font-size:var(--t-xs);line-height:var(--lh-snug)}
+.th-cx-nav-soon em{color:var(--tx2);font-style:normal;font-weight:var(--w-sb)}
 
 /* Main column */
 .th-cx-main{min-width:0}
