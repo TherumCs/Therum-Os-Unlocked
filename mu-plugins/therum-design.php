@@ -1574,6 +1574,37 @@ class Therum_Themes {
 	const USER_META_KEY    = 'therum_theme_state';
 
 	public static function presets(): array {
+		return self::foundations();
+	}
+
+	/**
+	 * THE 15 FOUNDATION THEMES. Each recreates one of the reference dashboards —
+	 * not a recolor of one layout, but its own palette + signature chrome
+	 * (canvas, card surface, depth, accent behaviour, type). The signature CSS
+	 * lives in assets/therum-theme-foundations.css keyed by `body.theme-fd-*`.
+	 */
+	public static function foundations(): array {
+		return [
+			'fd-warm'    => [ 'name' => '01 · Warm',    'desc' => 'Cream canvas, gold accent, soft rounded cards. HR / Crextio.', 'group' => 'foundations', 'mode' => 'light', 'accent' => '#E6A817', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-warm',    'previewMain' => '#FBF8F1', 'previewRail' => '#E6A817' ],
+			'fd-coral'   => [ 'name' => '02 · Coral',   'desc' => 'Cool neutral, coral pop, data-rich bento. Financial / N2.',  'group' => 'foundations', 'mode' => 'light', 'accent' => '#EE5340', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-coral',   'previewMain' => '#F2F2F3', 'previewRail' => '#EE5340' ],
+			'fd-float'   => [ 'name' => '03 · Float',   'desc' => 'Tinted canvas, floating white cards. Twisty.',               'group' => 'foundations', 'mode' => 'light', 'accent' => '#4F6BED', 'density' => 'breathing',   'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-float',   'previewMain' => '#E4E7F0', 'previewRail' => '#4F6BED' ],
+			'fd-sage'    => [ 'name' => '04 · Sage',    'desc' => 'Sage canvas, forest accent, multitone donuts. Property.',     'group' => 'foundations', 'mode' => 'light', 'accent' => '#2F855A', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-sage',    'previewMain' => '#E8F0E9', 'previewRail' => '#2F855A' ],
+			'fd-lilac'   => [ 'name' => '05 · Lilac',   'desc' => 'Lavender wash, soft purple gradient surfaces. AI marketing.', 'group' => 'foundations', 'mode' => 'light', 'accent' => '#7C5CFF', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-lilac',   'previewMain' => '#EEE9FB', 'previewRail' => '#7C5CFF' ],
+			'fd-blocks'  => [ 'name' => '06 · Blocks',  'desc' => 'Solid colour-block cards, bold. Crypto forecast.',            'group' => 'foundations', 'mode' => 'light', 'accent' => '#111111', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'solid',   'font' => 'inter', 'radius' => 'large', 'shadow' => 'flat', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-blocks',  'previewMain' => '#EFF0EC', 'previewRail' => '#9BE26A' ],
+			'fd-mono'    => [ 'name' => '07 · Mono',    'desc' => 'Black, white, one accent, huge whitespace. Limitus.',         'group' => 'foundations', 'mode' => 'light', 'accent' => '#111111', 'density' => 'breathing',   'sidebar' => 'full', 'sidebarStyle' => 'minimal', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'flat', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-mono',    'previewMain' => '#FAFAFA', 'previewRail' => '#111111' ],
+			'fd-tactile' => [ 'name' => '08 · Tactile', 'desc' => 'Frosted white, coral-pink gradient surfaces. Milkinside.',    'group' => 'foundations', 'mode' => 'light', 'accent' => '#FF6F91', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-tactile', 'previewMain' => '#F4F1F4', 'previewRail' => '#FF6F91' ],
+			'fd-violet'  => [ 'name' => '09 · Violet',  'desc' => 'Near-black, violet gradient, glowing charts. Stakent.',        'group' => 'foundations', 'mode' => 'dark',  'accent' => '#7C5CFF', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-violet',  'previewMain' => '#0C0C10', 'previewRail' => '#7C5CFF' ],
+			'fd-glassblue' => [ 'name' => '10 · Glass Blue', 'desc' => 'Navy, glass cards, blue gradient hero. LunoX.',           'group' => 'foundations', 'mode' => 'dark',  'accent' => '#3B82F6', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => true,  'bgImage' => 'none', 'palette' => 'fd-glassblue', 'previewMain' => '#0E1424', 'previewRail' => '#3B82F6' ],
+			'fd-spatial' => [ 'name' => '11 · Spatial', 'desc' => 'Dark teal, frosted glass panels. Smart home.',               'group' => 'foundations', 'mode' => 'dark',  'accent' => '#34D399', 'density' => 'breathing',   'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => true,  'bgImage' => 'none', 'palette' => 'fd-spatial', 'previewMain' => '#1C2422', 'previewRail' => '#34D399' ],
+			'fd-onyx'    => [ 'name' => '12 · Onyx',    'desc' => 'Navy shell, light floating cards. Restaurant ops.',           'group' => 'foundations', 'mode' => 'dark',  'accent' => '#6366F1', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-onyx',    'previewMain' => '#0E1020', 'previewRail' => '#6366F1' ],
+			'fd-sentinel' => [ 'name' => '13 · Sentinel', 'desc' => 'Dark, purple/green glow gauges, dense. Security.',          'group' => 'foundations', 'mode' => 'dark',  'accent' => '#8B5CF6', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'medium', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-sentinel', 'previewMain' => '#0B0E14', 'previewRail' => '#8B5CF6' ],
+			'fd-aurora'  => [ 'name' => '14 · Aurora',  'desc' => 'Warm corner gradient wash, icon rail. Panze.',                'group' => 'foundations', 'mode' => 'light', 'accent' => '#7C3AED', 'density' => 'comfortable', 'sidebar' => 'icons', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'fd-aurora',  'previewMain' => '#F3EEFB', 'previewRail' => '#7C3AED' ],
+			'fd-canvas'  => [ 'name' => '15 · Canvas',  'desc' => 'Photographic backdrop, frosted glass cards. SolarEn.',        'group' => 'foundations', 'mode' => 'light', 'accent' => '#14B8A6', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => true,  'bgImage' => 'none', 'palette' => 'fd-canvas',  'previewMain' => '#DDE7E5', 'previewRail' => '#14B8A6' ],
+		];
+	}
+
+	/** @deprecated Old 60-preset library — no longer surfaced (replaced by foundations()). */
+	public static function _legacy_presets(): array {
 		return [
 			// ── Studio · New — the 2025 dashboard-study foundation themes ──────
 			'warm' => [
@@ -2505,6 +2536,18 @@ add_action( 'admin_enqueue_scripts', function() {
 			plugins_url( 'assets/therum-theme-signatures.css', __FILE__ ),
 			[ 'therum-theme-palettes' ],
 			filemtime( $sig_path )
+		);
+	}
+
+	// New foundation themes — palette + signature chrome that recreates each
+	// reference dashboard. Loaded LAST so it wins over the legacy palettes.
+	$fd_path = __DIR__ . '/assets/therum-theme-foundations.css';
+	if ( file_exists( $fd_path ) ) {
+		wp_enqueue_style(
+			'therum-theme-foundations',
+			plugins_url( 'assets/therum-theme-foundations.css', __FILE__ ),
+			[ 'therum-theme-palettes', 'therum-theme-signatures' ],
+			filemtime( $fd_path )
 		);
 	}
 } );
