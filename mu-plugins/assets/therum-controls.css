@@ -168,3 +168,6 @@ body.therum-themed.light{           /* LIGHT mode */
 /* GUARANTEE: common page text uses the palette tokens in any theme/mode */
 body.therum-themed .th-cx-page-title,body.therum-themed .th-cx-title,body.therum-themed .th-lp-title{color:var(--tx)}
 body.therum-themed .th-cx-page-sub,body.therum-themed .th-cx-sub,body.therum-themed .th-lp-sub{color:var(--tx2)}
+/* GUARANTEE: panel/section headers + labels use palette tokens (no dark-on-dark) */
+body.therum-themed .th-cx-panel-title,body.therum-themed .th-cx-panel-head{color:var(--tx)}
+body.therum-themed .th-cx-panel-meta,body.therum-themed .th-cx-section-label{color:var(--tx3)}

@@ -103,3 +103,5 @@ body.theme-m00.content-narrow #th-content{max-width:900px; margin:0 auto; paddin
 body.theme-m00 .th-cx-page-title,body.theme-m00 .th-cx-title,
 body.theme-m00 .th-cx-page-head h2,body.theme-m00 .th-lp-title{color:var(--tx) !important}
 body.theme-m00 .th-cx-page-sub,body.theme-m00 .th-cx-sub,body.theme-m00 .th-lp-sub{color:var(--tx2) !important}
+body.theme-m00 .th-cx-panel-title{color:var(--tx) !important}
+body.theme-m00 .th-cx-panel-meta{color:var(--tx3) !important}
