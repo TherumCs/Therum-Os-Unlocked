@@ -31,7 +31,7 @@
   --tr-tight:-.02em; --tr-body:-.005em; --tr-normal:0; --tr-wide:.05em; --tr-mono:.08em;
 }
 
-.th-cx{padding:var(--s7) var(--s10) var(--s10);max-width:1280px;margin:0 auto;width:100%;min-width:0;box-sizing:border-box}
+.th-cx{padding:0;max-width:1280px;margin:0 auto;width:100%;min-width:0;box-sizing:border-box}
 
 .th-cx-head{margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--bd);display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .th-cx-eyebrow{font-family:var(--f);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:6px}
