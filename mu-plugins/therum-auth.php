@@ -13,7 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // LOGIN SKIN — from therum-login.php
 // ════════════════════════════════════════════════════════════════════════
 
-define( 'THERUM_LOGIN_VERSION', '1.8.8' );
+// Login chrome rides the main release. Reading a defined-const lets the
+// footer stamp show the actual installed version instead of fossilizing
+// here.
+if ( ! defined( 'THERUM_LOGIN_VERSION' ) ) {
+	define( 'THERUM_LOGIN_VERSION', defined( 'THERUM_OS_VERSION' ) ? THERUM_OS_VERSION : '1.9.0' );
+}
 
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -121,9 +126,23 @@ body.login {
 	background: <?php echo esc_attr( $bg_color ); ?>;
 	color: #f5f5f4;
 	-webkit-font-smoothing: antialiased;
-	overflow: hidden;
+	/* overflow:hidden cut off everything below the viewport when zoom or short
+	   viewports came into play — auto lets the centered card breathe. */
+	overflow: auto;
 }
 body.login.light { color: #0a0a0a; }
+/* Full-viewport centering. flex beats grid here because some WP language packs
+   inject extra siblings (lang switcher, privacy link) that we hide — flex
+   keeps the visible card centered regardless. */
+body.login.therum-login {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	padding: 24px 16px;
+	box-sizing: border-box;
+}
 body.login #login {
 	width: 100%;
 	max-width: 380px;
@@ -131,13 +150,15 @@ body.login #login {
 	margin: 0;
 	position: relative;
 	z-index: 10;
-}
-body.login.therum-login {
-	display: grid;
-	place-items: center;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0;
 }
 body.login #backtoblog,
-body.login #nav { display: none; }
+body.login #nav,
+body.login .language-switcher,
+body.login .privacy-policy-page-link { display: none; }
 body.login h1 a {
 	display: none; /* WP default logo block — we draw our own brand mark */
 }
@@ -246,17 +267,48 @@ body.login.theme-tron .th-login-card {
 	color: inherit;
 }
 
-/* ═══ FORM ════════════════════════════════════════════════════════════════ */
+/* ═══ FORM (acts as the visible card) ═════════════════════════════════════
+   The login_form action injects brand markup BETWEEN the password field and
+   the remember-me row (WP fires do_action('login_form') at that point).
+   Flex column + explicit `order` on the brand elements pulls them visually
+   above the inputs without us having to JS-reparent anything. */
 form#loginform,
 form#registerform,
 form#lostpasswordform {
-	background: transparent;
-	border: 0;
-	box-shadow: none;
-	padding: 0;
+	background: rgba(20, 22, 28, 0.55);
+	border: 0.5px solid rgba(255,255,255,0.10);
+	border-radius: <?php echo esc_attr( $card_radius ); ?>;
+	box-shadow: 0 18px 60px rgba(0,0,0,.35);
+	padding: 32px 28px 24px;
 	margin: 0;
 	overflow: visible;
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	<?php if ( $is_glass ): ?>
+	backdrop-filter: blur(28px) saturate(140%);
+	-webkit-backdrop-filter: blur(28px) saturate(140%);
+	<?php endif; ?>
 }
+body.login.light form#loginform,
+body.login.light form#registerform,
+body.login.light form#lostpasswordform {
+	background: rgba(255,255,255,0.92);
+	border-color: rgba(0,0,0,0.08);
+	box-shadow: 0 18px 60px rgba(15,17,21,.10);
+}
+/* Brand pieces float to the top of the form via negative flex order. */
+form#loginform .th-login-brand,
+form#registerform .th-login-brand,
+form#lostpasswordform .th-login-brand { order: -3 }
+form#loginform .th-login-h,
+form#registerform .th-login-h,
+form#lostpasswordform .th-login-h     { order: -2 }
+form#loginform .th-login-sub,
+form#registerform .th-login-sub,
+form#lostpasswordform .th-login-sub   { order: -1 }
+form#loginform .forgetmenot { order: 5 }
+form#loginform .submit      { order: 6 }
 .login form .input,
 .login form input[type=text],
 .login form input[type=password],
