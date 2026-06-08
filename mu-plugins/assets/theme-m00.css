@@ -1,123 +1,98 @@
 /* ============================================================================
- * THERUM OS · THEME 00 — "Default" (modern WordPress-admin redesign)
- * Scoped to body.theme-m00. INVERSE light/dark:
- *   - LIGHT mode (body.theme-m00.light) → DARK sidebar + WHITE/light pages
- *   - DARK  mode (body.theme-m00)        → WHITE sidebar + DARK pages
- * Blue accent, flat subtle cards, generous whitespace, system type.
- * Default left-sidebar layout (no structural reflow).
+ * THERUM OS · THEME 00 — "Default"  (1:1 with the WP admin redesign mockup)
+ * Light: white sidebar + white content as one rounded card on a gray desktop,
+ * Inter, royal-blue accent, gray active-fill nav. Dark = cohesive dark version.
+ * Scoped body.theme-m00.  Light mode = body.theme-m00.light.
  * ========================================================================== */
 
-/* ── DARK mode (default: no .light) → WHITE sidebar + DARK content ───────────*/
+/* Self-hosted Inter (latin) — matches the mockup's type. */
+@font-face{font-family:'InterTH';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/inter-400.woff2) format('woff2')}
+@font-face{font-family:'InterTH';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/inter-500.woff2) format('woff2')}
+@font-face{font-family:'InterTH';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/inter-600.woff2) format('woff2')}
+@font-face{font-family:'InterTH';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/inter-700.woff2) format('woff2')}
+
+/* ── DARK mode (default, no .light) — cohesive dark ─────────────────────────*/
 html body.theme-m00{
   --bg:#15161A; --bg-color:#15161A; --sf:#1E2027; --sf2:#262932; --sf3:#2F333D;
-  --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#8A909C;  /* tx3 lightened for 4.5:1 (a11y) */
+  --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#8A909C;
   --bd:rgba(255,255,255,.09); --bd2:rgba(255,255,255,.16);
-  --ac:#5B7CFA; --ac-h:#7C97FF; --ac-s:rgba(91,124,250,.18); --ink:#F2F4F7;
-  --m00-btn-ink:#0E1016;  /* dark text on the lighter dark-mode accent (4.5:1) */
-  --m00-desktop:#0E0F12;  /* gray/dark desktop behind the framed app */
-  /* sidebar = WHITE in dark mode (inverse) */
-  --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#101113; --m00-sbmut:#8C8F94;
-  --m00-sbbd:#E3E5E8; --m00-sbhover:#F1F3F5; --m00-sbactivebg:rgba(56,88,233,.10); --m00-sbactivetx:#3858E9; --m00-sblogo:#3858E9;
-  --m00-cardshadow:0 1px 2px rgba(0,0,0,.30);
-  --m00-font:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --ac:#6B86FF; --ac-h:#8AA0FF; --ac-s:rgba(107,134,255,.18); --ink:#F2F4F7; --m00-btn-ink:#0E1016;
+  --m00-desktop:#0C0D10;
+  --m00-sbbg:#1A1C22; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
+  --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.06); --m00-sbactivebg:rgba(255,255,255,.10); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#2B2F3A;
+  --m00-cardshadow:0 1px 2px rgba(0,0,0,.3);
+  --m00-font:'InterTH',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   font-family:var(--m00-font); color:var(--tx);
 }
-/* ── LIGHT mode (.light) → DARK sidebar + WHITE/light content ────────────────*/
+/* ── LIGHT mode — 1:1 WP mockup ─────────────────────────────────────────────*/
 html body.theme-m00.light{
-  --bg:#F6F7F9; --bg-color:#F6F7F9; --sf:#FFFFFF; --sf2:#F1F3F5; --sf3:#E9ECEF;
-  --tx:#1E1E1E; --tx2:#50575E; --tx3:#6B7177;  /* tx3 darkened for 4.5:1 (a11y) */
-  --bd:#E3E5E8; --bd2:#D2D5D9;
-  --ac:#3858E9; --ac-h:#2E45C5; --ac-s:rgba(56,88,233,.10); --ink:#1E1E1E;
-  --m00-btn-ink:#FFFFFF;  /* white on the darker light-mode accent (5.6:1) */
-  --m00-desktop:#E7E9EC;  /* light gray desktop behind the framed app (WP redesign) */
-  /* sidebar = DARK in light mode (inverse) */
-  --m00-sbbg:#16181E; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
-  --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.07); --m00-sbactivebg:rgba(255,255,255,.08); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#3858E9;
+  --bg:#FFFFFF; --bg-color:#FFFFFF; --sf:#FFFFFF; --sf2:#F0F0F1; --sf3:#E6E7E9;
+  --tx:#1D2025; --tx2:#50575E; --tx3:#6B7177;
+  --bd:#E6E7E9; --bd2:#D6D8DB;
+  --ac:#2C3FE1; --ac-h:#2434C0; --ac-s:rgba(44,63,225,.10); --ink:#1D2025; --m00-btn-ink:#FFFFFF;
+  --m00-desktop:#EDEDEE;
+  --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#1D2025; --m00-sbmut:#8A8F98;
+  --m00-sbbd:#E6E7E9; --m00-sbhover:#F4F4F5; --m00-sbactivebg:#EDEDEE; --m00-sbactivetx:#1D2025; --m00-sblogo:#1E1E2E;
   --m00-cardshadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);
 }
 
-/* ── FRAMED APP (WP-redesign look): gray desktop, rounded inset sidebar +
- *    content cards floating on it. ─────────────────────────────────────────── */
+/* ── FRAMED APP — sidebar + content = one rounded white card on the desktop ─*/
 html body.theme-m00,
 html body.theme-m00 #wpwrap,
 html body.theme-m00 #wpcontent,
 html body.theme-m00 #wpbody-content,
 html body.theme-m00 #th-shell{background:var(--m00-desktop) !important}
-/* content card */
+html body.theme-m00 #th-sb{
+  background:var(--m00-sbbg) !important; border:none !important; border-right:1px solid var(--m00-sbbd) !important;
+  top:16px !important; left:16px !important; bottom:16px !important; height:auto !important;
+  border-radius:14px 0 0 14px !important; overflow:auto;
+  box-shadow:var(--m00-cardshadow); -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+}
 html body.theme-m00 #th-main{
   background:var(--sf) !important;
-  margin:12px 12px 12px calc(var(--sidebar-w, 256px) + 24px) !important;
-  border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,.10),0 12px 32px rgba(0,0,0,.06);
-  min-height:calc(100vh - 24px);
+  margin:16px 16px 16px calc(var(--sidebar-w, 256px) + 16px) !important;
+  border-radius:0 14px 14px 0; box-shadow:var(--m00-cardshadow);
+  min-height:calc(100vh - 32px);
 }
 html body.theme-m00 #th-content,
 html body.theme-m00 .wrap,
 html body.theme-m00 .th-cx{background:transparent !important}
 html body.theme-m00 #th-top{background:transparent !important; border-bottom:1px solid var(--bd) !important; box-shadow:none !important}
 
-/* ── SIDEBAR — rounded inset card; inverse palette per mode ─────────────────*/
-html body.theme-m00 #th-sb{
-  background:var(--m00-sbbg) !important; border:1px solid var(--m00-sbbd) !important;
-  top:12px !important; left:12px !important; bottom:12px !important; height:auto !important;
-  border-radius:16px !important; overflow:auto;
-  -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
-}
-body.theme-m00 .th-sb-header,
-body.theme-m00 .th-site-name{color:var(--m00-sbtxh)}
+/* ── SIDEBAR ────────────────────────────────────────────────────────────────*/
+body.theme-m00 .th-sb-header,body.theme-m00 .th-site-name{color:var(--m00-sbtxh)}
 body.theme-m00 .th-site-host{color:var(--m00-sbmut)}
 body.theme-m00 .th-logo{background:var(--m00-sblogo); color:#fff}
 body.theme-m00 .th-sb-search-box{background:var(--m00-sbhover); border:1px solid var(--m00-sbbd)}
 body.theme-m00 .th-sb-search-box input{color:var(--m00-sbtxh)}
-body.theme-m00 .th-sb-cap,
-body.theme-m00 .th-sb-section-name{color:var(--m00-sbmut)}
-body.theme-m00 .th-sb-item,
-body.theme-m00 .th-sb-section-label,
-body.theme-m00 .th-sb-child{color:var(--m00-sbtx); border-radius:8px}
+body.theme-m00 .th-sb-cap,body.theme-m00 .th-sb-section-name{color:var(--m00-sbmut)}
+body.theme-m00 .th-sb-item,body.theme-m00 .th-sb-section-label,body.theme-m00 .th-sb-child{color:var(--m00-sbtx); border-radius:8px}
 body.theme-m00 .th-sb-item svg{color:var(--m00-sbmut)}
-body.theme-m00 .th-sb-item:hover,
-body.theme-m00 .th-sb-section-label:hover{background:var(--m00-sbhover); color:var(--m00-sbtxh)}
-body.theme-m00 .th-sb-item.active{background:var(--m00-sbactivebg); color:var(--m00-sbactivetx); box-shadow:inset 2px 0 0 var(--ac)}
-body.theme-m00 .th-sb-item.active svg{color:var(--m00-sbactivetx)}
+body.theme-m00 .th-sb-item:hover,body.theme-m00 .th-sb-section-label:hover{background:var(--m00-sbhover); color:var(--m00-sbtxh)}
+body.theme-m00 .th-sb-item.active{background:var(--m00-sbactivebg); color:var(--m00-sbactivetx); box-shadow:none}
+body.theme-m00 .th-sb-item.active svg{color:var(--m00-sbtxh)}
 body.theme-m00 .th-sb-footer{border-top:1px solid var(--m00-sbbd)}
 
-/* ── CARDS / PANELS ─────────────────────────────────────────────────────────*/
-body.theme-m00 .th-card,
-body.theme-m00 .th-studio-card{background:var(--sf); border:1px solid var(--bd); border-radius:10px; box-shadow:var(--m00-cardshadow)}
+/* ── CARDS ──────────────────────────────────────────────────────────────────*/
+body.theme-m00 .th-card,body.theme-m00 .th-studio-card{background:var(--sf); border:1px solid var(--bd); border-radius:10px; box-shadow:var(--m00-cardshadow)}
 body.theme-m00 .th-studio-card-hero{margin:0; border-radius:0}
 body.theme-m00 .th-studio-card-foot{border-top:1px solid var(--bd)}
 
-/* ── TYPOGRAPHY ──────────────────────────────────────────────────────────────*/
-body.theme-m00 #th-content,
+/* ── TYPOGRAPHY (Inter everywhere) ──────────────────────────────────────────*/
+body.theme-m00,body.theme-m00 #th-sb,body.theme-m00 #th-top,body.theme-m00 #th-content,
 body.theme-m00 .th-cx-title,body.theme-m00 .th-lp-title,body.theme-m00 .th-cx-page-title,
 body.theme-m00 .th-studio-card-name,body.theme-m00 .th-card h3,body.theme-m00 .th-stat-val{font-family:var(--m00-font)}
 body.theme-m00 .th-cx-title,body.theme-m00 .th-lp-title{font-weight:700; letter-spacing:-.01em}
 
-/* ── BUTTONS / ACCENT ────────────────────────────────────────────────────────*/
-body.theme-m00 .th-btn-primary,
-body.theme-m00 .th-cx-btn.is-primary{background:var(--ac); color:var(--m00-btn-ink); border:none}
-body.theme-m00 .th-btn-primary:hover,
-body.theme-m00 .th-cx-btn.is-primary:hover{background:var(--ac-h)}
+/* ── BUTTONS / ACCENT ───────────────────────────────────────────────────────*/
+body.theme-m00 .th-btn-primary,body.theme-m00 .th-cx-btn.is-primary{background:var(--ac); color:var(--m00-btn-ink); border:none}
+body.theme-m00 .th-btn-primary:hover,body.theme-m00 .th-cx-btn.is-primary:hover{background:var(--ac-h)}
 
-/* ── CONTENT WIDTH (Quick Controls → Content) · Narrow / Regular / Full ──────
- * REGULAR = default (no class). FULL = floating overlay sidebar: content takes
- * the full width OVER the sidebar; the sidebar collapses to a hover tab on the
- * left edge and slides back OVER the content on hover (60px edge padding).
- * NARROW = centered comfortable reading column. */
-html body.theme-m00.content-full #th-main{margin-left:12px !important}
+/* ── CONTENT WIDTH — Narrow / Regular / Full ────────────────────────────────*/
+html body.theme-m00.content-full #th-main{margin-left:16px !important}
 body.theme-m00.content-full #th-content{padding:32px 60px}
-html body.theme-m00.content-full #th-sb{
-  transform:translateX(calc(-100% + 16px));
-  transition:transform .26s cubic-bezier(.4,0,.2,1), box-shadow .26s ease;
-  z-index:500;
-}
-body.theme-m00.content-full #th-sb::after{
-  content:""; position:absolute; top:50%; right:5px; transform:translateY(-50%);
-  width:4px; height:46px; border-radius:4px; background:var(--ac); opacity:.85; pointer-events:none;
-}
-html body.theme-m00.content-full #th-sb:hover,
-html body.theme-m00.content-full #th-sb:focus-within{transform:translateX(0); box-shadow:0 24px 64px rgba(0,0,0,.30)}
-body.theme-m00.content-full #th-sb:hover::after,
-body.theme-m00.content-full #th-sb:focus-within::after{opacity:0}
-
-/* NARROW = centered comfortable reading column (not just tight padding) */
+html body.theme-m00.content-full #th-sb{transform:translateX(calc(-100% + 16px)); transition:transform .26s cubic-bezier(.4,0,.2,1),box-shadow .26s; z-index:500}
+body.theme-m00.content-full #th-sb::after{content:""; position:absolute; top:50%; right:5px; transform:translateY(-50%); width:4px; height:46px; border-radius:4px; background:var(--ac); opacity:.85; pointer-events:none}
+html body.theme-m00.content-full #th-sb:hover,html body.theme-m00.content-full #th-sb:focus-within{transform:translateX(0); box-shadow:0 24px 64px rgba(0,0,0,.30)}
+body.theme-m00.content-full #th-sb:hover::after,body.theme-m00.content-full #th-sb:focus-within::after{opacity:0}
 body.theme-m00.content-narrow #th-content{max-width:900px; margin:0 auto; padding:32px 40px}
