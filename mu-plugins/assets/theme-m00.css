@@ -1,0 +1,59 @@
+/* ============================================================================
+ * THERUM OS · THEME 00 — "Default" (modern WordPress-admin redesign)
+ * Scoped to body.theme-m00. The clean default chrome: light cool-neutral
+ * canvas, WHITE sidebar with clear contrast vs content (the WP-redesign
+ * critique), blue accent, subtle flat cards, generous whitespace, system type.
+ * Keeps the default left-sidebar layout (no structural reflow).
+ * Refs: WP admin redesign 2023 (make.wordpress.org) + Behance WP admin redesign.
+ * ========================================================================== */
+
+/* ── PALETTE ─────────────────────────────────────────────────────────────────*/
+html body.theme-m00{
+  --bg:#F6F7F9; --bg-color:#F6F7F9;          /* content canvas (cool light gray) */
+  --sf:#FFFFFF; --sf2:#F1F3F5; --sf3:#E9ECEF; /* surfaces / wells / tracks */
+  --tx:#1E1E1E; --tx2:#50575E; --tx3:#8C8F94; /* WP-style ink / gray / muted */
+  --bd:#E3E5E8; --bd2:#D2D5D9;                /* hairlines */
+  --ac:#3858E9; --ac-h:#2E45C5; --ac-s:rgba(56,88,233,.10); /* WP "blueberry" */
+  --ink:#1E1E1E; --dark:#1E1E1E;
+  --m00-font:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  font-family:var(--m00-font); color:var(--tx);
+}
+
+/* ── CANVAS + CONTRAST ───────────────────────────────────────────────────────
+ * Gray content canvas, white sidebar with a hairline = clear sidebar/content
+ * separation the WP redesign was criticized for lacking. */
+html body.theme-m00 #wpwrap{background:var(--bg) !important}
+html body.theme-m00 #th-shell{background:transparent}
+html body.theme-m00 #th-main{background:transparent}
+html body.theme-m00 #th-content,
+html body.theme-m00 .th-cx{background:transparent}
+html body.theme-m00 #th-sb{background:#FFFFFF !important; border-right:1px solid var(--bd) !important; -webkit-backdrop-filter:none; backdrop-filter:none}
+html body.theme-m00 #th-top{background:rgba(255,255,255,.85); border-bottom:1px solid var(--bd); -webkit-backdrop-filter:saturate(1.1) blur(8px); backdrop-filter:saturate(1.1) blur(8px)}
+
+/* ── SIDEBAR — clean, comfortable, current-item highlight ────────────────────*/
+body.theme-m00 .th-sb-item,
+body.theme-m00 .th-sb-section-label{border-radius:8px}
+body.theme-m00 .th-sb-item{color:var(--tx2); font-weight:500}
+body.theme-m00 .th-sb-item:hover{background:var(--sf2); color:var(--tx)}
+body.theme-m00 .th-sb-item.active{background:var(--ac-s); color:var(--ac); font-weight:600; box-shadow:inset 2px 0 0 var(--ac)}
+body.theme-m00 .th-sb-item.active svg{color:var(--ac)}
+body.theme-m00 .th-logo{background:var(--ac); color:#fff}
+body.theme-m00 .th-sb-search-box{background:var(--sf2); border:1px solid var(--bd)}
+
+/* ── CARDS — white, subtle border + soft shadow, modest radius (flat-modern) ──*/
+body.theme-m00 .th-card,
+body.theme-m00 .th-studio-card{background:#fff; border:1px solid var(--bd); border-radius:10px; box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.04)}
+body.theme-m00 .th-studio-card-hero{margin:0; border-radius:0}
+body.theme-m00 .th-studio-card-foot{border-top:1px solid var(--bd)}
+
+/* ── TYPOGRAPHY — system stack, comfortable ─────────────────────────────────*/
+body.theme-m00 #th-sb,body.theme-m00 #th-top,body.theme-m00 #th-content,
+body.theme-m00 .th-cx-title,body.theme-m00 .th-lp-title,body.theme-m00 .th-cx-page-title,
+body.theme-m00 .th-studio-card-name,body.theme-m00 .th-card h3,body.theme-m00 .th-stat-val{font-family:var(--m00-font)}
+body.theme-m00 .th-cx-title,body.theme-m00 .th-lp-title{font-weight:700; letter-spacing:-.01em}
+
+/* ── BUTTONS / ACCENT ────────────────────────────────────────────────────────*/
+body.theme-m00 .th-btn-primary,
+body.theme-m00 .th-cx-btn.is-primary{background:var(--ac); color:#fff; border:none}
+body.theme-m00 .th-btn-primary:hover,
+body.theme-m00 .th-cx-btn.is-primary:hover{background:var(--ac-h)}

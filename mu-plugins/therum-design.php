@@ -1589,6 +1589,28 @@ class Therum_Themes {
 	 */
 	public static function morph_themes(): array {
 		return [
+			'theme-00' => [
+				'name' => '00 · Default', 'desc' => 'Modern WordPress-admin redesign — clean cool-neutral canvas, white sidebar with clear contrast, blue accent, flat subtle cards, generous whitespace.',
+				'group' => 'foundations', 'mode' => 'light', 'accent' => '#3858E9', 'density' => 'comfortable',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'system', 'radius' => 'medium', 'shadow' => 'soft',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'm00', 'previewMain' => '#F6F7F9', 'previewRail' => '#FFFFFF',
+				'designSystemDoc' => 'assets/theme-m00.design-system.md',
+				'tokens' => [
+					'colors' => [
+						'accent' => '#3858E9', 'accentHover' => '#2E45C5', 'accentSoft' => 'rgba(56,88,233,.10)',
+						'canvas' => '#F6F7F9', 'surface' => '#FFFFFF', 'surface2' => '#F1F3F5', 'surface3' => '#E9ECEF',
+						'text' => '#1E1E1E', 'text2' => '#50575E', 'text3' => '#8C8F94',
+						'border' => '#E3E5E8', 'border2' => '#D2D5D9',
+						'success' => '#1E8E3E', 'warning' => '#E6A817', 'error' => '#D63638', 'info' => '#3858E9',
+					],
+					'typography' => [ 'display' => 'system', 'body' => 'system', 'mono' => 'monospace',
+						'scale' => [ 'h1' => 28, 'cardTitle' => 16, 'stat' => 28, 'body' => 14, 'label' => 13, 'small' => 11 ] ],
+					'radius' => [ 'sm' => 6, 'md' => 8, 'lg' => 10, 'full' => 999 ],
+					'shadow' => [ 'card' => '0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.04)' ],
+					'spacing' => [ 'xs' => 4, 'sm' => 8, 'md' => 16, 'lg' => 24, 'xl' => 40 ],
+					'layout' => [ 'nav' => 'left-sidebar', 'sidebarContrast' => 'white-on-gray' ],
+				],
+			],
 			'theme-01' => [
 				'name' => '01 · Warm Studio', 'desc' => 'Crextio — top pill-nav, warm ivory canvas, golden accent, very-rounded soft bento, one dark spotlight card.',
 				'group' => 'foundations', 'mode' => 'light', 'accent' => '#F2C20E', 'density' => 'comfortable',
@@ -2062,7 +2084,7 @@ add_action('admin_head', function() {
 // stylesheet scoped to body.theme-<palette> that owns its full palette — no
 // legacy layer, no override hacks.
 add_action( 'admin_enqueue_scripts', function() {
-	foreach ( [ 'theme-m01' ] as $morph ) {
+	foreach ( [ 'theme-m00', 'theme-m01' ] as $morph ) {
 		$mp = __DIR__ . '/assets/' . $morph . '.css';
 		if ( file_exists( $mp ) ) {
 			wp_enqueue_style(
