@@ -1,89 +1,91 @@
 /* ============================================================================
  * THERUM OS · THEME 02 — "Coral Finance" (N2 Financial Dashboard)
  * Scoped body.theme-m02. Light cool-gray canvas, white very-rounded cards with
- * soft shadows, coral accent, big light greeting in the top bar, one dark
- * spotlight card, Inter type. Sidebar relocates to a top pill-nav (collapsed
- * nav like the reference). Targets the real chrome classes.
+ * soft shadows, coral accent, Inter. DISTINCT layout from Theme 01: a MINIMAL
+ * top bar (logo + hamburger left, search + profile pinned right) where the nav
+ * is COLLAPSED behind a hamburger that opens the full menu as a dropdown panel.
  * ========================================================================== */
 @font-face{font-family:'InterTH';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/inter-400.woff2) format('woff2')}
 @font-face{font-family:'InterTH';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/inter-500.woff2) format('woff2')}
 @font-face{font-family:'InterTH';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/inter-600.woff2) format('woff2')}
 @font-face{font-family:'InterTH';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/inter-700.woff2) format('woff2')}
 
-/* ── PALETTE (coral / light) ─────────────────────────────────────────────────*/
 html body.theme-m02{
-  --bg:#EFF0F3 !important; --bg-color:#EFF0F3 !important; --sf:#FFFFFF !important; --sf2:#F6F7F9 !important; --sf3:#EEEFF2 !important;
+  --bg:#EFF0F3 !important; --bg-color:#EFF0F3 !important; --sf:#FFFFFF !important; --sf2:#F2F3F6 !important; --sf3:#EAEBEF !important;
   --tx:#1A1D21 !important; --tx2:#6B7178 !important; --tx3:#9AA0A8 !important;
   --bd:rgba(20,24,30,.08) !important; --bd2:rgba(20,24,30,.14) !important;
   --ac:#F0563E !important; --ac-h:#DC4528 !important; --ac-s:rgba(240,86,62,.12) !important;
-  --ink:#1A1D21; --dark:#16181C;
-  --m02-navh:68px;
+  --ink:#1A1D21; --dark:#16181C; --m02-navh:68px;
   --m02-font:'InterTH',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   font-family:var(--m02-font); color:var(--tx);
 }
 
-/* ── CANVAS ──────────────────────────────────────────────────────────────────*/
 html body.theme-m02 #wpwrap,html body.theme-m02 #th-shell{background:var(--bg) !important}
 html body.theme-m02 #th-main,html body.theme-m02 #th-content,html body.theme-m02 .th-cx{background:transparent !important}
+html body.theme-m02 #th-shell{display:flex;flex-direction:column}
 
-/* ── STRUCTURAL MORPH: sidebar → fixed top pill-nav ─────────────────────────*/
-html body.theme-m02 #th-shell{display:flex;flex-direction:column;background:var(--bg)}
+/* ── MINIMAL TOP BAR ─────────────────────────────────────────────────────────*/
 html body.theme-m02 #th-sb{
   position:fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:auto !important;
-  width:auto !important; height:var(--m02-navh) !important;
-  flex-direction:row !important; align-items:center; gap:14px; padding:0 28px !important;
-  border-right:none !important; border-bottom:1px solid var(--bd) !important;
+  width:auto !important; height:var(--m02-navh) !important; flex-direction:row !important; align-items:center; gap:14px;
+  padding:0 28px !important; border-right:none !important; border-bottom:1px solid var(--bd) !important;
   background:#fff !important; overflow:visible !important; z-index:300 !important;
 }
 html body.theme-m02 #th-main{margin-left:0 !important; margin-top:var(--m02-navh) !important}
 html body.theme-m02 #th-topbar{left:0 !important; width:100% !important}
-html body.theme-m02 .th-sb-header{flex:0 0 auto; height:auto !important; padding:0 !important; border-bottom:none !important}
+/* logo (left) → hamburger (left) → [gap] → search + profile (right) */
+html body.theme-m02 .th-sb-header{order:1; flex:0 0 auto; height:auto !important; padding:0 !important; border-bottom:none !important}
 html body.theme-m02 .th-logo{background:var(--dark); color:#fff; width:36px; height:36px; border-radius:10px}
 html body.theme-m02 .th-site-info{display:none}
-html body.theme-m02 .th-sb-search{flex:0 0 auto; width:220px; padding:0 !important; border:none !important; margin:0 !important}
-html body.theme-m02 .th-sb-search-box{background:var(--sf2); border:1px solid var(--bd); border-radius:999px; padding:8px 14px}
-/* nav pills */
-html body.theme-m02 .th-sb-nav{display:flex !important; flex:1 1 auto; flex-direction:row !important; flex-wrap:nowrap; justify-content:center; align-items:center; gap:2px; padding:0 !important; min-height:0; overflow:visible !important}
-html body.theme-m02 .th-sb-nav>.th-sb-item,html body.theme-m02 .th-sb-section>.th-sb-section-label{color:var(--tx2); padding:9px 14px; border-radius:999px; white-space:nowrap; cursor:pointer; display:flex; align-items:center; gap:6px; font-weight:500}
-html body.theme-m02 .th-sb-nav>.th-sb-item:hover,html body.theme-m02 .th-sb-section-label:hover{color:var(--tx); background:var(--sf2)}
-html body.theme-m02 .th-sb-nav>.th-sb-item.active{background:var(--ac); color:#fff}
-html body.theme-m02 .th-sb-nav>.th-sb-item.active svg{color:#fff}
-html body.theme-m02 .th-sb-section-rename,html body.theme-m02 .th-sb-section-x,html body.theme-m02 .th-sb-grip,html body.theme-m02 .th-sb-reset,html body.theme-m02 .th-sb-done,html body.theme-m02 .th-sb-section-add{display:none !important}
-/* section dropdowns (full menu reachable) */
-html body.theme-m02 .th-sb-section{position:relative; display:flex; align-items:center}
-html body.theme-m02 .th-sb-section-items{position:absolute !important; top:calc(100% + 6px) !important; left:0 !important; min-width:220px; background:#fff; border:1px solid var(--bd); border-radius:14px; padding:8px !important; box-shadow:0 18px 48px rgba(30,30,40,.14); opacity:0; visibility:hidden; transform:translateY(-4px); transition:opacity .14s,transform .14s,visibility .14s; z-index:320; flex-direction:column; gap:2px}
-html body.theme-m02 .th-sb-section:hover>.th-sb-section-items,html body.theme-m02 .th-sb-section:focus-within>.th-sb-section-items{opacity:1; visibility:visible; transform:none}
-html body.theme-m02 .th-sb-section-items .th-sb-item{color:var(--tx2); width:100%; padding:8px 12px; border-radius:8px; display:flex; align-items:center; gap:10px}
-html body.theme-m02 .th-sb-section-items .th-sb-item:hover{background:var(--sf2); color:var(--tx)}
-html body.theme-m02 .th-sb-section-items .th-sb-item.active{background:var(--ac-s); color:var(--ac)}
-html body.theme-m02 .th-sb-child{color:var(--tx2); border-radius:8px; padding:6px 12px; display:block}
-html body.theme-m02 .th-sb-child:hover{background:var(--sf2); color:var(--tx)}
-html body.theme-m02 .th-sb-footer{display:flex !important; flex-direction:row !important; margin-top:0 !important; flex:0 0 auto; padding:0 !important; border-top:none !important; gap:8px; align-items:center}
+html body.theme-m02 .th-sb-search{order:3; flex:0 0 auto; width:280px; margin-left:auto !important; padding:0 !important; border:none !important}
+html body.theme-m02 .th-sb-search-box{background:var(--sf2); border:1px solid var(--bd); border-radius:999px; padding:9px 16px}
+html body.theme-m02 .th-sb-footer{order:4; display:flex !important; flex-direction:row !important; flex:0 0 auto; margin:0 !important; padding:0 !important; border-top:none !important; gap:10px; align-items:center}
 html body.theme-m02 .th-sb-edit-btn,html body.theme-m02 .th-sb-view-site{display:none !important}
 
-/* ── TOPBAR — merge into the top nav: no separate bar, flush on the canvas ──*/
-html body.theme-m02 #th-top{
-  background:transparent !important; border:none !important; box-shadow:none !important;
-  border-radius:0 !important; margin:0 !important; min-height:auto;
-  padding:24px 32px 4px !important;
+/* ── NAV = hamburger → dropdown panel (the whole menu) ──────────────────────*/
+html body.theme-m02 .th-sb-nav{
+  order:2; flex:0 0 auto; position:relative; display:flex !important; flex-direction:column;
+  width:44px; height:42px; align-items:center; justify-content:center; gap:0;
+  border-radius:10px; cursor:pointer; background:var(--sf2); overflow:visible;
 }
-body.theme-m02 #th-top button,body.theme-m02 #th-top .th-top-btn{background:#fff;border:1px solid var(--bd);box-shadow:none}
+html body.theme-m02 .th-sb-nav::before{content:"\2630"; font-size:18px; color:var(--tx); line-height:1}
+html body.theme-m02 .th-sb-nav > *{display:none}
+html body.theme-m02 .th-sb-nav:hover,html body.theme-m02 .th-sb-nav:focus-within{
+  position:absolute; top:14px; left:80px; width:252px; height:auto;
+  background:#fff; border:1px solid var(--bd); border-radius:14px; box-shadow:0 20px 50px rgba(30,30,40,.16);
+  padding:8px; align-items:stretch; justify-content:flex-start; gap:2px; z-index:330;
+}
+html body.theme-m02 .th-sb-nav:hover::before,html body.theme-m02 .th-sb-nav:focus-within::before{display:none}
+html body.theme-m02 .th-sb-nav:hover > *,html body.theme-m02 .th-sb-nav:focus-within > *{display:block}
+/* dropdown contents */
+html body.theme-m02 .th-sb-nav .th-sb-item{display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; color:var(--tx2); font-weight:500; white-space:nowrap}
+html body.theme-m02 .th-sb-nav .th-sb-item:hover{background:var(--sf2); color:var(--tx)}
+html body.theme-m02 .th-sb-nav .th-sb-item.active{background:var(--ac-s); color:var(--ac)}
+html body.theme-m02 .th-sb-section{display:block}
+html body.theme-m02 .th-sb-section-label{padding:10px 12px 4px; color:var(--tx3); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; cursor:default}
+html body.theme-m02 .th-sb-section-label svg,html body.theme-m02 .th-sb-section-toggle svg{display:none}
+html body.theme-m02 .th-sb-section-items{display:block; position:static !important; opacity:1 !important; visibility:visible !important; transform:none !important; background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; min-width:0}
+html body.theme-m02 .th-sb-child{display:block; padding:6px 12px 6px 28px; color:var(--tx2); border-radius:8px}
+html body.theme-m02 .th-sb-child:hover{background:var(--sf2); color:var(--tx)}
+html body.theme-m02 .th-sb-section-rename,html body.theme-m02 .th-sb-section-x,html body.theme-m02 .th-sb-grip,html body.theme-m02 .th-sb-reset,html body.theme-m02 .th-sb-done,html body.theme-m02 .th-sb-section-add{display:none !important}
+
+/* ── TOPBAR (page header) merges into the bar; big light greeting ───────────*/
+html body.theme-m02 #th-top{background:transparent !important; border:none !important; box-shadow:none !important; border-radius:0 !important; margin:0 !important; min-height:auto; padding:24px 32px 4px !important}
+body.theme-m02 #th-top button,body.theme-m02 #th-top .th-top-btn{background:#fff; border:1px solid var(--bd); box-shadow:none}
 body.theme-m02 .th-lp-title,body.theme-m02 .th-cx-title{font-size:30px; font-weight:700; letter-spacing:-.02em; color:var(--tx)}
 body.theme-m02 .th-lp-sub,body.theme-m02 .th-cx-sub{color:var(--tx3); font-size:15px}
 
-/* ── CARDS — white, very rounded, soft shadow ───────────────────────────────*/
+/* ── CARDS — white, very rounded, soft shadow; last bento = dark spotlight ──*/
 body.theme-m02 .th-card,body.theme-m02 .th-studio-card{background:#fff; border:none; border-radius:20px; box-shadow:0 1px 2px rgba(20,24,40,.04),0 12px 30px rgba(20,24,40,.06)}
 body.theme-m02 .th-studio-card-hero{margin:8px 8px 0; border-radius:14px}
 body.theme-m02 .th-studio-card-foot{border-top:1px solid var(--sf3)}
-/* one dark spotlight card (last bento card) */
 body.theme-m02 .th-bento .th-card:last-child{background:var(--dark); color:#fff}
 body.theme-m02 .th-bento .th-card:last-child h3,body.theme-m02 .th-bento .th-card:last-child .th-stat-val{color:#fff}
 
-/* ── TYPOGRAPHY ─────────────────────────────────────────────────────────────*/
 body.theme-m02 #th-sb,body.theme-m02 #th-top,body.theme-m02 #th-content,
 body.theme-m02 .th-cx-title,body.theme-m02 .th-lp-title,body.theme-m02 .th-studio-card-name,
 body.theme-m02 .th-card h3,body.theme-m02 .th-stat-val{font-family:var(--m02-font)}
 
-/* ── BUTTONS / ACCENT — coral, pill ─────────────────────────────────────────*/
+/* ── BUTTONS — coral pill ───────────────────────────────────────────────────*/
 body.theme-m02 .th-btn-primary,body.theme-m02 .th-cx-btn.is-primary{background:var(--ac); color:#fff; border:none; border-radius:999px}
 body.theme-m02 .th-btn-primary:hover,body.theme-m02 .th-cx-btn.is-primary:hover{background:var(--ac-h)}
