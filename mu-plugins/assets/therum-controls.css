@@ -171,3 +171,26 @@ body.therum-themed .th-cx-page-sub,body.therum-themed .th-cx-sub,body.therum-the
 /* GUARANTEE: panel/section headers + labels use palette tokens (no dark-on-dark) */
 body.therum-themed .th-cx-panel-title,body.therum-themed .th-cx-panel-head{color:var(--tx)}
 body.therum-themed .th-cx-panel-meta,body.therum-themed .th-cx-section-label{color:var(--tx3)}
+
+/* ============================================================================
+ * UNTITLED-UI CONTROL PATTERNS (Jordan Hughes) — token-driven, OS-wide.
+ * Consistent radius, hairline borders, and the UUI 4px soft focus ring on
+ * every input/select/textarea/button. Adapts to any theme/mode via tokens.
+ * ========================================================================== */
+.th-os input[type=text],.th-os input[type=search],.th-os input[type=email],
+.th-os input[type=url],.th-os input[type=number],.th-os input[type=password],
+.th-os select,.th-os textarea,
+.th-input,.th-cx-input,.th-cx-select,.th-cx-textarea{
+  border-radius:8px; border:1px solid var(--bd); background:var(--sf);
+  color:var(--tx); transition:border-color .15s ease, box-shadow .15s ease;
+}
+.th-input::placeholder,.th-cx-input::placeholder,.th-cx-textarea::placeholder{color:var(--tx3)}
+.th-input:focus,.th-cx-input:focus,.th-cx-select:focus,.th-cx-textarea:focus,
+.th-os input:focus,.th-os select:focus,.th-os textarea:focus{
+  outline:none; border-color:var(--ac); box-shadow:0 0 0 4px var(--ac-s);
+}
+/* UUI focus ring on buttons (replaces the 2px outline for controls) */
+.th-btn:focus-visible,.th-cx-btn:focus-visible,.th-btn-primary:focus-visible,
+.th-studio-card .th-btn:focus-visible{outline:none !important; box-shadow:0 0 0 4px var(--ac-s) !important}
+/* consistent button radius */
+.th-btn,.th-cx-btn{border-radius:8px}
