@@ -59,7 +59,31 @@ html body.theme-m00 #th-main{
 html body.theme-m00 #th-content,
 html body.theme-m00 .wrap,
 html body.theme-m00 .th-cx{background:transparent !important}
-html body.theme-m00 #th-top{background:transparent !important; border-bottom:1px solid var(--bd) !important; box-shadow:none !important}
+/* Topbar reads as a real bar — distinct surface tint, hairline below, sticky.
+   Previous `background: transparent` left the page title floating over any
+   plugin h1 rendered right below (e.g. Counter's Products page) and made the
+   chrome look broken. The tint matches the card surface so the bar still
+   feels integrated, but it's unambiguously its own zone. */
+html body.theme-m00 #th-top{
+  background:var(--sf) !important;
+  border-bottom:1px solid var(--bd) !important;
+  box-shadow:none !important;
+  border-radius:0 14px 0 0;
+  padding:0 24px !important;
+  min-height:56px;
+  height:56px;
+  align-items:center;
+  position:sticky; top:0; z-index:90;
+}
+html body.theme-m00 #th-top .th-top-title{font-size:13px; font-weight:600; color:var(--tx2); letter-spacing:.01em}
+html body.theme-m00 #th-top .th-top-btn{border:1px solid var(--bd); background:transparent; color:var(--tx2); border-radius:8px}
+html body.theme-m00 #th-top .th-top-btn:hover{background:var(--sf2); color:var(--tx)}
+html body.theme-m00 #th-top .th-top-btn.is-active{background:var(--ac); border-color:var(--ac); color:#fff}
+html body.theme-m00 #th-top .th-top-avatar{background:var(--ac); color:#fff}
+/* The first .wrap h1 inside a Therum-rendered page often duplicates the
+   topbar's matched-nav-item title. Drop the top margin so it doesn't kiss
+   the bar with no breathing room. */
+html body.theme-m00 #th-content .wrap > h1:first-child{margin-top:24px}
 
 /* ── SIDEBAR ────────────────────────────────────────────────────────────────*/
 body.theme-m00 .th-sb-header,body.theme-m00 .th-site-name{color:var(--m00-sbtxh)}
