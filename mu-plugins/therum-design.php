@@ -1692,7 +1692,7 @@ class Therum_Themes {
 			'sidebarStyle' => 'default',
 			'sidebarLayout' => 'both',
 			'topbar'  => 'sticky',
-			'content' => 'full',
+			'content' => 'regular',
 			'bentoGap' => 16,
 			'bgImage' => 'none',
 			'cardLayout' => 'hero',
@@ -2018,7 +2018,7 @@ add_filter('admin_body_class', function(string $classes): string {
 		}
 	}
 	// Content width — drives #th-content > * max-width + topbar alignment
-	if (!empty($state['content']) && $state['content'] !== 'full') {
+	if (!empty($state['content']) && $state['content'] !== 'regular') {
 		$add[] = 'content-' . $state['content'];
 	}
 	// Topbar mode
@@ -2715,7 +2715,7 @@ function therum_cx_render_quick_controls( string $current_mode ): void {
 			[ 'seg', 'Sidebar',     $s( 'sidebar', 'full' ),         [ 'full' => 'Full', 'icons' => 'Icons', 'text' => 'Text' ], 'sidebar' ],
 			[ 'seg', 'Variant',     $s( 'sidebarStyle', 'default' ), [ 'default' => 'Default', 'floating' => 'Floating', 'minimal' => 'Minimal' ], 'sidebarStyle' ],
 			[ 'seg', 'Topbar',      $s( 'topbar', 'sticky' ),        [ 'static' => 'Static', 'sticky' => 'Sticky', 'hide' => 'Hide' ], 'topbar' ],
-			[ 'seg', 'Content',     $s( 'content', 'full' ),         [ 'narrow' => 'Narrow', 'wide' => 'Wide', 'full' => 'Full' ], 'content' ],
+			[ 'seg', 'Content',     $s( 'content', 'regular' ),      [ 'narrow' => 'Narrow', 'regular' => 'Regular', 'full' => 'Full' ], 'content' ],
 			[ 'slider', 'Bento gap', (int) $s( 'bentoGap', 16 ), 8, 32, 'bentoGap' ],
 		] ); ?>
 

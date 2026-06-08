@@ -98,26 +98,26 @@ body.theme-m00 .th-cx-btn.is-primary{background:var(--ac); color:var(--m00-btn-i
 body.theme-m00 .th-btn-primary:hover,
 body.theme-m00 .th-cx-btn.is-primary:hover{background:var(--ac-h)}
 
-/* ── CONTENT WIDTH (Quick Controls → Content) ───────────────────────────────
- * WIDE = floating overlay sidebar: content takes the full width OVER the
- * sidebar; the sidebar collapses to a hover tab on the left edge and slides
- * back OVER the content on hover. Wider 60px edge padding.
- * NARROW = capped reading width with generous 100px gutters. */
-html body.theme-m00.content-wide #th-main{margin-left:12px !important}
-body.theme-m00.content-wide #th-content{padding:32px 60px}
-html body.theme-m00.content-wide #th-sb{
+/* ── CONTENT WIDTH (Quick Controls → Content) · Narrow / Regular / Full ──────
+ * REGULAR = default (no class). FULL = floating overlay sidebar: content takes
+ * the full width OVER the sidebar; the sidebar collapses to a hover tab on the
+ * left edge and slides back OVER the content on hover (60px edge padding).
+ * NARROW = centered comfortable reading column. */
+html body.theme-m00.content-full #th-main{margin-left:12px !important}
+body.theme-m00.content-full #th-content{padding:32px 60px}
+html body.theme-m00.content-full #th-sb{
   transform:translateX(calc(-100% + 16px));
   transition:transform .26s cubic-bezier(.4,0,.2,1), box-shadow .26s ease;
   z-index:500;
 }
-body.theme-m00.content-wide #th-sb::after{
+body.theme-m00.content-full #th-sb::after{
   content:""; position:absolute; top:50%; right:5px; transform:translateY(-50%);
   width:4px; height:46px; border-radius:4px; background:var(--ac); opacity:.85; pointer-events:none;
 }
-html body.theme-m00.content-wide #th-sb:hover,
-html body.theme-m00.content-wide #th-sb:focus-within{transform:translateX(0); box-shadow:0 24px 64px rgba(0,0,0,.30)}
-body.theme-m00.content-wide #th-sb:hover::after,
-body.theme-m00.content-wide #th-sb:focus-within::after{opacity:0}
+html body.theme-m00.content-full #th-sb:hover,
+html body.theme-m00.content-full #th-sb:focus-within{transform:translateX(0); box-shadow:0 24px 64px rgba(0,0,0,.30)}
+body.theme-m00.content-full #th-sb:hover::after,
+body.theme-m00.content-full #th-sb:focus-within::after{opacity:0}
 
 /* NARROW = centered comfortable reading column (not just tight padding) */
 body.theme-m00.content-narrow #th-content{max-width:900px; margin:0 auto; padding:32px 40px}
