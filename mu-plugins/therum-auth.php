@@ -1109,7 +1109,9 @@ function therum_2fa_save_profile( $user_id ) {
 	if ( ! current_user_can( 'edit_user', $user_id ) ) {
 		return;
 	}
-	if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( $_POST['_wpnonce'], 'update-user_' . $user_id ) ) {
+	if ( ! isset( $_POST['_wpnonce'] ) ) return;
+	$nonce = sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) );
+	if ( ! wp_verify_nonce( $nonce, 'update-user_' . $user_id ) ) {
 		return;
 	}
 

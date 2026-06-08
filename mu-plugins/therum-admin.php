@@ -1818,9 +1818,10 @@ therum_admin_require_page( 'therum-templates-page.php' );
 
 // Duplicate template handler
 add_action('admin_post_therum_duplicate_template', function() {
-	if (!current_user_can('edit_posts')) wp_die('Forbidden', 403);
 	$post_id = isset($_GET['post']) ? (int) $_GET['post'] : 0;
-	if (!$post_id || !wp_verify_nonce($_GET['_wpnonce'] ?? '', 'therum_dup_' . $post_id)) wp_die('Bad nonce', 400);
+	if (!$post_id || !current_user_can('edit_post', $post_id)) wp_die('Forbidden', 403);
+	$nonce = sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) );
+	if (!wp_verify_nonce($nonce, 'therum_dup_' . $post_id)) wp_die('Bad nonce', 400);
 	$src = get_post($post_id);
 	if (!$src || $src->post_type !== 'bricks_template') wp_die('Not found', 404);
 	$new_id = wp_insert_post([
@@ -1843,9 +1844,10 @@ add_action('admin_post_therum_duplicate_template', function() {
 
 // Duplicate page/post handler
 add_action('admin_post_therum_duplicate_post', function() {
-	if (!current_user_can('edit_posts')) wp_die('Forbidden', 403);
 	$post_id = isset($_GET['post']) ? (int) $_GET['post'] : 0;
-	if (!$post_id || !wp_verify_nonce($_GET['_wpnonce'] ?? '', 'therum_dup_' . $post_id)) wp_die('Bad nonce', 400);
+	if (!$post_id || !current_user_can('edit_post', $post_id)) wp_die('Forbidden', 403);
+	$nonce = sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) );
+	if (!wp_verify_nonce($nonce, 'therum_dup_' . $post_id)) wp_die('Bad nonce', 400);
 	$src = get_post($post_id);
 	if (!$src) wp_die('Not found', 404);
 
@@ -6118,7 +6120,6 @@ add_action( 'admin_footer', function() {
 	// We need to disable that handler for color inputs specifically — or just let it run, it's debounced anyway.
 	// (No-op: the existing data-th-text handler debounces, which is fine for color pickers too.)
 
-	console.log('[Therum] Settings content patch loaded — all sections now functional');
 })();
 </script>
 	<?php

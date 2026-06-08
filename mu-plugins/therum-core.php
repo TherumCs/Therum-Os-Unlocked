@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.36' );
+define( 'THERUM_OS_VERSION', '1.9.37' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
@@ -552,7 +552,7 @@ add_action( 'save_post', function( $post_id ) {
 	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 	if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
-	$att_id = isset( $_POST['therum_featured_grid_id'] ) ? intval( wp_unslash( $_POST['therum_featured_grid_id'] ) ) : 0;
+	$att_id = isset( $_POST['therum_featured_grid_id'] ) ? absint( wp_unslash( $_POST['therum_featured_grid_id'] ) ) : 0;
 	if ( $att_id ) {
 		update_post_meta( $post_id, '_therum_featured_grid', $att_id );
 	} else {

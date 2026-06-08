@@ -513,12 +513,27 @@ function therum_send_notification( $subject, $body, $tone = 'info' ) {
 	// 400; a runaway stack trace or generated payload would otherwise just
 	// vanish. Cap well below the limit to leave headroom for the JSON envelope
 	// + emoji + subject. Filterable so ops can tune.
+	//
+	// SSRF guard: an admin-configured webhook URL is still admin input, and
+	// the same guard the api.php dispatcher uses applies — refuse to POST to
+	// internal addresses. We test on the resolved scheme + host; if the
+	// helper doesn't exist (load-order edge case), fall through with the
+	// scheme check below.
+	if ( $slack_url ) {
+		if ( function_exists( 'therum_webhook_url_safe' ) && ! therum_webhook_url_safe( $slack_url ) ) {
+			error_log( '[therum-perf] Slack webhook URL refused by SSRF guard.' );
+			$slack_url = '';
+		}
+	}
 	if ( $slack_url ) {
 		$emoji      = [ 'info' => ':information_source:', 'warn' => ':warning:', 'error' => ':rotating_light:', 'success' => ':white_check_mark:' ][ $tone ] ?? ':information_source:';
 		$max_body   = (int) apply_filters( 'therum_slack_body_max_chars', 35000 );
-		$body_short = mb_substr( (string) $body, 0, $max_body );
+		// Reserve budget for the truncation marker we append below so multi-byte
+		// bodies + marker still fit under the cap.
+		$marker     = "\n…[truncated]";
+		$body_short = mb_substr( (string) $body, 0, $max_body - mb_strlen( $marker ) );
 		if ( $body_short !== (string) $body ) {
-			$body_short .= "\n…[truncated]";
+			$body_short .= $marker;
 		}
 		wp_remote_post( $slack_url, [
 			'timeout' => 8,

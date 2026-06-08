@@ -33,7 +33,7 @@ class Therum_Settings {
 
 	public static function render_page(): void {
 		$sections   = self::get_sections();
-		$active_key = sanitize_key($_GET['section'] ?? '');
+		$active_key = sanitize_key( wp_unslash( $_GET['section'] ?? '' ) );
 		if (!isset($sections[$active_key])) {
 			$active_key = array_key_first($sections);
 		}

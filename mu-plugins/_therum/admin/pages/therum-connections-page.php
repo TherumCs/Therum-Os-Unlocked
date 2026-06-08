@@ -168,14 +168,31 @@ class Therum_Connections_Page {
 	// trade-off WP itself makes for cookies — documented in the connection
 	// modal as "stored encrypted; re-enter if you rotate WP salts."
 	private static function crypto_key(): string {
-		$salt = defined( 'SECURE_AUTH_KEY' ) && SECURE_AUTH_KEY ? SECURE_AUTH_KEY : 'therum-fallback-salt-do-not-use-in-prod';
+		// Refuse to fall back to a source-visible constant. If SECURE_AUTH_KEY
+		// is empty (or still the install-default placeholder), throw so the
+		// caller surfaces the error instead of encrypting every credential
+		// with a key anyone reading this file can recover.
+		//
+		// The placeholder string `'put your unique phrase here'` is what WP's
+		// wp-config-sample.php ships — installs that haven't generated real
+		// salts still have this string. Treat it as empty.
+		$salt = defined( 'SECURE_AUTH_KEY' ) ? (string) SECURE_AUTH_KEY : '';
+		if ( $salt === '' || strpos( $salt, 'put your unique phrase here' ) !== false ) {
+			throw new \RuntimeException( 'SECURE_AUTH_KEY is not set — refusing to encrypt with a source-visible fallback. Set real WP salts in wp-config.php first (see https://api.wordpress.org/secret-key/1.1/salt/).' );
+		}
 		return hash( 'sha256', $salt . '|therum-connections|v1', true );
 	}
 	public static function encrypt( string $plain ): string {
 		if ( $plain === '' ) return '';
+		try {
+			$key = self::crypto_key();
+		} catch ( \RuntimeException $e ) {
+			error_log( '[therum-connections] encrypt refused: ' . $e->getMessage() );
+			return '';
+		}
 		$iv  = random_bytes( 12 ); // GCM standard IV length
 		$tag = '';
-		$ct  = openssl_encrypt( $plain, 'aes-256-gcm', self::crypto_key(), OPENSSL_RAW_DATA, $iv, $tag );
+		$ct  = openssl_encrypt( $plain, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
 		if ( $ct === false ) return '';
 		return 'v1:' . base64_encode( $iv . $tag . $ct );
 	}
@@ -184,10 +201,16 @@ class Therum_Connections_Page {
 		if ( strpos( $blob, 'v1:' ) !== 0 ) return ''; // unknown / legacy format → caller asks user to re-enter
 		$raw = base64_decode( substr( $blob, 3 ), true );
 		if ( $raw === false || strlen( $raw ) < 28 ) return '';
+		try {
+			$key = self::crypto_key();
+		} catch ( \RuntimeException $e ) {
+			error_log( '[therum-connections] decrypt refused: ' . $e->getMessage() );
+			return '';
+		}
 		$iv  = substr( $raw, 0, 12 );
 		$tag = substr( $raw, 12, 16 );
 		$ct  = substr( $raw, 28 );
-		$pt  = openssl_decrypt( $ct, 'aes-256-gcm', self::crypto_key(), OPENSSL_RAW_DATA, $iv, $tag );
+		$pt  = openssl_decrypt( $ct, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
 		return $pt === false ? '' : $pt;
 	}
 

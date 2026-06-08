@@ -205,7 +205,9 @@ add_action( 'therum_settings_groups', function() {
 		}
 		?>
 		<div class="th-shortcut-grid">
-			<a class="th-shortcut" href="<?php echo esc_url( admin_url( 'admin.php?page=elementor' ) ); ?>">Elementor Settings</a>
+			<?php if ( function_exists( 'menu_page_url' ) && menu_page_url( 'elementor', false ) ): ?>
+				<a class="th-shortcut" href="<?php echo esc_url( admin_url( 'admin.php?page=elementor' ) ); ?>">Elementor Settings</a>
+			<?php endif; ?>
 			<?php if ( post_type_exists( 'elementor_library' ) ): ?>
 				<a class="th-shortcut" href="<?php echo esc_url( admin_url( 'edit.php?post_type=elementor_library' ) ); ?>">Templates</a>
 			<?php endif; ?>

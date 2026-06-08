@@ -160,6 +160,15 @@ final class DesignDerive extends Tool {
 	 * @param array<string, mixed> $payload
 	 */
 	public static function handler( array $payload ): void {
+		// Re-authorize at execution time — the user who queued this job may
+		// have been demoted between enqueue and run. Mirrors SourceRebuild's
+		// runtime gate. Required-scope drives the cap lookup.
+		$queued_by = (int) ( $payload['queued_by'] ?? 0 );
+		$required  = \Therum\Auth\Scopes::required_cap( ( new self() )->required_scope() );
+		if ( $queued_by <= 0 || ! user_can( $queued_by, $required ) ) {
+			throw new \RuntimeException( "Derive job not authorized at runtime (user {$queued_by} lacks '{$required}')." );
+		}
+
 		$source   = (string) ( $payload['source']   ?? 'site' );
 		$post_ids = is_array( $payload['post_ids'] ?? null )
 			? array_map( 'intval', $payload['post_ids'] )
