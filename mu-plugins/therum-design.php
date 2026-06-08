@@ -1596,19 +1596,25 @@ class Therum_Themes {
 				'glass' => false, 'bgImage' => 'none', 'palette' => 'm00', 'previewMain' => '#F6F7F9', 'previewRail' => '#FFFFFF',
 				'designSystemDoc' => 'assets/theme-m00.design-system.md',
 				'tokens' => [
-					'colors' => [
+					'modes' => [ 'light', 'dark' ],
+					'sidebar' => [ 'always' => 'dark', 'bg' => '#16181E', 'text' => '#C7CCD6', 'muted' => 'rgba(255,255,255,.42)', 'active' => 'inset-accent-bar' ],
+					'light' => [
 						'accent' => '#3858E9', 'accentHover' => '#2E45C5', 'accentSoft' => 'rgba(56,88,233,.10)',
 						'canvas' => '#F6F7F9', 'surface' => '#FFFFFF', 'surface2' => '#F1F3F5', 'surface3' => '#E9ECEF',
-						'text' => '#1E1E1E', 'text2' => '#50575E', 'text3' => '#8C8F94',
-						'border' => '#E3E5E8', 'border2' => '#D2D5D9',
-						'success' => '#1E8E3E', 'warning' => '#E6A817', 'error' => '#D63638', 'info' => '#3858E9',
+						'text' => '#1E1E1E', 'text2' => '#50575E', 'text3' => '#8C8F94', 'border' => '#E3E5E8', 'border2' => '#D2D5D9',
 					],
+					'dark' => [
+						'accent' => '#5B7CFA', 'accentHover' => '#7C97FF', 'accentSoft' => 'rgba(91,124,250,.18)',
+						'canvas' => '#15161A', 'surface' => '#1E2027', 'surface2' => '#262932', 'surface3' => '#2F333D',
+						'text' => '#F2F4F7', 'text2' => '#A9AEB8', 'text3' => '#6E7480', 'border' => 'rgba(255,255,255,.09)', 'border2' => 'rgba(255,255,255,.16)',
+					],
+					'semantic' => [ 'success' => '#1E8E3E', 'warning' => '#E6A817', 'error' => '#D63638', 'info' => '#3858E9' ],
 					'typography' => [ 'display' => 'system', 'body' => 'system', 'mono' => 'monospace',
 						'scale' => [ 'h1' => 28, 'cardTitle' => 16, 'stat' => 28, 'body' => 14, 'label' => 13, 'small' => 11 ] ],
 					'radius' => [ 'sm' => 6, 'md' => 8, 'lg' => 10, 'full' => 999 ],
-					'shadow' => [ 'card' => '0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.04)' ],
+					'shadow' => [ 'card' => '0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05)' ],
 					'spacing' => [ 'xs' => 4, 'sm' => 8, 'md' => 16, 'lg' => 24, 'xl' => 40 ],
-					'layout' => [ 'nav' => 'left-sidebar', 'sidebarContrast' => 'white-on-gray' ],
+					'layout' => [ 'nav' => 'left-sidebar', 'sidebar' => 'dark-rail', 'content' => 'switchable-light-dark' ],
 				],
 			],
 			'theme-01' => [
@@ -1776,11 +1782,9 @@ class Therum_Themes {
 		// customization happens in the "Theme Customization" override panel.
 		$state = array_merge(self::default_state(), [
 			'palette'      => $p['palette'],
-			// Every preset starts in 'auto' mode by user request — the
-			// preset's own mode hint is treated as advisory styling info
-			// (which palette colors to use), not as a forced light/dark
-			// lock. Users can override per-install via Quick Controls.
-			'mode'         => 'auto',
+			// A theme lands in its intended mode (e.g. Theme 00 = light); users
+			// can still override per-install via Quick Controls (Mode).
+			'mode'         => $p['mode'] ?? 'auto',
 			'glass'        => $p['glass'] ?? false,
 			'glassTint'    => $p['glassTint'] ?? 'auto',
 			'accent'       => $p['accent'],
