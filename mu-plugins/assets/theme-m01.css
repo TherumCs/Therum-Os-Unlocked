@@ -68,7 +68,7 @@ html body.theme-m01 .th-sb-search{flex:0 0 auto; width:200px; padding:0 !importa
 html body.theme-m01 .th-sb-search-box{background:#fff; border:1px solid var(--bd); border-radius:10px; padding:7px 10px}
 
 /* nav — centered horizontal pill cluster */
-html body.theme-m01 .th-sb-nav{flex:1 1 auto; flex-direction:row !important; justify-content:center; align-items:center; gap:2px; padding:0 !important; overflow:visible !important}
+html body.theme-m01 .th-sb-nav{display:flex !important; flex:1 1 auto; flex-direction:row !important; flex-wrap:nowrap; justify-content:center; align-items:center; gap:2px; padding:0 !important; min-height:0; overflow:visible !important}
 html body.theme-m01 .th-sb-nav>.th-sb-item,
 html body.theme-m01 .th-sb-section>.th-sb-section-label{color:var(--tx2); padding:9px 14px; border-radius:10px; white-space:nowrap; cursor:pointer; display:flex; align-items:center; gap:6px}
 html body.theme-m01 .th-sb-nav>.th-sb-item>svg,
@@ -103,8 +103,11 @@ html body.theme-m01 .th-sb-children{padding-left:14px}
 html body.theme-m01 .th-sb-child{color:var(--tx2); border-radius:8px; padding:6px 12px; display:block}
 html body.theme-m01 .th-sb-child:hover{background:var(--sf2); color:var(--tx)}
 
-/* footer — right cluster */
-html body.theme-m01 .th-sb-footer{margin-top:0 !important; flex:0 0 auto; padding:0 !important; border-top:none !important; gap:8px}
+/* footer — compact right cluster (avatar). Bulky edit affordances hidden in the bar. */
+html body.theme-m01 .th-sb-footer{display:flex !important; flex-direction:row !important; margin-top:0 !important; flex:0 0 auto; padding:0 !important; border-top:none !important; gap:8px; align-items:center}
+html body.theme-m01 .th-sb-edit-btn,
+html body.theme-m01 .th-sb-view-site,
+html body.theme-m01 .th-sb-footer .th-sb-edit{display:none !important}
 
 /* ── FONTS ──────────────────────────────────────────────────────────────────*/
 body.theme-m01 #th-sb,body.theme-m01 #th-top,body.theme-m01 #th-content,
