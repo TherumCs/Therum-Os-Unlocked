@@ -1173,7 +1173,7 @@ function renderSetup(method, isConnected) {
       signinEl.hidden = false;
       signinEl.className = 'thc-signin-steps';
       signinEl.innerHTML =
-        'One-time setup. Register Therum as an OAuth app in the <a href="' + (p.url || '#') + '" target="_blank" rel="noopener">' + escapeHtml(p.name) + ' developer dashboard</a>, copy the credentials here, and Sign in becomes a real handoff.';
+        'One-time setup. Register Therum as an OAuth app in the <a href="' + escapeAttr(p.url || '#') + '" target="_blank" rel="noopener">' + escapeHtml(p.name) + ' developer dashboard</a>, copy the credentials here, and Sign in becomes a real handoff.';
       modalFields.innerHTML =
         '<div class="thc-field"><label>Redirect URI <span style="font-weight:400;color:var(--tx3)">(paste this into the provider&rsquo;s app settings)</span></label>' +
           '<input type="text" readonly value="' + escapeAttr(oauthRedirectUri) + '" style="font-family:monospace;font-size:12px" onclick="this.select()" /></div>' +
@@ -1187,7 +1187,7 @@ function renderSetup(method, isConnected) {
       signinEl.className = 'thc-signin-steps';
       signinEl.innerHTML = 'Click below to sign in at ' + escapeHtml(p.name) + '. You&rsquo;ll be redirected there to authorize Therum, then back here.';
       modalFields.innerHTML =
-        '<a class="thc-signin-cta" href="' + thOAuthStartUrl(p.id) + '" style="display:block;text-align:center;padding:12px 18px;font-size:14px">' +
+        '<a class="thc-signin-cta" href="' + escapeAttr(thOAuthStartUrl(p.id)) + '" style="display:block;text-align:center;padding:12px 18px;font-size:14px">' +
           'Sign in with ' + escapeHtml(p.name) + ' ↗' +
         '</a>' +
         '<div class="thc-field" style="margin-top:14px"><div class="thc-field-hint" style="text-align:center"><button type="button" id="thc-oauth-reset" class="button-link" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;font:inherit;text-decoration:underline">Reconfigure OAuth app</button></div></div>';
@@ -1231,7 +1231,7 @@ function renderSetup(method, isConnected) {
   }
   fields += '<div class="thc-field"><label>Label <span style="font-weight:400;color:var(--tx3)">(optional)</span></label><input type="text" id="thc-f-label" placeholder="e.g. Production" /></div>';
   if (p.url && method !== 'signin') {
-    fields += '<div class="thc-field"><div class="thc-field-hint"><a href="' + p.url + '" target="_blank" rel="noopener">Get credentials ↗</a></div></div>';
+    fields += '<div class="thc-field"><div class="thc-field-hint"><a href="' + escapeAttr(p.url) + '" target="_blank" rel="noopener">Get credentials ↗</a></div></div>';
   }
   modalFields.innerHTML = fields;
   saveBtn.textContent = isConnected ? 'Update' : 'Connect';

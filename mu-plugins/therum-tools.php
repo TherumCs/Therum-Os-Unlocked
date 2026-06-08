@@ -215,11 +215,13 @@ class Therum_Redirects {
 		add_action( 'shutdown', function() {
 			if ( ! is_admin() ) return;
 			Therum_Redirects::flush_hits();
+			Therum_Redirects::flush_404();
 		} );
 		if ( ! wp_next_scheduled( 'therum_redirects_flush' ) ) {
 			wp_schedule_event( time() + 300, 'hourly', 'therum_redirects_flush' );
 		}
 		add_action( 'therum_redirects_flush', [ __CLASS__, 'flush_hits' ] );
+		add_action( 'therum_redirects_flush', [ __CLASS__, 'flush_404' ] );
 		// AJAX
 		add_action( 'wp_ajax_therum_redirects_save',   [ __CLASS__, 'ajax_save' ] );
 		add_action( 'wp_ajax_therum_redirects_delete', [ __CLASS__, 'ajax_delete' ] );
@@ -374,7 +376,13 @@ class Therum_Redirects {
 		delete_transient( self::OPTION_KEY . '_hits' );
 	}
 
-	/** Aggregate unmatched 404s (path → hits/last/referrer/UA), capped. */
+	/**
+	 * Aggregate unmatched 404s (path → hits/last/referrer/UA), capped.
+	 *
+	 * The hot path writes to a short-lived transient, NOT update_option, so a
+	 * bot scan or broken-link sweep can't generate one autoload-touching DB
+	 * write per request. flush_404() drains the transient into the real option.
+	 */
 	public static function log_404(): void {
 		if ( is_admin() || ! is_404() ) return;
 		if ( empty( self::cfg()['log_404'] ) ) return;
@@ -384,17 +392,18 @@ class Therum_Redirects {
 			if ( str_starts_with( $path, $ignore ) ) return;
 		}
 
-		$log = (array) get_option( self::OPTION_404, [] );
-		if ( isset( $log[ $path ] ) ) {
-			$log[ $path ]['hits'] = (int) ( $log[ $path ]['hits'] ?? 0 ) + 1;
-			$log[ $path ]['last'] = current_time( 'mysql' );
+		$bucket = (array) get_transient( self::OPTION_404 . '_buf' );
+		if ( isset( $bucket[ $path ] ) ) {
+			$bucket[ $path ]['hits'] = (int) ( $bucket[ $path ]['hits'] ?? 0 ) + 1;
+			$bucket[ $path ]['last'] = current_time( 'mysql' );
 		} else {
-			// Evict the least-recently-seen entry when at capacity.
-			if ( count( $log ) >= self::MAX_404 ) {
-				uasort( $log, static fn( $a, $b ) => strcmp( (string) ( $a['last'] ?? '' ), (string) ( $b['last'] ?? '' ) ) );
-				array_shift( $log );
+			// Bound the buffer too — pathological 404 floods otherwise grow it
+			// without bound between flushes. Hard cap at MAX_404.
+			if ( count( $bucket ) >= self::MAX_404 ) {
+				uasort( $bucket, static fn( $a, $b ) => strcmp( (string) ( $a['last'] ?? '' ), (string) ( $b['last'] ?? '' ) ) );
+				array_shift( $bucket );
 			}
-			$log[ $path ] = [
+			$bucket[ $path ] = [
 				'hits'  => 1,
 				'first' => current_time( 'mysql' ),
 				'last'  => current_time( 'mysql' ),
@@ -402,7 +411,32 @@ class Therum_Redirects {
 				'ua'    => substr( sanitize_text_field( (string) ( $_SERVER['HTTP_USER_AGENT'] ?? '' ) ), 0, 180 ),
 			];
 		}
+		set_transient( self::OPTION_404 . '_buf', $bucket, 5 * MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * Merge the buffered 404 bucket into the persistent log. Runs on admin
+	 * shutdown and from the hourly redirect-flush cron — same drain points as
+	 * redirect hit counters.
+	 */
+	public static function flush_404(): void {
+		$bucket = (array) get_transient( self::OPTION_404 . '_buf' );
+		if ( ! $bucket ) return;
+		$log = (array) get_option( self::OPTION_404, [] );
+		foreach ( $bucket as $path => $rec ) {
+			if ( isset( $log[ $path ] ) ) {
+				$log[ $path ]['hits'] = (int) ( $log[ $path ]['hits'] ?? 0 ) + (int) ( $rec['hits'] ?? 1 );
+				$log[ $path ]['last'] = (string) ( $rec['last'] ?? current_time( 'mysql' ) );
+			} else {
+				if ( count( $log ) >= self::MAX_404 ) {
+					uasort( $log, static fn( $a, $b ) => strcmp( (string) ( $a['last'] ?? '' ), (string) ( $b['last'] ?? '' ) ) );
+					array_shift( $log );
+				}
+				$log[ $path ] = $rec;
+			}
+		}
 		update_option( self::OPTION_404, $log, false );
+		delete_transient( self::OPTION_404 . '_buf' );
 	}
 
 	// ── AJAX: rules ───────────────────────────────────────────────────────────

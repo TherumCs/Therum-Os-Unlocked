@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.33' );
+define( 'THERUM_OS_VERSION', '1.9.34' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
@@ -36,7 +36,10 @@ spl_autoload_register( function( string $class ): void {
 } );
 
 // ── Identity ──────────────────────────────────────────────────────────────────
-add_filter( 'admin_title',    fn( $a, $t ) => $t . ' — Therum OS', 10, 2 );
+// $a is the already-composed admin title ("Network Admin: Foo" or "Foo")
+// and $t is the title part. Build off $a so the Network Admin prefix and any
+// other plugins' contributions survive instead of being silently dropped.
+add_filter( 'admin_title',    fn( $a, $t ) => ( $a !== '' ? $a : $t ) . ' — Therum OS', 10, 2 );
 add_filter( 'login_headertext', fn() => 'Therum OS' );
 add_filter( 'login_headerurl',  fn() => home_url() );
 add_filter( 'admin_footer_text', fn() => 'Running <strong>Therum OS ' . THERUM_OS_VERSION . '</strong>' );

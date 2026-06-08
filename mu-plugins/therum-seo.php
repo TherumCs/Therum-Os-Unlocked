@@ -26,6 +26,11 @@ class Therum_Auto_SEO {
 	const META_NOINDEX     = 'th_seo_noindex';
 
 	public static function init(): void {
+		// We emit our own canonical at priority 2. WordPress core's rel_canonical
+		// also runs on wp_head at priority 10 — without removing it, every
+		// singular page rendered TWO canonical tags. Drop core's.
+		remove_action( 'wp_head', 'rel_canonical' );
+
 		add_action( 'wp_head',       [ __CLASS__, 'head' ], 2 );
 		add_action( 'wp_head',       [ __CLASS__, 'json_ld' ], 3 );
 		add_filter( 'document_title_parts', [ __CLASS__, 'filter_title' ] );
@@ -38,10 +43,6 @@ class Therum_Auto_SEO {
 
 		// Auto-generate alt text for images missing it
 		add_filter( 'wp_get_attachment_image_attributes', [ __CLASS__, 'auto_alt' ], 10, 3 );
-
-		// Ping search engines on publish (once per hour max)
-		add_action( 'publish_post',   [ __CLASS__, 'ping_on_publish' ] );
-		add_action( 'publish_page',   [ __CLASS__, 'ping_on_publish' ] );
 	}
 
 	// ═════════════════════════════════════════════════════════════════════
@@ -373,6 +374,10 @@ class Therum_Auto_SEO {
 	// ═════════════════════════════════════════════════════════════════════
 
 	public static function auto_alt( $attr, $attachment, $size ): array {
+		// Defensive: WP normally passes an array, but a misbehaving third-party
+		// filter could pass something else — graceful passthrough beats erroring.
+		if ( ! is_array( $attr ) ) $attr = (array) $attr;
+		if ( ! $attachment || ! isset( $attachment->ID ) ) return $attr;
 		if ( empty( $attr['alt'] ) ) {
 			// Try attachment title first
 			$title = get_the_title( $attachment->ID );
@@ -391,21 +396,6 @@ class Therum_Auto_SEO {
 			}
 		}
 		return $attr;
-	}
-
-	// ═════════════════════════════════════════════════════════════════════
-	//  PING SEARCH ENGINES — on publish (throttled)
-	// ═════════════════════════════════════════════════════════════════════
-
-	public static function ping_on_publish( $post_id ): void {
-		// Throttle: once per hour
-		$last = (int) get_option( '_therum_seo_last_ping', 0 );
-		if ( time() - $last < 3600 ) return;
-		update_option( '_therum_seo_last_ping', time(), true );
-
-		$sitemap = home_url( '/wp-sitemap.xml' );
-		// Google (IndexNow not needed — they read sitemaps)
-		wp_remote_get( 'https://www.google.com/ping?sitemap=' . urlencode( $sitemap ), [ 'timeout' => 5, 'blocking' => false ] );
 	}
 
 	// ═════════════════════════════════════════════════════════════════════
@@ -457,7 +447,7 @@ class Therum_Auto_SEO {
 	}
 
 	public static function save_meta_box( $post_id, $post ): void {
-		if ( ! isset( $_POST['therum_seo_nonce'] ) || ! wp_verify_nonce( $_POST['therum_seo_nonce'], 'therum_seo_save' ) ) return;
+		if ( ! isset( $_POST['therum_seo_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['therum_seo_nonce'] ) ), 'therum_seo_save' ) ) return;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
@@ -509,13 +499,23 @@ remove_action( 'wp_head', 'feed_links_extra', 3 );
 
 // Add rel="noopener" to external links rendered in content
 add_filter( 'the_content', function( $content ) {
+	// Hoist the host lookup outside the per-match callback — both for perf and
+	// to avoid PHP 8.1's `strpos($x, false)` deprecation when home_url() lacks
+	// a parseable host. `(string)` guarantees a string operand.
+	$home_host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	if ( $home_host === '' ) return $content; // nothing to compare against; skip the filter cleanly.
+
 	return preg_replace_callback(
 		'/<a\s([^>]*href=["\']https?:\/\/[^"\']+["\'][^>]*)>/i',
-		function( $m ) {
+		function( $m ) use ( $home_host ) {
 			$tag = $m[0];
-			$home = wp_parse_url( home_url(), PHP_URL_HOST );
-			// Skip internal links
-			if ( strpos( $tag, $home ) !== false ) return $tag;
+			// Extract the href value and parse its host — exact host match, not
+			// a substring scan. A link like https://attacker.com/example.com/x
+			// would previously register as internal under substring matching.
+			if ( preg_match( '/href=["\'](https?:\/\/[^"\']+)["\']/i', $tag, $hm ) ) {
+				$link_host = (string) wp_parse_url( $hm[1], PHP_URL_HOST );
+				if ( $link_host !== '' && strcasecmp( $link_host, $home_host ) === 0 ) return $tag;
+			}
 			// Add rel="noopener noreferrer" if not already present
 			if ( strpos( $tag, 'noopener' ) === false ) {
 				if ( preg_match( '/rel=["\']([^"\']*)["\']/', $tag ) ) {

@@ -130,9 +130,19 @@ final class Apply {
 			];
 		}
 
-		// Append (don't overwrite existing palettes).
-		$existing[] = $palette;
-		update_option( 'bricks_color_palette', $existing, false );
+		// Update-by-id, not append. Repeated apply() calls of the same kit
+		// would otherwise grow bricks_color_palette unboundedly with stale
+		// snapshots of the same palette.
+		$replaced = false;
+		foreach ( $existing as $idx => $row ) {
+			if ( is_array( $row ) && ( $row['id'] ?? '' ) === $palette_id ) {
+				$existing[ $idx ] = $palette;
+				$replaced = true;
+				break;
+			}
+		}
+		if ( ! $replaced ) $existing[] = $palette;
+		update_option( 'bricks_color_palette', array_values( $existing ), false );
 
 		return count( $palette['colors'] );
 	}
@@ -144,33 +154,48 @@ final class Apply {
 		$existing = (array) get_option( 'bricks_global_variables', [] );
 		$slug     = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $candidate->id ) ) ?: 'therum';
 
-		$added = 0;
+		// Build the new set keyed by id so we can update-by-id below instead
+		// of appending. Repeated apply() calls of the same kit would otherwise
+		// pile duplicate CSS variables into the option indefinitely.
+		$new_vars = [];
 		foreach ( $colors as $i => $c ) {
 			$value = (string) ( $c['value'] ?? '' );
 			if ( $value === '' ) continue;
-			$existing[] = [
-				'id'    => $slug . '-color-' . ( $i + 1 ),
-				'name'  => '--' . $slug . '-color-' . ( $i + 1 ),
-				'value' => $value,
+			$id = $slug . '-color-' . ( $i + 1 );
+			$new_vars[ $id ] = [
+				'id'       => $id,
+				'name'     => '--' . $slug . '-color-' . ( $i + 1 ),
+				'value'    => $value,
 				'category' => $slug,
 			];
-			$added++;
 		}
 
-		// Typography variables — primary family + base size.
 		$families = $candidate->data['typography']['families'] ?? [];
 		if ( is_array( $families ) && ! empty( $families[0]['value'] ) ) {
-			$existing[] = [
-				'id'    => $slug . '-font-family',
-				'name'  => '--' . $slug . '-font-family',
-				'value' => (string) $families[0]['value'],
+			$id = $slug . '-font-family';
+			$new_vars[ $id ] = [
+				'id'       => $id,
+				'name'     => '--' . $slug . '-font-family',
+				'value'    => (string) $families[0]['value'],
 				'category' => $slug,
 			];
-			$added++;
 		}
 
-		update_option( 'bricks_global_variables', $existing, false );
-		return $added;
+		// Merge: replace any existing entry whose id matches; preserve everything
+		// else (other kits, hand-edited vars).
+		$out = [];
+		foreach ( $existing as $row ) {
+			if ( is_array( $row ) && isset( $row['id'] ) && isset( $new_vars[ $row['id'] ] ) ) {
+				$out[] = $new_vars[ $row['id'] ];
+				unset( $new_vars[ $row['id'] ] );
+			} else {
+				$out[] = $row;
+			}
+		}
+		foreach ( $new_vars as $row ) $out[] = $row;
+
+		update_option( 'bricks_global_variables', $out, false );
+		return count( $colors ) + ( $families && ! empty( $families[0]['value'] ) ? 1 : 0 );
 	}
 
 	private static function write_theme_styles( Candidate $candidate ): bool {

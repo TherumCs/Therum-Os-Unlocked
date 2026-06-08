@@ -7,7 +7,7 @@
  *              and injects Elementor Templates / Settings into the Therum
  *              sidebar nav. Every Elementor API call is class_exists-guarded;
  *              the file is harmless on sites without Elementor.
- * Version: 1.9.25
+ * Version: 1.9.34
  *
  * Kill switch: define( 'THERUM_ELEMENTOR_DISABLE', true ) in wp-config.php.
  */
