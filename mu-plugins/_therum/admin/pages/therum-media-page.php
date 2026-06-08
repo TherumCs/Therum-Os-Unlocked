@@ -33,7 +33,7 @@ class Therum_Media_Page {
 				size_format(self::total_size($attachments)),
 			],
 			'action_buttons' => [
-				['label'=>'Upload', 'icon'=>'import', 'primary'=>true, 'href'=>admin_url('media-new.php')],
+				['label'=>'Upload', 'icon'=>'import', 'primary'=>true, 'href'=>admin_url('admin.php?page=therum-media-upload')],
 				['label'=>'Bulk rename', 'icon'=>'edit2', 'href'=>'#', 'attrs' => ['data-th-bulk-rename' => '1']],
 				['label'=>'Regenerate thumbnails', 'icon'=>'media', 'href'=>'#', 'attrs' => ['data-th-regen-all' => '1']],
 				['label'=>'Download library', 'icon'=>'export', 'href'=>wp_nonce_url( admin_url('admin-ajax.php?action=therum_media_download_zip'), 'therum_media_zip' )],
