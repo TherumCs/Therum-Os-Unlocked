@@ -1589,8 +1589,39 @@ class Therum_Themes {
 	 */
 	public static function morph_themes(): array {
 		return [
-			'theme-01' => [ 'name' => '01 · Warm Studio', 'desc' => 'Crextio — top pill-nav, warm ivory canvas, golden accent, very-rounded soft bento, one dark spotlight card.', 'group' => 'foundations', 'mode' => 'light', 'accent' => '#F2C20E', 'density' => 'comfortable', 'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft', 'glass' => false, 'bgImage' => 'none', 'palette' => 'm01', 'previewMain' => '#F4ECD4', 'previewRail' => '#1A1916' ],
+			'theme-01' => [
+				'name' => '01 · Warm Studio', 'desc' => 'Crextio — top pill-nav, warm ivory canvas, golden accent, very-rounded soft bento, one dark spotlight card.',
+				'group' => 'foundations', 'mode' => 'light', 'accent' => '#F2C20E', 'density' => 'comfortable',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'm01', 'previewMain' => '#F4ECD4', 'previewRail' => '#1A1916',
+				// Design system saved with the theme (human-readable doc + machine tokens).
+				'designSystemDoc' => 'assets/theme-m01.design-system.md',
+				'tokens' => [
+					'colors' => [
+						'accent' => '#F2C20E', 'accentHover' => '#D9A800', 'accentSoft' => 'rgba(242,194,14,.14)',
+						'dark' => '#1A1916', 'canvas' => '#F4ECD4', 'surface' => '#FFFFFF', 'surface2' => '#FBF6EA',
+						'surface3' => '#F0E8D6', 'text' => '#1C1A16', 'text2' => '#7A7466', 'text3' => '#A8A292',
+						'border' => 'rgba(40,30,10,.12)', 'border2' => 'rgba(40,30,10,.20)',
+						'success' => '#2F9E5E', 'warning' => '#E6A817', 'error' => '#E5533D', 'info' => '#4F6BED',
+					],
+					'gradient' => [ 'from' => '#F5EFE0', 'mid' => '#F4ECD4', 'to' => '#F7E7AE', 'angle' => 165 ],
+					'typography' => [
+						'display' => 'Poppins', 'body' => 'Plus Jakarta Sans', 'mono' => 'JetBrains Mono',
+						'scale' => [ 'hero' => 40, 'h1' => 30, 'cardTitle' => 18, 'stat' => 30, 'body' => 14, 'label' => 14, 'small' => 11 ],
+					],
+					'radius' => [ 'sm' => 8, 'md' => 10, 'lg' => 14, 'xl' => 16, '2xl' => 22, 'full' => 999 ],
+					'shadow' => [ 'card' => '0 10px 30px rgba(120,90,10,.08)', 'bar' => '0 4px 16px rgba(120,90,10,.07)', 'dropdown' => '0 18px 48px rgba(80,60,10,.18)' ],
+					'spacing' => [ 'xs' => 4, 'sm' => 8, 'md' => 12, 'lg' => 24, 'xl' => 32 ],
+					'layout' => [ 'navHeight' => 66, 'nav' => 'top-pill' ],
+				],
+			],
 		];
+	}
+
+	/** Return the saved design-system tokens for a theme (its "settings"), or []. */
+	public static function design_system( string $theme_id ): array {
+		$presets = self::presets();
+		return $presets[ $theme_id ]['tokens'] ?? [];
 	}
 
 	public static function groups(): array {
