@@ -1,10 +1,15 @@
 /* ============================================================================
- * THERUM OS · THEME 01 — "Warm Studio"   (new theme architecture)
- * One self-contained stylesheet, scoped to body.theme-m01, that owns the whole
- * palette + look. The legacy theme libraries (palettes/signatures/foundations/
- * desktop) are removed, so there's no dark-forcing layer to fight — no
- * !important on the palette, just an `html` prefix to win over the base shell
- * defaults regardless of load order.
+ * THERUM OS · THEME 01 — "Warm Studio"  (full morph, new architecture)
+ * Scoped to body.theme-m01. Transforms the ENTIRE admin to the designed look:
+ * the sidebar relocates to a top pill-nav, warm ivory gradient canvas, golden
+ * accent, very-rounded cream cards, Poppins/Jakarta type. Sections become
+ * hover dropdowns so the whole menu stays reachable.
+ *
+ * Base chrome model (from therum-shell.css), which this overrides:
+ *   --sidebar-w:256px
+ *   #th-sb   { position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w); flex-direction:column }
+ *   #th-main { margin-left:var(--sidebar-w) }    (+ !important variants for icons/collapsed)
+ *   #th-topbar { left:var(--sidebar-w) }
  * ========================================================================== */
 
 /* Self-hosted fonts (latin) — no third-party requests. */
@@ -15,30 +20,91 @@
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/jakarta-600.woff2) format('woff2')}
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/jakarta-700.woff2) format('woff2')}
 
-/* ── PALETTE (owns the whole chrome) ─────────────────────────────────────────*/
+/* ── PALETTE ─────────────────────────────────────────────────────────────────*/
 html body.theme-m01{
   --bg:#F4ECD4; --bg-color:#F4ECD4; --sf:#FFFFFF; --sf2:#FBF6EA; --sf3:#F0E8D6;
   --tx:#1C1A16; --tx2:#7A7466; --tx3:#A8A292;
   --bd:rgba(40,30,10,.12); --bd2:rgba(40,30,10,.20);
   --ac:#F2C20E; --ac-h:#D9A800; --ac-s:rgba(242,194,14,.14);
   --ink:#1C1A16; --dark:#1A1916;
-  /* customizable gradient (Quick Controls → Canvas gradient) */
   --m01-g1:#F5EFE0; --m01-g2:#F4ECD4; --m01-g3:#F7E7AE; --m01-g-angle:165deg;
+  --m01-navh:66px;
   --m01-font:'Plus Jakarta Sans', ui-sans-serif, -apple-system, system-ui, sans-serif;
   --m01-display:'Poppins', var(--m01-font);
-  font-family:var(--m01-font);
-  color:var(--tx);
+  font-family:var(--m01-font); color:var(--tx);
 }
 
-/* ── CANVAS — warm gradient on #wpwrap (base paints #wpwrap with !important, so
- *    the theme's own canvas must too). Inner wrappers go transparent. ───────── */
+/* ── CANVAS ──────────────────────────────────────────────────────────────────*/
 html body.theme-m01 #wpwrap{
   background:linear-gradient(var(--m01-g-angle), var(--m01-g1) 0%, var(--m01-g2) 46%, var(--m01-g3) 100%) !important;
 }
 html body.theme-m01 #th-shell,
 html body.theme-m01 #th-main,
 html body.theme-m01 #th-content,
-html body.theme-m01 .th-cx{background:transparent}
+html body.theme-m01 .th-cx{background:transparent !important}
+
+/* ── STRUCTURAL MORPH: sidebar → fixed TOP pill-nav ──────────────────────────*/
+html body.theme-m01 #th-sb{
+  position:fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:auto !important;
+  width:auto !important; height:var(--m01-navh) !important;
+  flex-direction:row !important; align-items:center; gap:14px;
+  padding:0 24px !important;
+  border-right:none !important; border-bottom:1px solid var(--bd) !important;
+  background:rgba(255,255,255,.72) !important;
+  -webkit-backdrop-filter:blur(20px) saturate(1.4); backdrop-filter:blur(20px) saturate(1.4);
+  overflow:visible !important; z-index:300 !important;
+}
+/* content clears the top bar; kill the sidebar-width left margin/offset */
+html body.theme-m01 #th-main{margin-left:0 !important; margin-top:var(--m01-navh) !important}
+html body.theme-m01 #th-topbar{left:0 !important; width:100% !important}
+
+/* brand (logo) — left */
+html body.theme-m01 .th-sb-header{flex:0 0 auto; height:auto !important; padding:0 !important; border-bottom:none !important}
+html body.theme-m01 .th-logo{background:var(--ac); color:#1A1916; width:34px; height:34px; border-radius:10px}
+html body.theme-m01 .th-site-info{display:none}
+
+/* search — compact, inline */
+html body.theme-m01 .th-sb-search{flex:0 0 auto; width:200px; padding:0 !important; border:none !important; margin:0 !important}
+html body.theme-m01 .th-sb-search-box{background:#fff; border:1px solid var(--bd); border-radius:10px; padding:7px 10px}
+
+/* nav — centered horizontal pill cluster */
+html body.theme-m01 .th-sb-nav{flex:1 1 auto; flex-direction:row !important; justify-content:center; align-items:center; gap:2px; padding:0 !important; overflow:visible !important}
+html body.theme-m01 .th-sb-nav>.th-sb-item,
+html body.theme-m01 .th-sb-section>.th-sb-section-label{color:var(--tx2); padding:9px 14px; border-radius:10px; white-space:nowrap; cursor:pointer; display:flex; align-items:center; gap:6px}
+html body.theme-m01 .th-sb-nav>.th-sb-item>svg,
+html body.theme-m01 .th-sb-section-label svg{width:14px;height:14px}
+html body.theme-m01 .th-sb-nav>.th-sb-item:hover,
+html body.theme-m01 .th-sb-section-label:hover{color:var(--tx); background:var(--sf2)}
+html body.theme-m01 .th-sb-nav>.th-sb-item.active{background:var(--dark); color:#fff}
+html body.theme-m01 .th-sb-nav>.th-sb-item.active svg{color:var(--ac)}
+/* edit-mode chrome doesn't belong in the bar */
+html body.theme-m01 .th-sb-section-rename,
+html body.theme-m01 .th-sb-section-x,
+html body.theme-m01 .th-sb-grip,
+html body.theme-m01 .th-sb-reset,
+html body.theme-m01 .th-sb-done,
+html body.theme-m01 .th-sb-section-add{display:none !important}
+
+/* sections → dropdown flyouts (full menu stays reachable) */
+html body.theme-m01 .th-sb-section{position:relative; display:flex; align-items:center}
+html body.theme-m01 .th-sb-section-items{
+  position:absolute !important; top:calc(100% + 6px) !important; left:0 !important;
+  min-width:220px; background:#fff; border:1px solid var(--bd); border-radius:14px;
+  padding:8px !important; box-shadow:0 18px 48px rgba(80,60,10,.18);
+  opacity:0; visibility:hidden; transform:translateY(-4px); transition:opacity .14s ease,transform .14s ease,visibility .14s;
+  z-index:320; flex-direction:column; gap:2px;
+}
+html body.theme-m01 .th-sb-section:hover>.th-sb-section-items,
+html body.theme-m01 .th-sb-section:focus-within>.th-sb-section-items{opacity:1; visibility:visible; transform:none}
+html body.theme-m01 .th-sb-section-items .th-sb-item{color:var(--tx2); width:100%; padding:8px 12px; border-radius:8px; display:flex; align-items:center; gap:10px}
+html body.theme-m01 .th-sb-section-items .th-sb-item:hover{background:var(--sf2); color:var(--tx)}
+html body.theme-m01 .th-sb-section-items .th-sb-item.active{background:var(--dark); color:#fff}
+html body.theme-m01 .th-sb-children{padding-left:14px}
+html body.theme-m01 .th-sb-child{color:var(--tx2); border-radius:8px; padding:6px 12px; display:block}
+html body.theme-m01 .th-sb-child:hover{background:var(--sf2); color:var(--tx)}
+
+/* footer — right cluster */
+html body.theme-m01 .th-sb-footer{margin-top:0 !important; flex:0 0 auto; padding:0 !important; border-top:none !important; gap:8px}
 
 /* ── FONTS ──────────────────────────────────────────────────────────────────*/
 body.theme-m01 #th-sb,body.theme-m01 #th-top,body.theme-m01 #th-content,
@@ -46,26 +112,19 @@ body.theme-m01 .th-sb-item,body.theme-m01 .th-cx-sub,body.theme-m01 .th-lp-sub,
 body.theme-m01 .th-studio-card-desc{font-family:var(--m01-font)}
 body.theme-m01 .th-cx-title,body.theme-m01 .th-lp-title,body.theme-m01 .th-cx-page-title,
 body.theme-m01 .th-logo,body.theme-m01 .th-studio-card-name,body.theme-m01 .th-card h3,
-body.theme-m01 .th-stat-val,body.theme-m01 .th-sb-site-name{font-family:var(--m01-display);letter-spacing:-.01em}
+body.theme-m01 .th-stat-val{font-family:var(--m01-display); letter-spacing:-.01em}
 
-/* ── SIDEBAR (in place) — warm surface, rounded items, dark active pill ──────── */
-body.theme-m01 #th-sb{background:rgba(255,255,255,.5)}
-body.theme-m01 .th-sb-item,body.theme-m01 .th-sb-child{border-radius:10px}
-body.theme-m01 .th-sb-item.active{background:var(--dark);color:#fff}
-body.theme-m01 .th-sb-item.active svg{color:var(--ac)}
-body.theme-m01 .th-logo{background:var(--ac);color:#1A1916}
+/* ── TOPBAR (page header inside #th-main) ────────────────────────────────────*/
+body.theme-m01 #th-top{background:transparent; border-bottom:1px solid var(--bd)}
 
-/* ── TOPBAR ──────────────────────────────────────────────────────────────────*/
-body.theme-m01 #th-top{background:transparent;border-bottom:1px solid var(--bd)}
-
-/* ── CARDS — very rounded, soft, cream ───────────────────────────────────────*/
+/* ── CARDS ───────────────────────────────────────────────────────────────────*/
 body.theme-m01 .th-card,
-body.theme-m01 .th-studio-card{background:#fff;border:none;border-radius:22px;box-shadow:0 10px 30px rgba(120,90,10,.08)}
-body.theme-m01 .th-studio-card-hero{margin:8px 8px 0;border-radius:16px}
+body.theme-m01 .th-studio-card{background:#fff; border:none; border-radius:22px; box-shadow:0 10px 30px rgba(120,90,10,.08)}
+body.theme-m01 .th-studio-card-hero{margin:8px 8px 0; border-radius:16px}
 body.theme-m01 .th-studio-card-foot{border-top:1px solid var(--sf3)}
 
-/* ── BUTTONS / ACCENT ────────────────────────────────────────────────────────*/
+/* ── BUTTONS / HEADINGS ──────────────────────────────────────────────────────*/
 body.theme-m01 .th-btn-primary,
-body.theme-m01 .th-cx-btn.is-primary{background:var(--ac);color:#1A1916;border:none}
+body.theme-m01 .th-cx-btn.is-primary{background:var(--ac); color:#1A1916; border:none}
 body.theme-m01 .th-cx-title,
 body.theme-m01 .th-lp-title{font-weight:600}
