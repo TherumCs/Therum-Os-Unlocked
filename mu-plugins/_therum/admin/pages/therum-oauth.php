@@ -103,8 +103,8 @@ class Therum_OAuth {
 
 		$base_back = admin_url( 'admin.php?page=therum-connections' );
 
-		if ( $err ) wp_safe_redirect( add_query_arg( 'oauth_err', rawurlencode( $err ), $base_back ) );
-		if ( ! $state_id || ! $code ) wp_safe_redirect( add_query_arg( 'oauth_err', 'missing-params', $base_back ) );
+		if ( $err ) { wp_safe_redirect( add_query_arg( 'oauth_err', rawurlencode( $err ), $base_back ) ); exit; }
+		if ( ! $state_id || ! $code ) { wp_safe_redirect( add_query_arg( 'oauth_err', 'missing-params', $base_back ) ); exit; }
 
 		$state = get_transient( 'therum_oauth_' . $state_id );
 		if ( ! $state || empty( $state['provider'] ) ) { wp_safe_redirect( add_query_arg( 'oauth_err', 'state-expired', $base_back ) ); exit; }

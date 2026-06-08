@@ -2012,16 +2012,16 @@ function therum_ask_gpt( string $prompt, array $args = [] ) {
 
 add_action('admin_menu', function() {
 	// Hidden submenu pages (parent = null) — they get a URL but no menu placement.
-	add_submenu_page('', 'Pages',         'Pages',         'edit_pages',     'therum-pages',         ['Therum_Pages_Page',         'render']);
-	add_submenu_page('', 'Posts',         'Posts',         'edit_posts',     'therum-posts',         ['Therum_Posts_Page',         'render']);
-	add_submenu_page('', 'Case Studies',  'Case Studies',  'edit_posts',     'therum-case-studies',  ['Therum_Case_Studies_Page',  'render']);
-	add_submenu_page('', 'Media',         'Media',         'upload_files',   'therum-media',         ['Therum_Media_Page',         'render']);
-	add_submenu_page('', 'Users',         'Users',         'list_users',     'therum-users',         ['Therum_Users_Page',         'render']);
-	add_submenu_page('', 'Plugins',       'Plugins',       'activate_plugins','therum-plugins',      ['Therum_Plugins_Page',       'render']);
-	add_submenu_page('', 'Plugin',        'Plugin',        'activate_plugins','therum-plugin-detail',['Therum_Plugin_Detail_Page', 'render']);
-	add_submenu_page('', 'Updates',       'Updates',       'manage_options',  'therum-updates',      ['Therum_Updates_Page',       'render']);
-	add_submenu_page('', 'Connections',   'Connections',   'manage_options',  'therum-connections',  ['Therum_Connections_Page',   'render']);
-	add_submenu_page('', 'Studio',        'Studio',        'manage_options',  'therum-studio',       ['Therum_Studio_Page',         'render']);
+	add_submenu_page(null, 'Pages',         'Pages',         'edit_pages',     'therum-pages',         ['Therum_Pages_Page',         'render']);
+	add_submenu_page(null, 'Posts',         'Posts',         'edit_posts',     'therum-posts',         ['Therum_Posts_Page',         'render']);
+	add_submenu_page(null, 'Case Studies',  'Case Studies',  'edit_posts',     'therum-case-studies',  ['Therum_Case_Studies_Page',  'render']);
+	add_submenu_page(null, 'Media',         'Media',         'upload_files',   'therum-media',         ['Therum_Media_Page',         'render']);
+	add_submenu_page(null, 'Users',         'Users',         'list_users',     'therum-users',         ['Therum_Users_Page',         'render']);
+	add_submenu_page(null, 'Plugins',       'Plugins',       'activate_plugins','therum-plugins',      ['Therum_Plugins_Page',       'render']);
+	add_submenu_page(null, 'Plugin',        'Plugin',        'activate_plugins','therum-plugin-detail',['Therum_Plugin_Detail_Page', 'render']);
+	add_submenu_page(null, 'Updates',       'Updates',       'manage_options',  'therum-updates',      ['Therum_Updates_Page',       'render']);
+	add_submenu_page(null, 'Connections',   'Connections',   'manage_options',  'therum-connections',  ['Therum_Connections_Page',   'render']);
+	add_submenu_page(null, 'Studio',        'Studio',        'manage_options',  'therum-studio',       ['Therum_Studio_Page',         'render']);
 });
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -4906,7 +4906,7 @@ add_action( 'admin_post_therum_exit_desktop', function() {
 
 // Register the page itself + repoint sidebar Settings nav at it.
 add_action('admin_menu', function() {
-	add_submenu_page('', 'Therum Settings', 'Therum Settings', 'manage_options', 'therum-settings', ['Therum_Settings', 'render_page']);
+	add_submenu_page(null, 'Therum Settings', 'Therum Settings', 'manage_options', 'therum-settings', ['Therum_Settings', 'render_page']);
 }, 20);
 
 add_filter('therum_admin_nav_items', function(array $items): array {

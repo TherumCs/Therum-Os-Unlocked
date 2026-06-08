@@ -304,9 +304,9 @@ class Therum_Woo_Bridge {
 // Register hidden admin pages.
 add_action('admin_menu', function() {
 	if (!Therum_Woo_Bridge::woo_active()) return;
-	add_submenu_page('', 'Products',  'Products',  'edit_products', 'therum-products',  ['Therum_Woo_Bridge', 'render_products']);
-	add_submenu_page('', 'Orders',    'Orders',    'edit_shop_orders', 'therum-orders',  ['Therum_Woo_Bridge', 'render_orders']);
-	add_submenu_page('', 'Customers', 'Customers', 'list_users',    'therum-customers', ['Therum_Woo_Bridge', 'render_customers']);
+	add_submenu_page(null, 'Products',  'Products',  'edit_products', 'therum-products',  ['Therum_Woo_Bridge', 'render_products']);
+	add_submenu_page(null, 'Orders',    'Orders',    'edit_shop_orders', 'therum-orders',  ['Therum_Woo_Bridge', 'render_orders']);
+	add_submenu_page(null, 'Customers', 'Customers', 'list_users',    'therum-customers', ['Therum_Woo_Bridge', 'render_customers']);
 }, 30);
 
 // Repoint the existing Store nav items at our Therum versions.

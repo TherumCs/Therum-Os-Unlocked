@@ -261,7 +261,7 @@ final class Therum_Editor {
 		.thed-surface p:last-child { margin-bottom:0 }
 		.thed-surface ul,.thed-surface ol { margin:0 0 12px; padding-left:22px }
 		.thed-surface a { color:#2C69F6; text-decoration:underline }
-		.thed-surface img { max-width:100%; height:auto; border-radius:8px; display:block; margin:8px 0 }
+		.thed-surface img { max-width:100%; max-height:60vh; height:auto; border-radius:8px; display:block; margin:8px 0 }
 
 		/* Modal variant — wrapper + close button */
 		.thed-modal-overlay { position:fixed; inset:0; background:rgba(15,17,21,.36); backdrop-filter:blur(2px);
@@ -295,6 +295,33 @@ final class Therum_Editor {
 			function clamp(s){ return String(s||'').slice(0, 9); }
 			function isValidHex(s){ return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s); }
 
+			// URL allow-list for the link/image inserts. Refuses javascript:,
+			// data:, vbscript:, and protocol-relative (//evil/) URLs — only
+			// http(s), mailto, tel, and single-leading-slash relatives pass.
+			function isSafeUrl(u){
+				u = String(u||'').trim();
+				if (!u) return false;
+				if (u.indexOf('//') === 0) return false;                  // protocol-relative
+				if (/^(javascript|data|vbscript|file):/i.test(u)) return false;
+				if (/^(https?|mailto|tel):/i.test(u)) return true;
+				return u[0] === '/' || u[0] === '#';                      // relative / fragment
+			}
+			function isSafeImageUrl(u){
+				u = String(u||'').trim();
+				if (!u) return false;
+				if (u.indexOf('//') === 0) return false;
+				if (/^(javascript|data|vbscript|file):/i.test(u)) return false;
+				if (/^https?:/i.test(u)) return true;
+				return u[0] === '/';                                       // relative only
+			}
+			function normalizeUrl(u){
+				u = String(u||'').trim();
+				if (!u) return '';
+				if (/^(https?|mailto|tel):/i.test(u)) return u;
+				if (u[0] === '/' || u[0] === '#') return u;
+				return 'https://' + u;
+			}
+
 			function sanitizePastedHtml(html){
 				// Strip script/style and event handlers from pasted content.
 				var d = document.createElement('div'); d.innerHTML = html;
@@ -304,8 +331,14 @@ final class Therum_Editor {
 					for (var i = el.attributes.length - 1; i >= 0; i--) {
 						var a = el.attributes[i];
 						if (/^on/i.test(a.name)) el.removeAttribute(a.name);
-						if (a.name === 'href' && /^javascript:/i.test(a.value)) el.removeAttribute(a.name);
-						if (a.name === 'src'  && /^javascript:/i.test(a.value)) el.removeAttribute(a.name);
+						if ((a.name === 'href' || a.name === 'src') && !isSafeUrl(a.value)) el.removeAttribute(a.name);
+						// Drop layout-hostile styles. Inline style values that
+						// position-fix or full-viewport-cover let pasted content
+						// hijack the admin chrome — strip the whole attr rather
+						// than try to whitelist properties.
+						if (a.name === 'style' && /position\s*:\s*(fixed|sticky|absolute)|z-index\s*:\s*\d{4,}|inset\s*:|top\s*:\s*0|left\s*:\s*0/i.test(a.value)) {
+							el.removeAttribute(a.name);
+						}
 					}
 				});
 				return d.innerHTML;
@@ -502,8 +535,9 @@ final class Therum_Editor {
 					if (url === null) return;
 					url = url.trim();
 					if (!url) { document.execCommand('unlink', false, null); }
+					else if (!isSafeUrl(url)) { window.alert('Refused: only http(s), mailto, and relative URLs are allowed.'); }
 					else {
-						if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url) && url[0] !== '/') url = 'https://' + url;
+						url = normalizeUrl(url);
 						document.execCommand('createLink', false, url);
 						// Reinforce target=_blank on the newly created link.
 						surface.querySelectorAll('a[href]').forEach(function(a){
@@ -528,6 +562,8 @@ final class Therum_Editor {
 						if (!url) return;
 						url = url.trim();
 						if (!url) return;
+						if (!isSafeImageUrl(url)) { window.alert('Refused: image URL must be http(s) or a relative path.'); return; }
+						url = normalizeUrl(url);
 						document.execCommand('insertImage', false, url);
 						sync();
 					});

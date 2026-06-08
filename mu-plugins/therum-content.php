@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // SHARED HELPER — word count that works for Bricks pages
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! function_exists( 'th_post_word_count' ) ) {
+if ( ! function_exists( 'therum_post_word_count' ) ) {
 	/**
 	 * Return word count for a post.
 	 *
@@ -27,7 +27,7 @@ if ( ! function_exists( 'th_post_word_count' ) ) {
 	 * @param  WP_Post|int $post
 	 * @return int
 	 */
-	function th_post_word_count( $post ): int {
+	function therum_post_word_count( $post ): int {
 		$post = is_object( $post ) ? $post : get_post( $post );
 		if ( ! $post ) return 0;
 
@@ -65,7 +65,6 @@ if ( ! function_exists( 'th_post_word_count' ) ) {
 // DUPLICATE POST — from therum-duplicate.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Therum_Duplicate {
 
@@ -239,7 +238,6 @@ Therum_Duplicate::init();
 // VIEW LINKS (Preview + View Live) — from therum-view-links.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Therum_View_Links {
 
@@ -400,7 +398,6 @@ Therum_View_Links::init();
 // CASE STUDY CPT — from therum-case-study-cpt.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 add_action( 'init', function () {
 
@@ -486,7 +483,6 @@ add_action( 'init', function () {
 // CARDS ADMIN (card grid for edit.php screens) — from therum-cards-admin.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Therum_Cards_Admin {
 
@@ -884,7 +880,7 @@ class Therum_Cards_Admin {
 						'therum_duplicate_nonce'
 					);
 					$trash_url = get_delete_post_link( $post->ID );
-					$word_count = th_post_word_count( $post );
+					$word_count = therum_post_word_count( $post );
 					$timeago    = human_time_diff( get_post_modified_time( 'U', false, $post ), current_time( 'U' ) );
 				?>
 					<div class="therum-card" data-hue="<?php echo esc_attr( $hue ); ?>" data-id="<?php echo esc_attr( $post->ID ); ?>">
@@ -977,7 +973,6 @@ Therum_Cards_Admin::init();
 // EDITOR SKIN (post.php chrome) — from therum-editor.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PAGES → BRICKS AUTO-REDIRECT
@@ -1131,7 +1126,7 @@ add_action( 'add_meta_boxes', function( $post_type, $post ) {
 }, 100, 2 );
 
 // AJAX save — title + content for the current post, no page reload.
-add_action( 'wp_ajax_th_save_post', function() {
+add_action( 'wp_ajax_therum_save_post', function() {
 	check_ajax_referer( 'therum_save_post', 'nonce' );
 	$post_id = isset( $_POST['post_id'] ) ? (int) $_POST['post_id'] : 0;
 	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {

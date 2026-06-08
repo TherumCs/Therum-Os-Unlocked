@@ -559,7 +559,6 @@ add_action( 'wp_ajax_therum_notify_test', function() {
 // LSCACHE TUNE (one-shot LiteSpeed Cache config) — from therum-lscache-tune.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 add_action( 'plugins_loaded', function() {
 	// Only act when LSCache is actually loaded

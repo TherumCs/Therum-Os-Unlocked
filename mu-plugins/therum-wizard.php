@@ -1065,10 +1065,10 @@ if (state.edition) {
 		$progress['last_step'] = $step + 1;
 
 		if ( ! empty( $_POST['edition'] ) ) {
-			$progress['edition'] = sanitize_text_field( $_POST['edition'] );
+			$progress['edition'] = sanitize_text_field( wp_unslash( $_POST['edition'] ) );
 		}
 		if ( ! empty( $_POST['stack'] ) ) {
-			$progress['stack'] = sanitize_text_field( $_POST['stack'] );
+			$progress['stack'] = sanitize_text_field( wp_unslash( $_POST['stack'] ) );
 		}
 		if ( isset( $_POST['skipped'] ) && $_POST['skipped'] ) {
 			$progress['skipped'][] = $step;
@@ -1095,8 +1095,8 @@ if (state.edition) {
 		check_ajax_referer( 'therum_wizard', 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( null, 403 );
 
-		$ip     = sanitize_text_field( $_POST['ip'] ?? '' );
-		$domain = sanitize_text_field( $_POST['domain'] ?? '' );
+		$ip     = sanitize_text_field( wp_unslash( $_POST['ip'] ?? '' ) );
+		$domain = sanitize_text_field( wp_unslash( $_POST['domain'] ?? '' ) );
 
 		if ( empty( $ip ) ) {
 			wp_send_json_error( [ 'message' => 'No IP address provided.' ] );
@@ -1131,17 +1131,29 @@ if (state.edition) {
 		check_ajax_referer( 'therum_wizard', 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( null, 403 );
 
-		$db_name = preg_replace( '/[^a-zA-Z0-9_]/', '', $_POST['db_name'] ?? '' );
-		$db_user = preg_replace( '/[^a-zA-Z0-9_]/', '', $_POST['db_user'] ?? '' );
-		$db_pass = sanitize_text_field( $_POST['db_pass'] ?? '' );
+		$db_name = preg_replace( '/[^a-zA-Z0-9_]/', '', wp_unslash( (string) ( $_POST['db_name'] ?? '' ) ) );
+		$db_user = preg_replace( '/[^a-zA-Z0-9_]/', '', wp_unslash( (string) ( $_POST['db_user'] ?? '' ) ) );
+		$db_pass = wp_unslash( (string) ( $_POST['db_pass'] ?? '' ) );
 
 		if ( ! $db_name || ! $db_user || ! $db_pass ) {
 			wp_send_json_error( [ 'message' => 'All database fields are required.' ] );
 		}
 
-		// Real implementation: call server daemon to run CREATE DATABASE + GRANT.
-		// Daemon executes: mysql -e "CREATE DATABASE {db_name}; CREATE USER ..."
-		// Stub response for now — daemon integration in therum-server.php.
+		// Honest failure rather than fake-success — this step needs the
+		// server daemon (therum-server.php) and that surface isn't shipped
+		// yet. Bypass by checking the `therum_wizard_db_skipped` option +
+		// the documented "manual DB setup" path.
+		if ( ! function_exists( 'therum_server_create_database' ) ) {
+			wp_send_json_error( [
+				'message' => 'Automated DB provisioning requires the Therum server daemon, which isn\'t installed on this host. Create the database + user manually and click "Skip" to continue.',
+				'manual'  => true,
+			] );
+		}
+
+		$res = therum_server_create_database( $db_name, $db_user, $db_pass );
+		if ( is_wp_error( $res ) ) {
+			wp_send_json_error( [ 'message' => $res->get_error_message() ] );
+		}
 		wp_send_json_success( [
 			'message' => "Database '{$db_name}' created with user '{$db_user}'. Update wp-config.php with these credentials.",
 		] );
@@ -1185,18 +1197,24 @@ if (state.edition) {
 		check_ajax_referer( 'therum_wizard', 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( null, 403 );
 
-		// Real implementation: rsync mu-plugins to VPS via server daemon.
-		// Stub: return list of plugins as if deployed.
-		$plugins = [
-			'therum-core.php',    'therum-auth.php',    'therum-updates.php',
-			'therum-admin.php',   'therum-design.php',  'therum-content.php',
-			'therum-perf.php',    'therum-woo.php',     'therum-api.php',
-			'therum-media.php',
-		];
+		// Same as ajax_create_db — this step is a remote-deploy operation
+		// that requires the Therum server daemon. Fail honestly when the
+		// daemon entrypoint isn't loaded; previously this returned a fake
+		// success response that misled operators about real deploy state.
+		if ( ! function_exists( 'therum_server_deploy_mu_plugins' ) ) {
+			wp_send_json_error( [
+				'message' => 'Remote deploy needs the Therum server daemon, which isn\'t installed on this host. The mu-plugins are already present on the current install — click "Skip" to continue.',
+				'manual'  => true,
+			] );
+		}
 
+		$res = therum_server_deploy_mu_plugins();
+		if ( is_wp_error( $res ) ) {
+			wp_send_json_error( [ 'message' => $res->get_error_message() ] );
+		}
 		wp_send_json_success( [
-			'log'     => $plugins,
-			'message' => count( $plugins ) . ' mu-plugins deployed. OPcache flushed.',
+			'log'     => is_array( $res ) ? $res : [],
+			'message' => ( is_array( $res ) ? count( $res ) : 0 ) . ' mu-plugins deployed. OPcache flushed.',
 		] );
 	}
 }

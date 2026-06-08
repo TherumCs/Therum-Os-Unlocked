@@ -35,14 +35,9 @@ add_action( 'admin_menu', function() {
 	);
 }, 30 );
 
-// Rewrite the Therum Media Library's "Upload" action button to point here.
-add_filter( 'therum_admin_nav_items', function( $items ) { return $items; }, 10, 1 );
-
-add_action( 'admin_init', function() {
-	// Replace the default WP `media-new.php` link in the legacy admin menu so
-	// any code path hitting "Add New" lands in the Therum uploader instead.
-	// Filter `media_upload_form_url` covers most internal callers.
-} );
+// The Therum Media Library's "Upload" action button is rewritten via the
+// concrete therum-media-page.php edit — the leftover therum_admin_nav_items
+// pass-through filter that lived here was a no-op and has been removed.
 add_filter( 'media_upload_form_url', function( $url ) {
 	return admin_url( 'admin.php?page=therum-media-upload' );
 }, 10, 1 );
@@ -146,7 +141,7 @@ final class Therum_Media_Upload {
 								<?php if ( class_exists( 'Therum_Editor' ) ): ?>
 									<?php Therum_Editor::field( 'description', '', [
 										'placeholder' => 'Optional — describe this file in your own words.',
-										'min_height'  => 120,
+										'min_height'  => 160,
 										'features'    => [ 'b', 'i', 'u', 'color', 'list', 'link' ],
 									] ); ?>
 								<?php else: ?>
@@ -206,7 +201,10 @@ final class Therum_Media_Upload {
 		?>
 		<style>
 		/* Therum Media Uploader — scoped to .tmu */
-		body.toplevel_page_therum-media-upload #wpcontent,
+		/* The page is registered with parent=null so WP generates
+		   `admin_page_therum-media-upload`, not toplevel_*. The selector matches
+		   any class containing `page_therum-media-upload` so both legacy and
+		   current WP body classes work. */
 		body[class*="page_therum-media-upload"] #wpcontent { padding:0 !important; background:transparent }
 		body[class*="page_therum-media-upload"] #wpbody-content > .wrap { padding:0 !important; margin:0 !important; max-width:none !important }
 
@@ -585,11 +583,13 @@ final class Therum_Media_Upload {
 					});
 			}
 
-			// Nav
-			finishBtn.addEventListener('click', function(){
+			// Nav — every handler null-guards because the render layer may emit
+			// a subset of steps depending on context (e.g. an embedded uploader).
+			if (finishBtn) finishBtn.addEventListener('click', function(){
 				// Flush any pending save first
 				if (saveTimer) { clearTimeout(saveTimer); saveMeta(); }
 				var done = queue.filter(function(q){ return q.status === 'done'; });
+				var errored = queue.filter(function(q){ return q.status === 'error'; });
 				if (queueDone) {
 					queueDone.innerHTML = '';
 					done.forEach(function(q){
@@ -597,17 +597,31 @@ final class Therum_Media_Upload {
 						div.className = 'tmu-item is-done';
 						var thumbStyle = q.thumb ? 'background-image:url('+ q.thumb +');' : '';
 						div.innerHTML =
-							'<div class="tmu-item-thumb" style="'+ thumbStyle +'">'+ (q.thumb ? '' : (q.kind || 'FILE')) +'</div>' +
+							'<div class="tmu-item-thumb" style="'+ thumbStyle +'">'+ (q.thumb ? '' : escapeHtml(q.kind || 'FILE')) +'</div>' +
 							'<div class="tmu-item-body"><div class="tmu-item-name">'+ escapeHtml(q.meta.title || q.name) +'</div>' +
 							'<div class="tmu-item-meta">'+ bytesHuman(q.size) +' · Uploaded</div></div>' +
 							'<div class="tmu-item-state">✓</div>';
 						queueDone.appendChild(div);
 					});
+					errored.forEach(function(q){
+						var div = document.createElement('div');
+						div.className = 'tmu-item is-error';
+						div.innerHTML =
+							'<div class="tmu-item-thumb">'+ escapeHtml(q.kind || 'FILE') +'</div>' +
+							'<div class="tmu-item-body"><div class="tmu-item-name">'+ escapeHtml(q.name) +'</div>' +
+							'<div class="tmu-item-meta">'+ escapeHtml(q.error || 'Failed') +'</div></div>' +
+							'<div class="tmu-item-state">!</div>';
+						queueDone.appendChild(div);
+					});
 				}
-				doneSum.textContent = done.length + (done.length === 1 ? ' file saved.' : ' files saved.');
+				if (doneSum) {
+					var msg = done.length + (done.length === 1 ? ' file saved.' : ' files saved.');
+					if (errored.length) msg += ' ' + errored.length + ' failed.';
+					doneSum.textContent = msg;
+				}
 				showStep('done');
 			});
-			backBtn.addEventListener('click', function(){
+			if (backBtn) backBtn.addEventListener('click', function(){
 				if (queue.length) { showStep(2); } else { showStep(1); }
 			});
 			if (restartBtn) restartBtn.addEventListener('click', function(){
@@ -680,10 +694,31 @@ final class Therum_Media_Upload {
 		if ( ! $id ) wp_send_json_error( [ 'message' => 'Missing id.' ] );
 		if ( ! current_user_can( 'edit_post', $id ) ) wp_send_json_error( [ 'message' => 'Cannot edit this attachment.' ], 403 );
 
-		$title       = isset( $_POST['title'] )       ? sanitize_text_field( wp_unslash( $_POST['title'] ) )       : '';
-		$alt         = isset( $_POST['alt'] )         ? sanitize_text_field( wp_unslash( $_POST['alt'] ) )         : '';
-		$caption     = isset( $_POST['caption'] )     ? wp_kses_post( wp_unslash( $_POST['caption'] ) )             : '';
-		$description = isset( $_POST['description'] ) ? wp_kses_post( wp_unslash( $_POST['description'] ) )         : '';
+		// Captions are short single-line copy → no markup. Description is a
+		// rich-text surface (Therum_Editor) → allow a tight kses allow-list
+		// rather than the wp_kses_post default (which permits `<a>` with
+		// `javascript:` hrefs in older WP versions). Title + alt strip every
+		// tag.
+		$rt_allowed = [
+			'a'      => [ 'href' => true, 'title' => true, 'target' => true, 'rel' => true ],
+			'br'     => [], 'p' => [],
+			'strong' => [], 'b' => [], 'em' => [], 'i' => [], 'u' => [],
+			'ul'     => [], 'ol' => [], 'li' => [],
+			'span'   => [ 'style' => true ],
+		];
+		$rt_protocols = [ 'http', 'https', 'mailto', 'tel' ];
+
+		$title       = isset( $_POST['title'] )   ? sanitize_text_field( wp_unslash( $_POST['title'] ) )       : '';
+		$alt         = isset( $_POST['alt'] )     ? sanitize_text_field( wp_unslash( $_POST['alt'] ) )         : '';
+		$caption     = isset( $_POST['caption'] ) ? sanitize_textarea_field( wp_unslash( $_POST['caption'] ) ) : '';
+		$description = isset( $_POST['description'] )
+			? wp_kses( wp_unslash( $_POST['description'] ), $rt_allowed, $rt_protocols )
+			: '';
+
+		// WP truncates post_title silently at the schema's varchar limit (255
+		// chars). Refuse oversize titles up-front so the user gets feedback
+		// instead of a silent crop.
+		if ( strlen( $title ) > 200 ) wp_send_json_error( [ 'message' => 'Title too long (max 200 characters).' ] );
 
 		$update = [ 'ID' => $id ];
 		if ( $title !== '' )   $update['post_title']   = $title;

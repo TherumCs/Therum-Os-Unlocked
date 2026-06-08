@@ -24,7 +24,6 @@ Therum_Design_Pages::instance();
 // NATIVE DESIGN (menus + widgets replacement) — from therum-native-design.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ─────────────────────────────────────────────────────────────────────
 // HIJACK WP URLS — redirect nav-menus.php and widgets.php to Therum
@@ -760,7 +759,6 @@ add_action( 'wp_ajax_therum_widget_remove', function() {
 // MOTION ENGINE (Lenis, view transitions, stagger) — from therum-motion.php
 // ════════════════════════════════════════════════════════════════════════
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 
 // ─── Disable check ───────────────────────────────────────────────────────────
@@ -1099,7 +1097,6 @@ add_action( 'admin_enqueue_scripts', function() {
 // ════════════════════════════════════════════════════════════════════════════
 
 
-if ( ! defined( 'ABSPATH' ) ) exit;
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  REGISTRY

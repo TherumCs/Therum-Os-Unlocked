@@ -463,6 +463,11 @@ class Therum_Connections_Page {
 					'xi-api-key' => $cred['key'],
 				], 'ElevenLabs', null );
 				break;
+			default:
+				// is_testable() above only allows known ids through, but a
+				// new entry on TESTABLE without a matching switch case must
+				// not hang the test button — fail loud so the gap is caught.
+				wp_send_json_error( [ 'message' => 'No test implementation for "' . $id . '".' ] );
 		}
 	}
 

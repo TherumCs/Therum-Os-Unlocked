@@ -792,7 +792,9 @@ add_action( 'wp_ajax_therum_check_links', function() {
 			if ( str_starts_with( $url, '#' ) || str_starts_with( $url, 'mailto:' ) || str_starts_with( $url, 'tel:' ) ) continue;
 			if ( $checked >= 50 ) break 2; // Cap per request
 
-			$response = wp_remote_head( $url, [ 'timeout' => 5, 'redirection' => 3, 'sslverify' => false ] );
+			// Verify TLS — a checker that pretends every broken cert is fine
+			// lies about the link's reachability and can hide MITM rewrites.
+			$response = wp_remote_head( $url, [ 'timeout' => 5, 'redirection' => 3 ] );
 			$checked++;
 			$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 			if ( $code === 0 || $code >= 400 ) {
@@ -815,12 +817,19 @@ add_action( 'wp_ajax_therum_check_links', function() {
 // ════════════════════════════════════════════════════════════════════════════
 
 add_action( 'wp_ajax_therum_toggle_favorite', function() {
+	// Auth gate. The favourites store is per-user but the post id is
+	// reachable from the client — without these checks a subscriber could
+	// favourite an arbitrary post including private/draft entries they
+	// otherwise can't see.
+	if ( ! is_user_logged_in() ) wp_send_json_error( 'forbidden', 403 );
+
 	$nonce = $_POST['nonce'] ?? '';
 	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) ) {
 		wp_send_json_error( 'bad nonce' );
 	}
 	$post_id = (int) ( $_POST['post_id'] ?? 0 );
 	if ( ! $post_id || ! get_post( $post_id ) ) wp_send_json_error( 'bad post' );
+	if ( ! current_user_can( 'read_post', $post_id ) ) wp_send_json_error( 'forbidden', 403 );
 
 	$user_id = get_current_user_id();
 	$favs    = (array) get_user_meta( $user_id, 'therum_favorites', true );

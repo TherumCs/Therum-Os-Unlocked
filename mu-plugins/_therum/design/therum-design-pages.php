@@ -37,26 +37,33 @@ class Therum_Design_Pages {
 	 */
 	public function inject_customizer_styles() {
 		if ( ! isset( $_GET['th_frame'] ) ) return;
-		$path = __DIR__ . '/assets/therum-customizer.css';
-		wp_enqueue_style( 'therum-customizer', plugins_url( 'assets/therum-customizer.css', __FILE__ ), [], file_exists( $path ) ? filemtime( $path ) : null );
+		// After the 1.9.x extraction this class lives under _therum/design/,
+		// but the CSS assets stayed at the mu-plugins root (assets/). Resolve
+		// the URL relative to the parent file (therum-design.php) so the URL
+		// builder produces /mu-plugins/assets/* instead of the now-broken
+		// /mu-plugins/_therum/design/assets/*.
+		$parent = dirname( dirname( __DIR__ ) ) . '/therum-design.php';
+		$path   = dirname( $parent ) . '/assets/therum-customizer.css';
+		wp_enqueue_style( 'therum-customizer', plugins_url( 'assets/therum-customizer.css', $parent ), [], file_exists( $path ) ? filemtime( $path ) : null );
 	}
 
 	public function enqueue_assets() {
-		$page = $_GET['page'] ?? '';
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 		if ( strpos( $page, 'therum-' ) === false ) return;
-		$path = __DIR__ . '/assets/therum-design-pages.css';
-		wp_enqueue_style( 'therum-design-pages', plugins_url( 'assets/therum-design-pages.css', __FILE__ ), [], file_exists( $path ) ? filemtime( $path ) : null );
+		$parent = dirname( dirname( __DIR__ ) ) . '/therum-design.php';
+		$path   = dirname( $parent ) . '/assets/therum-design-pages.css';
+		wp_enqueue_style( 'therum-design-pages', plugins_url( 'assets/therum-design-pages.css', $parent ), [], file_exists( $path ) ? filemtime( $path ) : null );
 	}
 
 
 	public function register_routes() {
 		// All design routes are hidden from the WP sidebar (rendered through Therum chrome only)
-		add_submenu_page('', 'Themes',     'Themes',     'switch_themes',     'therum-themes',         [$this, 'render_themes']);
-		add_submenu_page('', 'Theme',      'Theme',      'switch_themes',     'therum-theme-detail',   [$this, 'render_theme_detail']);
-		add_submenu_page('', 'Menus',      'Menus',      'edit_theme_options','therum-menus',          [$this, 'render_menus']);
-		add_submenu_page('', 'Customizer', 'Customizer', 'edit_theme_options','therum-customizer',     [$this, 'render_customizer']);
-		add_submenu_page('', 'Widgets',    'Widgets',    'edit_theme_options','therum-widgets',        [$this, 'render_widgets']);
-		add_submenu_page('', 'Templates',  'Templates',  'edit_posts',        'therum-templates',      [$this, 'render_templates']);
+		add_submenu_page(null, 'Themes',     'Themes',     'switch_themes',     'therum-themes',         [$this, 'render_themes']);
+		add_submenu_page(null, 'Theme',      'Theme',      'switch_themes',     'therum-theme-detail',   [$this, 'render_theme_detail']);
+		add_submenu_page(null, 'Menus',      'Menus',      'edit_theme_options','therum-menus',          [$this, 'render_menus']);
+		add_submenu_page(null, 'Customizer', 'Customizer', 'edit_theme_options','therum-customizer',     [$this, 'render_customizer']);
+		add_submenu_page(null, 'Widgets',    'Widgets',    'edit_theme_options','therum-widgets',        [$this, 'render_widgets']);
+		add_submenu_page(null, 'Templates',  'Templates',  'edit_posts',        'therum-templates',      [$this, 'render_templates']);
 	}
 
 	/* ─────────────────────────────────────────────────────────────────────
