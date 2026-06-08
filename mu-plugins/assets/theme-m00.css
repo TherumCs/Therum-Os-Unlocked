@@ -13,10 +13,10 @@
 
 /* ── DARK mode (default, no .light) — cohesive dark ─────────────────────────*/
 html body.theme-m00{
-  --bg:#15161A; --bg-color:#15161A; --sf:#1E2027; --sf2:#262932; --sf3:#2F333D;
-  --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#8A909C;
-  --bd:rgba(255,255,255,.09); --bd2:rgba(255,255,255,.16);
-  --ac:#6B86FF; --ac-h:#8AA0FF; --ac-s:rgba(107,134,255,.18); --ink:#F2F4F7; --m00-btn-ink:#0E1016;
+  --bg:#15161A !important; --bg-color:#15161A !important; --sf:#1E2027 !important; --sf2:#262932 !important; --sf3:#2F333D !important;
+  --tx:#F2F4F7 !important; --tx2:#A9AEB8 !important; --tx3:#8A909C !important;
+  --bd:rgba(255,255,255,.09) !important; --bd2:rgba(255,255,255,.16) !important;
+  --ac:#6B86FF !important; --ac-h:#8AA0FF !important; --ac-s:rgba(107,134,255,.18) !important; --ink:#F2F4F7; --m00-btn-ink:#0E1016;
   --m00-desktop:#0C0D10;
   /* DARK mode → WHITE sidebar (inverse) */
   --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#1D2025; --m00-sbmut:#8A8F98;
@@ -27,10 +27,10 @@ html body.theme-m00{
 }
 /* ── LIGHT mode — 1:1 WP mockup ─────────────────────────────────────────────*/
 html body.theme-m00.light{
-  --bg:#FFFFFF; --bg-color:#FFFFFF; --sf:#FFFFFF; --sf2:#F0F0F1; --sf3:#E6E7E9;
-  --tx:#1D2025; --tx2:#50575E; --tx3:#6B7177;
-  --bd:#E6E7E9; --bd2:#D6D8DB;
-  --ac:#2C3FE1; --ac-h:#2434C0; --ac-s:rgba(44,63,225,.10); --ink:#1D2025; --m00-btn-ink:#FFFFFF;
+  --bg:#FFFFFF !important; --bg-color:#FFFFFF !important; --sf:#FFFFFF !important; --sf2:#F0F0F1 !important; --sf3:#E6E7E9 !important;
+  --tx:#1D2025 !important; --tx2:#50575E !important; --tx3:#6B7177 !important;
+  --bd:#E6E7E9 !important; --bd2:#D6D8DB !important;
+  --ac:#2C3FE1 !important; --ac-h:#2434C0 !important; --ac-s:rgba(44,63,225,.10) !important; --ink:#1D2025; --m00-btn-ink:#FFFFFF;
   --m00-desktop:#EDEDEE;
   /* LIGHT mode → DARK sidebar (inverse) */
   --m00-sbbg:#1A1C22; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);

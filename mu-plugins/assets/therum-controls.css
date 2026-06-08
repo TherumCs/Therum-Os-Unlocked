@@ -155,14 +155,14 @@ body.blur-heavy{--th-blur-amount:48px}
  * Themes (html body.theme-*) are more specific and override these.
  * ========================================================================== */
 body.therum-themed{                 /* DARK is the default (no .light class) */
-  --bg:#15161A; --bg-color:#15161A; --sf:#1E2027; --sf2:#262932; --sf3:#2F333D;
-  --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#8A909C;
-  --bd:rgba(255,255,255,.10); --bd2:rgba(255,255,255,.18);
+  --bg:#15161A !important; --bg-color:#15161A !important; --sf:#1E2027 !important; --sf2:#262932 !important; --sf3:#2F333D !important;
+  --tx:#F2F4F7 !important; --tx2:#A9AEB8 !important; --tx3:#8A909C !important;
+  --bd:rgba(255,255,255,.10) !important; --bd2:rgba(255,255,255,.18) !important;
 }
 body.therum-themed.light{           /* LIGHT mode */
-  --bg:#F6F7F9; --bg-color:#F6F7F9; --sf:#FFFFFF; --sf2:#F1F3F5; --sf3:#E9ECEF;
-  --tx:#1E1E1E; --tx2:#50575E; --tx3:#6B7177;
-  --bd:#E3E5E8; --bd2:#D2D5D9;
+  --bg:#F6F7F9 !important; --bg-color:#F6F7F9 !important; --sf:#FFFFFF !important; --sf2:#F1F3F5 !important; --sf3:#E9ECEF !important;
+  --tx:#1E1E1E !important; --tx2:#50575E !important; --tx3:#6B7177 !important;
+  --bd:#E3E5E8 !important; --bd2:#D2D5D9 !important;
 }
 
 /* GUARANTEE: common page text uses the palette tokens in any theme/mode */

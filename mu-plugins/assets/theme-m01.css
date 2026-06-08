@@ -22,10 +22,10 @@
 
 /* ── PALETTE ─────────────────────────────────────────────────────────────────*/
 html body.theme-m01{
-  --bg:#F4ECD4; --bg-color:#F4ECD4; --sf:#FFFFFF; --sf2:#FBF6EA; --sf3:#F0E8D6;
-  --tx:#1C1A16; --tx2:#7A7466; --tx3:#736D5C;  /* tx3 darkened to 5.2:1 (a11y) */
-  --bd:rgba(40,30,10,.12); --bd2:rgba(40,30,10,.20);
-  --ac:#F2C20E; --ac-h:#D9A800; --ac-s:rgba(242,194,14,.14);
+  --bg:#F4ECD4 !important; --bg-color:#F4ECD4 !important; --sf:#FFFFFF !important; --sf2:#FBF6EA !important; --sf3:#F0E8D6 !important;
+  --tx:#1C1A16 !important; --tx2:#7A7466 !important; --tx3:#736D5C !important;  /* tx3 darkened to 5.2:1 (a11y) */
+  --bd:rgba(40,30,10,.12) !important; --bd2:rgba(40,30,10,.20) !important;
+  --ac:#F2C20E !important; --ac-h:#D9A800 !important; --ac-s:rgba(242,194,14,.14) !important;
   --ink:#1C1A16; --dark:#1A1916;
   --m01-g1:#F5EFE0; --m01-g2:#F4ECD4; --m01-g3:#F7E7AE; --m01-g-angle:165deg;
   --m01-navh:66px;
