@@ -127,7 +127,12 @@ add_action( 'therum_cache_purged', function( $context = '' ) {
 			}
 		}
 	} catch ( \Throwable $e ) {
-		error_log( '[therum-elementor] cache purge failed: ' . $e->getMessage() );
+		// Only spam the PHP error log when debugging is on. Production
+		// installs running production caches don't need a line per
+		// cache-purge failure; debug installs do.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( '[therum-elementor] cache purge failed: ' . $e->getMessage() );
+		}
 	}
 }, 10, 1 );
 

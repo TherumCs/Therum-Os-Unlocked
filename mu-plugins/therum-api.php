@@ -247,16 +247,18 @@ function therum_get_webhooks() {
 	return (array) get_option( 'th_webhooks', [] );
 }
 
+// autoload=false on both writes — webhooks are read only by the dispatcher
+// (which already calls get_option intentionally), never on every page load.
 function therum_save_webhook( $id, $data ) {
 	$hooks = therum_get_webhooks();
 	$hooks[ $id ] = $data;
-	update_option( 'th_webhooks', $hooks );
+	update_option( 'th_webhooks', $hooks, false );
 }
 
 function therum_delete_webhook( $id ) {
 	$hooks = therum_get_webhooks();
 	unset( $hooks[ $id ] );
-	update_option( 'th_webhooks', $hooks );
+	update_option( 'th_webhooks', $hooks, false );
 }
 
 function therum_supported_events() {

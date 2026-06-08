@@ -600,10 +600,20 @@ add_filter( 'therum_settings_keys', function( $keys ) {
 
 // ─── AJAX endpoints ──────────────────────────────────────────────────────────
 
+/**
+ * Per-attachment edit gate. `upload_files` lets a user write to the media
+ * library at all; `edit_post( $attachment_id )` confirms they're allowed to
+ * touch THIS particular attachment. Without the per-id check an author can
+ * rename someone else's uploads via the AJAX endpoint.
+ */
+function therum_renamer_can_edit( int $id ): bool {
+	return $id > 0 && current_user_can( 'upload_files' ) && current_user_can( 'edit_post', $id );
+}
+
 add_action( 'wp_ajax_therum_renamer_preview', function() {
-	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	check_ajax_referer( 'therum_renamer', 'nonce' );
 	$id   = (int) ( $_POST['attachment'] ?? 0 );
+	if ( ! therum_renamer_can_edit( $id ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	$name = sanitize_file_name( wp_unslash( $_POST['filename'] ?? '' ) );
 	$result = Therum_Renamer::preview( $id, $name );
 	if ( empty( $result['ok'] ) ) wp_send_json_error( $result );
@@ -611,9 +621,9 @@ add_action( 'wp_ajax_therum_renamer_preview', function() {
 } );
 
 add_action( 'wp_ajax_therum_renamer_rename', function() {
-	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	check_ajax_referer( 'therum_renamer', 'nonce' );
 	$id   = (int) ( $_POST['attachment'] ?? 0 );
+	if ( ! therum_renamer_can_edit( $id ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	$name = sanitize_file_name( wp_unslash( $_POST['filename'] ?? '' ) );
 	$result = Therum_Renamer::rename( $id, $name );
 	if ( empty( $result['ok'] ) ) wp_send_json_error( $result );
@@ -621,9 +631,9 @@ add_action( 'wp_ajax_therum_renamer_rename', function() {
 } );
 
 add_action( 'wp_ajax_therum_renamer_suggest', function() {
-	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	check_ajax_referer( 'therum_renamer', 'nonce' );
 	$id = (int) ( $_POST['attachment'] ?? 0 );
+	if ( ! therum_renamer_can_edit( $id ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	wp_send_json_success( [
 		'filename'     => Therum_Renamer::suggest( $id ),
 		'ai_available' => Therum_Renamer_AI::is_available(),
@@ -631,9 +641,9 @@ add_action( 'wp_ajax_therum_renamer_suggest', function() {
 } );
 
 add_action( 'wp_ajax_therum_renamer_suggest_ai', function() {
-	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	check_ajax_referer( 'therum_renamer', 'nonce' );
 	$id = (int) ( $_POST['attachment'] ?? 0 );
+	if ( ! therum_renamer_can_edit( $id ) ) wp_send_json_error( [ 'message' => 'forbidden' ], 403 );
 	$result = Therum_Renamer_AI::suggest( $id );
 	if ( empty( $result['ok'] ) ) wp_send_json_error( [ 'error' => $result['reason'] ?? 'AI suggest failed.' ] );
 	wp_send_json_success( $result );
@@ -656,6 +666,10 @@ add_action( 'wp_ajax_therum_renamer_bulk_list', function() {
 	$candidates = [];
 	$skipped    = 0;
 	foreach ( $atts as $a ) {
+		// Only surface attachments the requester can actually rename. Avoids
+		// returning a leak of every attachment's filename to an author who
+		// can only edit a subset of the library.
+		if ( ! current_user_can( 'edit_post', $a->ID ) ) { $skipped++; continue; }
 		$file = get_attached_file( $a->ID );
 		if ( ! $file || ! file_exists( $file ) ) { $skipped++; continue; }
 		$current  = basename( $file );
@@ -702,9 +716,19 @@ add_action( 'wp_ajax_therum_renamer_bulk_rename', function() {
 			$fail++;
 			continue;
 		}
+		// Per-item cap re-check — the client could spoof ids the user
+		// can't edit even though the bulk-list endpoint filtered them out.
+		if ( ! therum_renamer_can_edit( $id ) ) {
+			$results[] = [ 'id' => $id, 'ok' => false, 'error' => 'forbidden' ];
+			$fail++;
+			continue;
+		}
 		$r = Therum_Renamer::rename( $id, $name );
 		$results[] = [
 			'id'    => $id,
+			// Echo back the filename so the result list is debuggable without
+			// cross-referencing the request payload.
+			'name'  => $name,
 			'ok'    => ! empty( $r['ok'] ),
 			'error' => $r['error'] ?? '',
 			'refs'  => $r['refs_updated'] ?? 0,

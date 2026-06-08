@@ -204,8 +204,22 @@ class Therum_Redirects {
 		add_action( 'post_updated', [ __CLASS__, 'on_slug_change' ], 10, 3 );
 		// Match redirects early (parity with the Redirection plugin), then log
 		// any unmatched 404 at the tail of template_redirect.
+		// Priority 1 keeps the redirect ahead of any other plugin that
+		// rewrites the request; priority 999 on log_404 ensures every other
+		// 404 handler has already run.
 		add_action( 'template_redirect', [ __CLASS__, 'maybe_redirect' ], 1 );
 		add_action( 'template_redirect', [ __CLASS__, 'log_404' ], 999 );
+		// Drain batched hit counts: on shutdown of admin requests (cheap)
+		// and via a daily cron so write contention from high-traffic 301s
+		// never lands inline on the redirect path.
+		add_action( 'shutdown', function() {
+			if ( ! is_admin() ) return;
+			Therum_Redirects::flush_hits();
+		} );
+		if ( ! wp_next_scheduled( 'therum_redirects_flush' ) ) {
+			wp_schedule_event( time() + 300, 'hourly', 'therum_redirects_flush' );
+		}
+		add_action( 'therum_redirects_flush', [ __CLASS__, 'flush_hits' ] );
 		// AJAX
 		add_action( 'wp_ajax_therum_redirects_save',   [ __CLASS__, 'ajax_save' ] );
 		add_action( 'wp_ajax_therum_redirects_delete', [ __CLASS__, 'ajax_delete' ] );
@@ -320,9 +334,16 @@ class Therum_Redirects {
 			if ( $target === '' || self::norm_path( $target ) === $path ) return;
 		}
 
-		$rules[ $match ]['hits'] = (int) ( $rules[ $match ]['hits'] ?? 0 ) + 1;
-		$rules[ $match ]['last'] = current_time( 'mysql' );
-		update_option( self::OPTION_KEY, $rules, false );
+		// Batch hit counts into a transient so a high-traffic 301 doesn't
+		// turn into a write-on-every-hit on the options table. The counts
+		// flush back to the rule store on a 5-minute heartbeat (see the
+		// 'shutdown' handler below) or whenever the rules page is loaded.
+		$bucket = (array) get_transient( self::OPTION_KEY . '_hits' );
+		$bucket[ $match ] = [
+			'count' => (int) ( $bucket[ $match ]['count'] ?? 0 ) + 1,
+			'last'  => current_time( 'mysql' ),
+		];
+		set_transient( self::OPTION_KEY . '_hits', $bucket, 5 * MINUTE_IN_SECONDS );
 
 		if ( 410 === $code ) {
 			status_header( 410 );
@@ -331,6 +352,26 @@ class Therum_Redirects {
 		}
 		wp_redirect( $target, in_array( $code, self::VALID_CODES, true ) ? $code : 301 );
 		exit;
+	}
+
+	/**
+	 * Drain the batched hit counts into the rules option. Called from the
+	 * rules-page render and on a scheduled heartbeat — never inline on the
+	 * redirect path (which is the hot path).
+	 */
+	public static function flush_hits(): void {
+		$bucket = (array) get_transient( self::OPTION_KEY . '_hits' );
+		if ( ! $bucket ) return;
+		$rules = self::rules();
+		$changed = false;
+		foreach ( $bucket as $key => $rec ) {
+			if ( ! isset( $rules[ $key ] ) ) continue;
+			$rules[ $key ]['hits'] = (int) ( $rules[ $key ]['hits'] ?? 0 ) + (int) ( $rec['count'] ?? 0 );
+			$rules[ $key ]['last'] = (string) ( $rec['last'] ?? current_time( 'mysql' ) );
+			$changed = true;
+		}
+		if ( $changed ) update_option( self::OPTION_KEY, $rules, false );
+		delete_transient( self::OPTION_KEY . '_hits' );
 	}
 
 	/** Aggregate unmatched 404s (path → hits/last/referrer/UA), capped. */
@@ -1003,15 +1044,28 @@ function therum_render_tools_settings(): void {
 				var repEl = wrap.querySelector('[data-th-fnr-replace]');
 				var results = wrap.querySelector('[data-th-fnr-results]');
 				var runBtn = wrap.querySelector('[data-th-fnr-run]');
+				// Escape every value that originates from the server before it
+				// hits innerHTML. Post titles + field names are user-authorable
+				// content and would otherwise become a stored-XSS sink in the
+				// admin browser when an admin runs the checker.
+				function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+					return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+				}); }
 				wrap.querySelector('[data-th-fnr-preview]').addEventListener('click', function(){
 					var fd = new FormData();
 					fd.append('action','therum_find_replace');fd.append('find',findEl.value);fd.append('replace',repEl.value);fd.append('dry_run','1');fd.append('nonce',nonce);
 					fetch(ajax,{method:'POST',credentials:'same-origin',body:fd}).then(function(r){return r.json();}).then(function(res){
 						if (res.success) {
 							var d = res.data;
-							results.innerHTML = '<strong>' + d.count + ' match' + (d.count===1?'':'es') + '</strong> found across posts.' +
-								(d.count > 0 ? '<br>' + d.affected.slice(0,10).map(function(a){return a.type + ' #' + a.id + ' "' + a.title + '" (' + a.field + ')';}).join('<br>') : '');
-							runBtn.style.display = d.count > 0 ? '' : 'none';
+							var count = parseInt(d.count, 10) || 0;
+							var lines = '';
+							if (count > 0 && Array.isArray(d.affected)) {
+								lines = '<br>' + d.affected.slice(0,10).map(function(a){
+									return esc(a.type) + ' #' + (parseInt(a.id,10)||0) + ' "' + esc(a.title) + '" (' + esc(a.field) + ')';
+								}).join('<br>');
+							}
+							results.innerHTML = '<strong>' + count + ' match' + (count===1?'':'es') + '</strong> found across posts.' + lines;
+							runBtn.style.display = count > 0 ? '' : 'none';
 						}
 					});
 				});
@@ -1081,8 +1135,24 @@ function therum_render_tools_settings(): void {
 						if (res.success) {
 							var d = res.data;
 							if (!d.broken.length) { el.innerHTML = '<strong style="color:var(--ok);">No broken links found.</strong> Checked ' + d.checked + ' URLs.'; return; }
-							el.innerHTML = '<strong style="color:var(--err);">' + d.broken.length + ' broken link' + (d.broken.length===1?'':'s') + '</strong> found (checked ' + d.checked + ' URLs):<br>' +
-								d.broken.map(function(b){return '• <a href="' + b.url + '" target="_blank">' + b.url + '</a> → ' + b.status + ' (in "' + b.post_title + '")';}).join('<br>');
+							// Build the broken-link list with createElement + textContent so
+							// neither the URL nor the post title (both ultimately user-
+							// controllable post_content / post_title) can run script in
+							// the admin's browser. Also refuse non-http(s) URLs.
+							function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+								return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+							}); }
+							var header = '<strong style="color:var(--err);">' + d.broken.length + ' broken link' + (d.broken.length===1?'':'s') + '</strong> found (checked ' + (parseInt(d.checked,10)||0) + ' URLs):';
+							el.innerHTML = header;
+							d.broken.forEach(function(b){
+								var line = document.createElement('div');
+								var safeUrl = /^https?:\/\//i.test(b.url || '') ? b.url : '#';
+								line.innerHTML = '• <a target="_blank" rel="noopener"></a> → ' + esc(b.status) + ' (in "' + esc(b.post_title) + '")';
+								var a = line.querySelector('a');
+								a.href = safeUrl;
+								a.textContent = String(b.url || '');
+								el.appendChild(line);
+							});
 						}
 					});
 				});
@@ -1608,8 +1678,20 @@ add_action( 'wp_ajax_therum_import_content', function() {
 	$file = $_FILES['file'];
 	if ( $file['error'] !== UPLOAD_ERR_OK ) wp_send_json_error( 'upload error: ' . $file['error'] );
 
+	// Cap upload size before reading — wp_max_upload_size() is the right
+	// natural ceiling here; an attacker uploading a multi-GB JSON would
+	// otherwise OOM the request.
+	$max = (int) wp_max_upload_size();
+	if ( $max > 0 && (int) ( $file['size'] ?? 0 ) > $max ) {
+		wp_send_json_error( 'file too large (max ' . size_format( $max ) . ')' );
+	}
+
 	$json = file_get_contents( $file['tmp_name'] );
+	if ( $json === false ) wp_send_json_error( 'could not read upload' );
 	$data = json_decode( $json, true );
+	if ( json_last_error() !== JSON_ERROR_NONE ) {
+		wp_send_json_error( 'invalid JSON: ' . json_last_error_msg() );
+	}
 	if ( ! is_array( $data ) || empty( $data['items'] ) ) wp_send_json_error( 'invalid JSON or no items' );
 
 	$imported = 0;

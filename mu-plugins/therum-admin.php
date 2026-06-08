@@ -586,6 +586,10 @@ function therum_icon_for_label( string $label ): string {
 //  AJAX — bento layout persistence per-user
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_therum_save_layout', function() {
+	// Cap floor: the layout is per-user meta but only logged-in admin users
+	// have any business reaching this endpoint. Subscribers shouldn't be
+	// here at all — gate to read at minimum (anyone with a dashboard).
+	if ( ! current_user_can( 'read' ) ) wp_send_json_error( 'forbidden', 403 );
 	check_ajax_referer( 'therum_layout', 'nonce' );
 	$layout = $_POST['layout'] ?? '';
 	if ( ! is_string( $layout ) ) wp_send_json_error();
@@ -641,6 +645,7 @@ function therum_get_layout(): array {
 //  section so newly-installed plugins remain reachable.
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'wp_ajax_therum_save_sidebar', function() {
+	if ( ! current_user_can( 'read' ) ) wp_send_json_error( 'forbidden', 403 );
 	check_ajax_referer( 'therum_sidebar', 'nonce' );
 	$raw = $_POST['layout'] ?? '';
 	if ( ! is_string( $raw ) ) wp_send_json_error();
@@ -677,6 +682,7 @@ add_action( 'wp_ajax_therum_save_sidebar', function() {
 } );
 
 add_action( 'wp_ajax_therum_reset_sidebar', function() {
+	if ( ! current_user_can( 'read' ) ) wp_send_json_error( 'forbidden', 403 );
 	check_ajax_referer( 'therum_sidebar', 'nonce' );
 	delete_user_meta( get_current_user_id(), 'therum_sidebar_layout' );
 	wp_send_json_success();
@@ -2304,12 +2310,20 @@ function therum_export_button( string $post_type ): array {
  * Collect all posts of a type into a structured array. Shared by all formats.
  */
 function therum_export_collect( string $post_type ): array {
+	// no_found_rows skips the COUNT() pagination query — we never need it for
+	// an export. suppress_filters keeps third-party plugins from injecting
+	// per-row filters that would multiply the work. The export still loads
+	// the full post objects, but exporting is intentionally exhaustive — the
+	// upper bound here is the safety cap below.
 	return get_posts( [
-		'post_type'      => $post_type,
-		'post_status'    => [ 'publish', 'draft', 'future', 'pending', 'private' ],
-		'posts_per_page' => -1,
-		'orderby'        => 'date',
-		'order'          => 'DESC',
+		'post_type'              => $post_type,
+		'post_status'            => [ 'publish', 'draft', 'future', 'pending', 'private' ],
+		'posts_per_page'         => (int) apply_filters( 'therum/export/max_posts', 5000, $post_type ),
+		'orderby'                => 'date',
+		'order'                  => 'DESC',
+		'no_found_rows'          => true,
+		'update_post_term_cache' => false,
+		'update_post_meta_cache' => false,
 	] );
 }
 
@@ -4256,11 +4270,16 @@ var nonce        = bar.dataset.nonce       || '';
 // ── State ─────────────────────────────────────────────────────────────────────
 var MODE_LABELS  = { always: 'Always on', scroll: 'Auto-hide', drawer: 'Drawer' };
 
+// Safari private browsing throws on localStorage access — guarded reads /
+// writes keep the dock working when storage isn't available.
+function thdLsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function thdLsSet(k,v){ try { localStorage.setItem(k, v); } catch(e){} }
+
 // localStorage wins if the user has made a choice; fall back to admin setting
-var mode         = localStorage.getItem('thd_mode')  || serverMode;
-var pos          = localStorage.getItem('thd_pos')   || serverPos;
-var size         = localStorage.getItem('thd_size')  || 'normal';
-var focusOn      = localStorage.getItem('thd_focus') === '1';
+var mode         = thdLsGet('thd_mode')  || serverMode;
+var pos          = thdLsGet('thd_pos')   || serverPos;
+var size         = thdLsGet('thd_size')  || 'normal';
+var focusOn      = thdLsGet('thd_focus') === '1';
 var drawerOpen   = false;
 var scrollHidden = false;
 var lastY        = window.scrollY;
@@ -4277,7 +4296,7 @@ requestAnimationFrame(function () { body.style.transition = ''; });
 // ── Position management ───────────────────────────────────────────────────────
 function applyPos(p, saveToServer) {
 	pos = (p === 'top') ? 'top' : 'bottom';
-	localStorage.setItem('thd_pos', pos);
+	thdLsSet('thd_pos', pos);
 	body.classList.toggle('thd-pos-top',    pos === 'top');
 	body.classList.toggle('thd-pos-bottom', pos === 'bottom');
 
@@ -4310,7 +4329,7 @@ document.querySelectorAll('.thd-pos-opt').forEach(function (opt) {
 function applySize(s) {
 	var valid = { slim: 1, normal: 1, large: 1 };
 	size = valid[s] ? s : 'normal';
-	localStorage.setItem('thd_size', size);
+	thdLsSet('thd_size', size);
 	body.classList.remove('thd-size-slim', 'thd-size-normal', 'thd-size-large');
 	body.classList.add('thd-size-' + size);
 	document.querySelectorAll('.thd-size-opt').forEach(function (opt) {
@@ -4330,7 +4349,7 @@ document.querySelectorAll('.thd-size-opt').forEach(function (opt) {
 // ── Mode management ───────────────────────────────────────────────────────────
 function applyMode(m, animate) {
 	mode = m;
-	localStorage.setItem('thd_mode', m);
+	thdLsSet('thd_mode', m);
 
 	if (!animate) {
 		bar.style.transition = 'none';
@@ -4438,7 +4457,7 @@ window.addEventListener('scroll', function () {
 // ── Focus mode ────────────────────────────────────────────────────────────────
 function applyFocus(on, animate) {
 	focusOn = on;
-	localStorage.setItem('thd_focus', on ? '1' : '0');
+	thdLsSet('thd_focus', on ? '1' : '0');
 	if (!animate) {
 		body.style.transition = 'none';
 		requestAnimationFrame(function () { body.style.transition = ''; });

@@ -1027,12 +1027,15 @@ function completeWizard() {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────
-// When the user lands here from the "Complete skipped steps" CTA on the
-// finish screen, ?resume=1 jumps to the first skipped step instead of the
-// recorded last_step. Falls back to last_step if no skipped steps exist.
+// Step picker priority: ?step=N (deep link / refresh) wins over ?resume=1
+// (Complete-skipped CTA) which wins over the saved last_step. Earlier
+// bootStep() at the top of the script already navigated when ?step= was
+// present — if so, leave it alone.
 (function initStep(){
-	var lastStep = <?php echo (int) max( 1, (int) ( $progress['last_step'] ?? 1 ) ); ?>;
 	var qs = new URLSearchParams(window.location.search);
+	if (qs.get('step')) return;          // bootStep handled this
+
+	var lastStep = <?php echo (int) max( 1, (int) ( $progress['last_step'] ?? 1 ) ); ?>;
 	var resume = qs.get('resume') === '1';
 	if (resume && Array.isArray(state.skipped) && state.skipped.length) {
 		var first = state.skipped.slice().sort(function(a,b){return a-b;})[0];
@@ -1071,7 +1074,9 @@ if (state.edition) {
 			$progress['stack'] = sanitize_text_field( wp_unslash( $_POST['stack'] ) );
 		}
 		if ( isset( $_POST['skipped'] ) && $_POST['skipped'] ) {
-			$progress['skipped'][] = $step;
+			// Dedup — walking back to a step and re-skipping shouldn't
+			// double-enqueue it on the "Complete skipped steps" walk.
+			$progress['skipped']   = array_values( array_unique( array_merge( (array) ( $progress['skipped'] ?? [] ), [ $step ] ) ) );
 		}
 
 		update_option( self::OPTION_PROGRESS, $progress, false );
@@ -1084,7 +1089,11 @@ if (state.edition) {
 		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( null, 403 );
 
 		$progress            = self::get_progress();
-		$progress['skipped'] = json_decode( sanitize_text_field( $_POST['skipped'] ?? '[]' ), true ) ?: [];
+		// Decode JSON BEFORE sanitization — sanitize_text_field strips
+		// newlines and would mangle the structure on malformed input.
+		$raw                 = wp_unslash( (string) ( $_POST['skipped'] ?? '[]' ) );
+		$decoded             = json_decode( $raw, true );
+		$progress['skipped'] = is_array( $decoded ) ? array_values( array_unique( array_map( 'intval', $decoded ) ) ) : [];
 		update_option( self::OPTION_PROGRESS, $progress, false );
 		update_option( self::OPTION_COMPLETE, true, false );
 		wp_send_json_success();
@@ -1164,7 +1173,7 @@ if (state.edition) {
 		check_ajax_referer( 'therum_wizard', 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( null, 403 );
 
-		$license = sanitize_text_field( $_POST['license'] ?? '' );
+		$license = sanitize_text_field( wp_unslash( $_POST['license'] ?? '' ) );
 
 		if ( strlen( $license ) < 10 ) {
 			wp_send_json_error( [ 'message' => 'License key is too short.' ] );

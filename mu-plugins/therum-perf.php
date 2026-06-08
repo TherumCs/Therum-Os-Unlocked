@@ -167,14 +167,24 @@ function therum_minify_css( $css ) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 // ─── Schedule cron event ─────────────────────────────────────────────────────
+// Re-derive the schedule on every init. If the frequency option changed
+// (e.g. daily → weekly) we have to clear the existing slot and re-schedule
+// — `wp_next_scheduled` returning truthy doesn't tell us the recurrence
+// matches the current option value.
 add_action( 'init', function() {
 	if ( ! get_option( 'th_backup_enabled', false ) ) {
 		wp_clear_scheduled_hook( 'therum_backup_run' );
 		return;
 	}
 
-	$freq = get_option( 'th_backup_frequency', 'daily' );
-	if ( ! wp_next_scheduled( 'therum_backup_run' ) ) {
+	$freq    = get_option( 'th_backup_frequency', 'daily' );
+	$next    = wp_next_scheduled( 'therum_backup_run' );
+	$current = wp_get_schedule( 'therum_backup_run' );
+
+	if ( ! $next ) {
+		wp_schedule_event( time() + 60, $freq, 'therum_backup_run' );
+	} elseif ( $current && $current !== $freq ) {
+		wp_clear_scheduled_hook( 'therum_backup_run' );
 		wp_schedule_event( time() + 60, $freq, 'therum_backup_run' );
 	}
 });
@@ -293,13 +303,15 @@ function therum_run_backup( $trigger = 'auto' ) {
 	// 6. Prune old backups (keep last 10 local)
 	therum_prune_old_backups( $backup_dir, 10 );
 
-	// 7. Append to history
+	// 7. Append to history. autoload=false — history is large enough to
+	// matter on a multi-site install and is only read from the Updates +
+	// Settings → Performance admin views, never on the front-end.
 	$history = get_option( 'th_backup_history', [] );
 	array_unshift( $history, $record );
 	$history = array_slice( $history, 0, 50 );
-	update_option( 'th_backup_history', $history );
+	update_option( 'th_backup_history', $history, false );
 
-	update_option( 'th_backup_last_run', $record );
+	update_option( 'th_backup_last_run', $record, false );
 
 	// 8. Notification
 	if ( get_option( 'th_notify_on_backup', false ) ) {
@@ -332,52 +344,70 @@ function therum_zip_dir( ZipArchive $zip, $source_dir, $zip_root ) {
 }
 
 
+/**
+ * Stream-build the database dump in fixed-size row batches so we never hold
+ * the whole table in memory. The previous SELECT * FROM `{$table}` would
+ * OOM on any table > ~50MB — the new path keeps memory bounded to one
+ * batch's worth of rows.
+ */
 function therum_dump_database() {
 	global $wpdb;
 
-	// Detect SQLite (via SQLite Database Integration plugin)
 	if ( defined( 'DB_ENGINE' ) && constant( 'DB_ENGINE' ) === 'sqlite' ) {
 		return new WP_Error( 'sqlite', 'SQLite — copy file instead' );
 	}
 
-	// MySQL dump via mysqldump if available
-	$dump = '';
 	$tables = $wpdb->get_col( 'SHOW TABLES' );
 	if ( ! is_array( $tables ) || empty( $tables ) ) {
 		return new WP_Error( 'no_tables', 'No tables found' );
 	}
 
-	$dump .= "-- Therum OS backup\n-- " . current_time( 'mysql' ) . "\n\n";
+	$batch_size = (int) apply_filters( 'therum/backup/db_batch_size', 500 );
+	$out  = "-- Therum OS backup\n-- " . current_time( 'mysql' ) . "\n\n";
+
 	foreach ( $tables as $table ) {
-		// CREATE TABLE
-		$row = $wpdb->get_row( "SHOW CREATE TABLE `{$table}`", ARRAY_N );
-		if ( $row && isset( $row[1] ) ) {
-			$dump .= "DROP TABLE IF EXISTS `{$table}`;\n";
-			$dump .= $row[1] . ";\n\n";
+		$create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE `' . esc_sql( $table ) . '`' ), ARRAY_N );
+		if ( $create && isset( $create[1] ) ) {
+			$out .= "DROP TABLE IF EXISTS `{$table}`;\n" . $create[1] . ";\n\n";
 		}
 
-		// INSERT rows
-		$rows = $wpdb->get_results( "SELECT * FROM `{$table}`", ARRAY_A );
-		foreach ( $rows as $r ) {
-			$cols = array_map( fn( $c ) => "`{$c}`", array_keys( $r ) );
-			$vals = array_map( function( $v ) use ( $wpdb ) {
-				if ( is_null( $v ) ) return 'NULL';
-				return "'" . esc_sql( $v ) . "'";
-			}, array_values( $r ) );
-			$dump .= "INSERT INTO `{$table}` (" . implode( ',', $cols ) . ") VALUES (" . implode( ',', $vals ) . ");\n";
+		$offset = 0;
+		while ( true ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT * FROM `' . esc_sql( $table ) . '` LIMIT %d OFFSET %d',
+					$batch_size,
+					$offset
+				),
+				ARRAY_A
+			);
+			if ( empty( $rows ) ) break;
+			foreach ( $rows as $r ) {
+				$cols = array_map( fn( $c ) => "`{$c}`", array_keys( $r ) );
+				$vals = array_map( function( $v ) {
+					if ( is_null( $v ) ) return 'NULL';
+					return "'" . esc_sql( $v ) . "'";
+				}, array_values( $r ) );
+				$out .= "INSERT INTO `{$table}` (" . implode( ',', $cols ) . ") VALUES (" . implode( ',', $vals ) . ");\n";
+			}
+			$offset += $batch_size;
+			if ( count( $rows ) < $batch_size ) break;
 		}
-		$dump .= "\n";
+		$out .= "\n";
 	}
-	return $dump;
+	return $out;
 }
 
 
 function therum_prune_old_backups( $dir, $keep = 10 ) {
 	$files = glob( $dir . '/*.zip' );
 	if ( ! is_array( $files ) ) return;
-	usort( $files, fn( $a, $b ) => filemtime( $b ) <=> filemtime( $a ) );
-	$old = array_slice( $files, $keep );
-	foreach ( $old as $f ) @unlink( $f );
+	// Precompute mtimes once — filemtime() inside usort is O(n log n)
+	// syscalls otherwise.
+	$with_mtime = array_map( fn( $f ) => [ $f, @filemtime( $f ) ?: 0 ], $files );
+	usort( $with_mtime, fn( $a, $b ) => $b[1] <=> $a[1] );
+	$old = array_slice( $with_mtime, $keep );
+	foreach ( $old as $entry ) @unlink( $entry[0] );
 }
 
 
@@ -536,7 +566,7 @@ add_action( 'upgrader_process_complete', function( $upgrader, $hook_extra ) {
 
 	therum_send_notification(
 		ucfirst( $type ) . ' updated',
-		'Updated:\n• ' . implode( "\n• ", $items ),
+		"Updated:\n• " . implode( "\n• ", $items ),
 		'success'
 	);
 }, 10, 2 );
