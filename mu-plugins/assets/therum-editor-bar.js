@@ -27,7 +27,7 @@ try{window.tinyMCE.get('content').save();}catch (_){}
 const titleEl=document.getElementById('title');
 const contentEl=document.getElementById('content');
 const fd=new FormData();
-fd.append('action','th_save_post');
+fd.append('action','therum_save_post');
 fd.append('post_id',postId);
 fd.append('nonce',nonce);
 if (titleEl) fd.append('title',titleEl.value);

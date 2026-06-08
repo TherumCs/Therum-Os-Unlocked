@@ -522,12 +522,12 @@ add_action( 'init', function() {
 		'icon'     => 'lock',
 		'desc'     => 'Login screen background and branding.',
 		'priority' => 25,
-		'render'   => 'th_render_login_settings',
+		'render'   => 'therum_render_login_settings',
 	]);
 }, 20 );
 
 
-function th_render_login_settings() {
+function therum_render_login_settings() {
 	$bg_type    = get_option( 'th_login_bg_type', 'theme' );
 	$bg_color   = get_option( 'th_login_bg_color', '#0a0a0a' );
 	$bg_image   = get_option( 'th_login_bg_image', '' );
@@ -537,57 +537,57 @@ function th_render_login_settings() {
 	$heading    = get_option( 'th_login_heading', 'Welcome back' );
 	$subhead    = get_option( 'th_login_subhead', 'Sign in to your workspace' );
 
-	th_settings_group(
+	therum_settings_group(
 		'Background',
 		'What sits behind the login card. Match the active theme, pick a solid color, or upload your own image or video.',
 		function() use ( $bg_type, $bg_color, $bg_image, $bg_video, $bg_overlay ) {
-			th_setting_row( 'Source', 'Where the login background comes from.',
-				th_select( 'th_login_bg_type', $bg_type, [
+			therum_setting_row( 'Source', 'Where the login background comes from.',
+				therum_select( 'th_login_bg_type', $bg_type, [
 					'theme' => 'Match active theme',
 					'solid' => 'Solid color',
 					'image' => 'Custom image',
 					'video' => 'Custom video',
 				])
 			);
-			th_setting_row( 'Solid color', 'Used when source is "Solid color".',
+			therum_setting_row( 'Solid color', 'Used when source is "Solid color".',
 				'<div class="th-color-row"><input type="color" class="th-color" data-th-text="th_login_bg_color" value="' . esc_attr( $bg_color ) . '" /><span class="th-color-hex">' . esc_html( $bg_color ) . '</span></div>'
 			);
-			th_setting_row( 'Image URL', 'JPG, PNG, or WebP. Recommended 2560×1440 or larger.',
-				th_text_input( 'th_login_bg_image', $bg_image, 'https://…/login-bg.jpg', 'url' )
+			therum_setting_row( 'Image URL', 'JPG, PNG, or WebP. Recommended 2560×1440 or larger.',
+				therum_text_input( 'th_login_bg_image', $bg_image, 'https://…/login-bg.jpg', 'url' )
 			);
-			th_setting_row( 'Video URL', 'MP4 or WebM. Plays muted on loop. Keep it under 5 MB.',
-				th_text_input( 'th_login_bg_video', $bg_video, 'https://…/login-bg.mp4', 'url' )
+			therum_setting_row( 'Video URL', 'MP4 or WebM. Plays muted on loop. Keep it under 5 MB.',
+				therum_text_input( 'th_login_bg_video', $bg_video, 'https://…/login-bg.mp4', 'url' )
 			);
-			th_setting_row( 'Darken overlay', 'Adds a soft vignette behind the card so text stays readable on busy backgrounds.',
-				th_toggle( 'th_login_bg_overlay', $bg_overlay )
+			therum_setting_row( 'Darken overlay', 'Adds a soft vignette behind the card so text stays readable on busy backgrounds.',
+				therum_toggle( 'th_login_bg_overlay', $bg_overlay )
 			);
 		}
 	);
 
-	th_settings_group(
+	therum_settings_group(
 		'Copy',
 		'Override the welcome heading shown on the login form.',
 		function() use ( $heading, $subhead ) {
-			th_setting_row( 'Heading', 'Defaults to "Welcome back".',
-				th_text_input( 'th_login_heading', $heading, 'Welcome back' )
+			therum_setting_row( 'Heading', 'Defaults to "Welcome back".',
+				therum_text_input( 'th_login_heading', $heading, 'Welcome back' )
 			);
-			th_setting_row( 'Subhead', 'Defaults to "Sign in to your workspace".',
-				th_text_input( 'th_login_subhead', $subhead, 'Sign in to your workspace' )
+			therum_setting_row( 'Subhead', 'Defaults to "Sign in to your workspace".',
+				therum_text_input( 'th_login_subhead', $subhead, 'Sign in to your workspace' )
 			);
 		}
 	);
 
-	th_settings_group(
+	therum_settings_group(
 		'Footer',
 		'What appears at the bottom of the login screen.',
 		function() use ( $show_ver ) {
-			th_setting_row( 'Show version stamp', 'Displays "Therum OS · v1.7.x" at the bottom.',
-				th_toggle( 'th_login_show_version', $show_ver )
+			therum_setting_row( 'Show version stamp', 'Displays "Therum OS · v1.7.x" at the bottom.',
+				therum_toggle( 'th_login_show_version', $show_ver )
 			);
 		}
 	);
 
-	th_settings_group(
+	therum_settings_group(
 		'Preview',
 		'What the active theme looks like when applied to the login screen.',
 		function() {
@@ -817,7 +817,7 @@ add_filter( 'authenticate', function( $user, $username, $password ) {
 	$code  = trim( $_POST['th_2fa_code'] ?? '' );
 	if ( ! $token || ! $code ) return $user;
 
-	$payload = th_2fa_decode_token( $token );
+	$payload = therum_2fa_decode_token( $token );
 	if ( ! $payload || $payload['exp'] < time() ) {
 		return new WP_Error( '2fa_expired', 'Challenge expired. Sign in again.' );
 	}
@@ -853,7 +853,7 @@ add_filter( 'wp_authenticate_user', function( $user, $password ) {
 	if ( ! ( $user instanceof WP_User ) ) return $user;
 	if ( ! Therum_2FA::user_enabled( $user->ID ) ) return $user;
 
-	$token = th_2fa_issue_token( $user->ID );
+	$token = therum_2fa_issue_token( $user->ID );
 	$redirect = add_query_arg([
 		'action' => 'th_2fa_challenge',
 		'token'  => $token,
@@ -868,7 +868,7 @@ add_filter( 'wp_authenticate_user', function( $user, $password ) {
  */
 add_action( 'login_form_th_2fa_challenge', function() {
 	$token = $_GET['token'] ?? '';
-	$payload = th_2fa_decode_token( $token );
+	$payload = therum_2fa_decode_token( $token );
 	if ( ! $payload || $payload['exp'] < time() ) {
 		wp_redirect( wp_login_url() );
 		exit;
@@ -920,14 +920,14 @@ add_action( 'login_form_th_2fa_challenge', function() {
  * Token issuance + decoding — short-lived signed tokens to bridge the password
  * step and the code step. 5-minute expiry. Signed with wp_salt().
  */
-function th_2fa_issue_token( int $user_id ): string {
+function therum_2fa_issue_token( int $user_id ): string {
 	$payload = [ 'uid' => $user_id, 'exp' => time() + 300 ];
 	$json    = wp_json_encode( $payload );
 	$sig     = hash_hmac( 'sha256', $json, wp_salt( 'auth' ) );
 	return base64_encode( $json ) . '.' . $sig;
 }
 
-function th_2fa_decode_token( string $token ): ?array {
+function therum_2fa_decode_token( string $token ): ?array {
 	if ( ! str_contains( $token, '.' ) ) return null;
 	[ $b64, $sig ] = explode( '.', $token, 2 );
 	$json = base64_decode( $b64, true );
@@ -944,10 +944,10 @@ function th_2fa_decode_token( string $token ): ?array {
 //  USER PROFILE — enrollment screen at /wp-admin/profile.php#2fa
 // ═════════════════════════════════════════════════════════════════════════════
 
-add_action( 'show_user_profile', 'th_2fa_render_profile_section' );
-add_action( 'edit_user_profile', 'th_2fa_render_profile_section' );
+add_action( 'show_user_profile', 'therum_2fa_render_profile_section' );
+add_action( 'edit_user_profile', 'therum_2fa_render_profile_section' );
 
-function th_2fa_render_profile_section( $user ) {
+function therum_2fa_render_profile_section( $user ) {
 	$enabled = Therum_2FA::user_enabled( $user->ID );
 	$secret  = get_user_meta( $user->ID, 'th_2fa_secret', true );
 
@@ -1033,10 +1033,10 @@ function th_2fa_render_profile_section( $user ) {
 /**
  * Save 2FA setup on profile update.
  */
-add_action( 'personal_options_update', 'th_2fa_save_profile' );
-add_action( 'edit_user_profile_update', 'th_2fa_save_profile' );
+add_action( 'personal_options_update', 'therum_2fa_save_profile' );
+add_action( 'edit_user_profile_update', 'therum_2fa_save_profile' );
 
-function th_2fa_save_profile( $user_id ) {
+function therum_2fa_save_profile( $user_id ) {
 	// Defense-in-depth: only an actor allowed to edit THIS user, and only with a
 	// valid profile-update nonce, may toggle 2FA state. Core checks the nonce in
 	// edit_user() upstream, but the disable button is JS-driven so we re-verify
@@ -1487,7 +1487,7 @@ add_action( 'wp_login', 'therum_heal_admin_caps' );
 
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  RENDER — replaces th_render_permissions in therum-settings.php
+//  RENDER — replaces therum_render_permissions in therum-settings.php
 // ═════════════════════════════════════════════════════════════════════════════
 
 function therum_render_permissions_full() {
@@ -1514,15 +1514,15 @@ function therum_render_permissions_full() {
 	$all_caps = array_keys( $all_caps );
 	sort( $all_caps );
 
-	th_settings_group( 'New user defaults', 'What role new users get when they register.', function() use ( $default_role, $wp_roles ) {
+	therum_settings_group( 'New user defaults', 'What role new users get when they register.', function() use ( $default_role, $wp_roles ) {
 		$opts = [];
 		foreach ( $wp_roles->roles as $key => $role ) {
 			$opts[ $key ] = $role['name'];
 		}
-		th_setting_row( 'Default role', 'Capabilities new users start with.', th_select( 'default_role', $default_role, $opts ) );
+		therum_setting_row( 'Default role', 'Capabilities new users start with.', therum_select( 'default_role', $default_role, $opts ) );
 	});
 
-	th_settings_group( 'Roles overview', 'Built-in WordPress roles and any custom roles you\'ve created.', function() use ( $wp_roles, $counts, $custom ) {
+	therum_settings_group( 'Roles overview', 'Built-in WordPress roles and any custom roles you\'ve created.', function() use ( $wp_roles, $counts, $custom ) {
 		?>
 		<table class="th-roles-table" style="width:100%;">
 		  <thead>
@@ -1574,7 +1574,7 @@ function therum_render_permissions_full() {
 		<?php
 	});
 
-	th_settings_group( 'Custom roles', 'Build your own roles. Mix preset capability bundles with individual caps.', function() use ( $bundles, $all_caps, $custom, $woo_active, $nonce ) {
+	therum_settings_group( 'Custom roles', 'Build your own roles. Mix preset capability bundles with individual caps.', function() use ( $bundles, $all_caps, $custom, $woo_active, $nonce ) {
 		?>
 		<div class="th-role-builder" data-th-role-builder data-nonce="<?php echo esc_attr( $nonce ); ?>">
 		  <button type="button" class="th-button th-button-primary" data-role-new>+ New custom role</button>

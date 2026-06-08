@@ -149,8 +149,8 @@ class Therum_Activity_Log {
 		$rows  = $wpdb->get_results( "SELECT * FROM `$table` ORDER BY id DESC LIMIT 50" );
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `$table`" );
 
-		if ( function_exists( 'th_settings_group' ) ) {
-			th_settings_group( 'Recent activity', $total . ' events recorded. Oldest auto-pruned at ' . self::MAX_ROWS . '.', function() use ( $rows ) {
+		if ( function_exists( 'therum_settings_group' ) ) {
+			therum_settings_group( 'Recent activity', $total . ' events recorded. Oldest auto-pruned at ' . self::MAX_ROWS . '.', function() use ( $rows ) {
 				if ( empty( $rows ) ) {
 					echo '<p style="color:var(--tx3);font-size:13px;">No activity recorded yet.</p>';
 					return;
@@ -490,7 +490,7 @@ class Therum_Redirects {
 		$log404 = ! empty( self::cfg()['log_404'] );
 		$nonce  = wp_create_nonce( 'therum_options' );
 		$export = wp_nonce_url( admin_url( 'admin-ajax.php?action=therum_redirects_export' ), 'therum_options' );
-		if ( ! function_exists( 'th_settings_group' ) ) return;
+		if ( ! function_exists( 'therum_settings_group' ) ) return;
 
 		// Most-hit 404s first.
 		uasort( $log, static fn( $a, $b ) => (int) ( $b['hits'] ?? 0 ) <=> (int) ( $a['hits'] ?? 0 ) );
@@ -502,7 +502,7 @@ class Therum_Redirects {
 			return $h;
 		};
 
-		th_settings_group( 'Redirect rules', count( $rules ) . ' rule' . ( count( $rules ) === 1 ? '' : 's' ) . '. Auto-created on slug change, or add your own (exact path or regex).', function () use ( $rules, $nonce, $export, $code_opts ) {
+		therum_settings_group( 'Redirect rules', count( $rules ) . ' rule' . ( count( $rules ) === 1 ? '' : 's' ) . '. Auto-created on slug change, or add your own (exact path or regex).', function () use ( $rules, $nonce, $export, $code_opts ) {
 			?>
 			<div data-th-redirects data-nonce="<?php echo esc_attr( $nonce ); ?>">
 			<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
@@ -573,7 +573,7 @@ class Therum_Redirects {
 			<?php
 		} );
 
-		th_settings_group( '404 monitor', count( $log ) . ' tracked path' . ( count( $log ) === 1 ? '' : 's' ) . '. Logs requests that hit a 404 so you can redirect the ones that matter.', function () use ( $log, $log404, $nonce ) {
+		therum_settings_group( '404 monitor', count( $log ) . ' tracked path' . ( count( $log ) === 1 ? '' : 's' ) . '. Logs requests that hit a 404 so you can redirect the ones that matter.', function () use ( $log, $log404, $nonce ) {
 			?>
 			<div data-th-404 data-nonce="<?php echo esc_attr( $nonce ); ?>">
 			<div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
@@ -970,9 +970,9 @@ add_action( 'init', function() {
 function therum_render_tools_settings(): void {
 	$nonce = wp_create_nonce( 'therum_options' );
 
-	if ( function_exists( 'th_settings_group' ) ) {
+	if ( function_exists( 'therum_settings_group' ) ) {
 		// ── Find & Replace ───────────────────────────────────────────────
-		th_settings_group( 'Find & replace', 'Search across all post content, titles, excerpts, and meta. Preview matches before replacing.', function() use ( $nonce ) {
+		therum_settings_group( 'Find & replace', 'Search across all post content, titles, excerpts, and meta. Preview matches before replacing.', function() use ( $nonce ) {
 			?>
 			<div data-th-fnr data-nonce="<?php echo esc_attr( $nonce ); ?>">
 				<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
@@ -1023,7 +1023,7 @@ function therum_render_tools_settings(): void {
 		} );
 
 		// ── DB Optimizer ─────────────────────────────────────────────────
-		th_settings_group( 'Database optimizer', 'Clean excess revisions, orphaned meta, expired transients, spam comments, old auto-drafts.', function() use ( $nonce ) {
+		therum_settings_group( 'Database optimizer', 'Clean excess revisions, orphaned meta, expired transients, spam comments, old auto-drafts.', function() use ( $nonce ) {
 			?>
 			<div data-th-dbopt data-nonce="<?php echo esc_attr( $nonce ); ?>">
 				<button type="button" class="th-btn th-btn-primary" data-th-dbopt-run>Run cleanup</button>
@@ -1052,7 +1052,7 @@ function therum_render_tools_settings(): void {
 		} );
 
 		// ── Broken Link Checker ──────────────────────────────────────────
-		th_settings_group( 'Broken link checker', 'Scans published posts for links returning 404 or errors. Checks up to 50 URLs per run.', function() {
+		therum_settings_group( 'Broken link checker', 'Scans published posts for links returning 404 or errors. Checks up to 50 URLs per run.', function() {
 			?>
 			<div data-th-linkcheck>
 				<button type="button" class="th-btn th-btn-primary" data-th-linkcheck-run>Scan for broken links</button>
@@ -1119,7 +1119,7 @@ if ( is_multisite() ) {
 // ════════════════════════════════════════════════════════════════════════════
 
 add_action( 'admin_footer', function() {
-	if ( function_exists( 'th_is_frame' ) && th_is_frame() ) return;
+	if ( function_exists( 'therum_is_frame' ) && therum_is_frame() ) return;
 
 	// Build command palette data
 	$commands = [];

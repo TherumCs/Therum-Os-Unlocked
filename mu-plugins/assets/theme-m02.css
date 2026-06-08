@@ -1,9 +1,18 @@
 /* ============================================================================
- * THERUM OS · THEME 02 — "Coral Finance" (N2 Financial Dashboard)
- * Scoped body.theme-m02. Light cool-gray canvas, white very-rounded cards with
- * soft shadows, coral accent, Inter. DISTINCT layout from Theme 01: a MINIMAL
- * top bar (logo + hamburger left, search + profile pinned right) where the nav
- * is COLLAPSED behind a hamburger that opens the full menu as a dropdown panel.
+ * THERUM OS · THEME 02 — "Coral Finance" (N2 Financial Dashboard) — 1:1
+ *
+ * Scoped body.theme-m02. Grey page → soft off-white rounded shell → pure
+ * white cards. Two-row header zone sits on the shell tint; cards float on
+ * the same tint as pure-white islands. All chrome elements are real DOM
+ * (base markup + theme-m02-header.js injection). No fakes.
+ *
+ *   Row 1 (#th-sb, 108px) — hamburger 64 → dark logo 64 / r:18 → site name +
+ *     page title stack → flex → + 64 → avatar 64 + name/role → search-icon
+ *     64 + open "Search…" text.
+ *   Row 2 (#th-top, 152px) — date pill [72 circle | weekday,month | divider
+ *     | Show my Tasks coral CTA | 52 calendar w/ dot] → flex → greeting +
+ *     prompt input → mic 64.
+ *   Content — same off-white surface; pure white cards, r:24, hairline.
  * ========================================================================== */
 @font-face{font-family:'InterTH';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/inter-400.woff2) format('woff2')}
 @font-face{font-family:'InterTH';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/inter-500.woff2) format('woff2')}
@@ -11,81 +20,269 @@
 @font-face{font-family:'InterTH';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/inter-700.woff2) format('woff2')}
 
 html body.theme-m02{
-  --bg:#EFF0F3 !important; --bg-color:#EFF0F3 !important; --sf:#FFFFFF !important; --sf2:#F2F3F6 !important; --sf3:#EAEBEF !important;
+  --bg:#DFE0E4 !important; --bg-color:#DFE0E4 !important;
+  --shell:#F4F5F7;
+  --card:#FFFFFF;
+  --sf:#FFFFFF !important; --sf2:#EEEFF2 !important; --sf3:#E6E7EB !important;
   --tx:#1A1D21 !important; --tx2:#6B7178 !important; --tx3:#9AA0A8 !important;
   --bd:rgba(20,24,30,.08) !important; --bd2:rgba(20,24,30,.14) !important;
   --ac:#F0563E !important; --ac-h:#DC4528 !important; --ac-s:rgba(240,86,62,.12) !important;
-  --ink:#1A1D21; --dark:#16181C; --m02-navh:68px;
+  --ink:#1A1D21; --dark:#16181C;
+  --m02-navh:108px; --m02-row2h:152px; --m02-radius:28px; --m02-pad:56px; --m02-btn:64px;
   --m02-font:'InterTH',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   font-family:var(--m02-font); color:var(--tx);
 }
 
-html body.theme-m02 #wpwrap,html body.theme-m02 #th-shell{background:var(--bg) !important}
+/* ── OUTER: grey page bg + soft off-white rounded shell ─────────────────────*/
+html body.theme-m02{background:var(--bg) !important}
+html body.theme-m02 #wpwrap{background:transparent !important; padding:24px !important; box-sizing:border-box; min-height:100vh}
+html body.theme-m02 #wpcontent,html body.theme-m02 #wpbody,html body.theme-m02 #wpbody-content{background:transparent !important}
+html body.theme-m02 #th-shell{
+  background:var(--shell) !important;
+  border-radius:var(--m02-radius) !important;
+  overflow:hidden;
+  min-height:calc(100vh - 48px); height:calc(100vh - 48px);
+  display:flex !important; flex-direction:column !important;
+  position:relative;
+  box-shadow:0 1px 3px rgba(20,24,40,.04);
+}
 html body.theme-m02 #th-main,html body.theme-m02 #th-content,html body.theme-m02 .th-cx{background:transparent !important}
-html body.theme-m02 #th-shell{display:flex;flex-direction:column}
+html body.theme-m02 #th-main{margin-left:0 !important; margin-top:0 !important; flex:1; min-height:0; min-width:0; display:flex !important; flex-direction:column !important}
 
-/* ── MINIMAL TOP BAR ─────────────────────────────────────────────────────────*/
+/* ── ROW 1 — TOPBAR ─────────────────────────────────────────────────────────*/
 html body.theme-m02 #th-sb{
-  position:fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:auto !important;
-  width:auto !important; height:var(--m02-navh) !important; flex-direction:row !important; align-items:center; gap:14px;
-  padding:0 28px !important; border-right:none !important; border-bottom:1px solid var(--bd) !important;
-  background:#fff !important; overflow:visible !important; z-index:300 !important;
+  position:relative !important; top:auto !important; left:auto !important; right:auto !important; bottom:auto !important;
+  width:100% !important; height:var(--m02-navh) !important;
+  flex-direction:row !important; flex-shrink:0; align-items:center; gap:20px;
+  padding:0 var(--m02-pad) !important;
+  border:none !important; background:transparent !important; overflow:visible !important; z-index:1;
 }
-html body.theme-m02 #th-main{margin-left:0 !important; margin-top:var(--m02-navh) !important}
 html body.theme-m02 #th-topbar{left:0 !important; width:100% !important}
-/* logo (left) → hamburger (left) → [gap] → search + profile (right) */
-html body.theme-m02 .th-sb-header{order:1; flex:0 0 auto; height:auto !important; padding:0 !important; border-bottom:none !important}
-html body.theme-m02 .th-logo{background:var(--dark); color:#fff; width:36px; height:36px; border-radius:10px}
-html body.theme-m02 .th-site-info{display:none}
-html body.theme-m02 .th-sb-search{order:3; flex:0 0 auto; width:280px; margin-left:auto !important; padding:0 !important; border:none !important}
-html body.theme-m02 .th-sb-search-box{background:var(--sf2); border:1px solid var(--bd); border-radius:999px; padding:9px 16px}
-html body.theme-m02 .th-sb-footer{order:4; display:flex !important; flex-direction:row !important; flex:0 0 auto; margin:0 !important; padding:0 !important; border-top:none !important; gap:10px; align-items:center}
-html body.theme-m02 .th-sb-edit-btn,html body.theme-m02 .th-sb-view-site{display:none !important}
 
-/* ── NAV = hamburger → dropdown panel (the whole menu) ──────────────────────*/
-html body.theme-m02 .th-sb-nav{
-  order:2; flex:0 0 auto; position:relative; display:flex !important; flex-direction:column;
-  width:44px; height:42px; align-items:center; justify-content:center; gap:0;
-  border-radius:10px; cursor:pointer; background:var(--sf2); overflow:visible;
+/* Logo + title (order 2) */
+html body.theme-m02 .th-sb-header{order:2; flex:0 0 auto; display:flex !important; align-items:center; gap:20px; height:auto !important; padding:0 !important; border-bottom:none !important}
+html body.theme-m02 .th-logo{
+  background:var(--dark); color:#fff;
+  width:var(--m02-btn); height:var(--m02-btn); border-radius:20px;
+  display:flex !important; align-items:center; justify-content:center;
+  font-weight:800; font-size:28px; letter-spacing:-.04em; flex-shrink:0;
 }
-html body.theme-m02 .th-sb-nav::before{content:"\2630"; font-size:18px; color:var(--tx); line-height:1}
-html body.theme-m02 .th-sb-nav > *{display:none}
+html body.theme-m02 .th-site-info{display:flex !important; flex-direction:column; gap:0; min-width:0; line-height:1.05}
+html body.theme-m02 .th-site-name{order:1; font-size:26px; font-weight:700; color:var(--tx); letter-spacing:-.02em; white-space:nowrap}
+html body.theme-m02 .th-site-host{order:2; font-size:22px; font-weight:400; color:var(--tx3); letter-spacing:-.01em; text-transform:none; white-space:nowrap}
+
+/* Right cluster (order 3, injected) — + button, avatar/name/role */
+html body.theme-m02 .th-m02-cluster{order:3; flex:0 0 auto; margin-left:auto; display:flex; align-items:center; gap:24px}
+html body.theme-m02 .th-m02-plus{
+  width:var(--m02-btn); height:var(--m02-btn); border-radius:999px;
+  background:#fff; border:1.5px solid var(--bd);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--tx); text-decoration:none !important;
+  transition:background .15s ease, border-color .15s ease;
+}
+html body.theme-m02 .th-m02-plus:hover{background:var(--sf2); border-color:var(--bd2)}
+html body.theme-m02 .th-m02-user{display:flex; align-items:center; gap:14px}
+html body.theme-m02 .th-m02-avatar{
+  width:var(--m02-btn); height:var(--m02-btn); border-radius:999px;
+  background:var(--sf2); color:var(--tx2);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:22px;
+  background-size:cover; background-position:center;
+  flex-shrink:0;
+}
+html body.theme-m02 .th-m02-avatar.has-photo{color:transparent}
+html body.theme-m02 .th-m02-userinfo{display:flex; flex-direction:column; line-height:1.15; min-width:0}
+html body.theme-m02 .th-m02-name{font-size:18px; font-weight:700; color:var(--tx); letter-spacing:-.01em; white-space:nowrap}
+html body.theme-m02 .th-m02-role{font-size:16px; font-weight:400; color:var(--tx3); white-space:nowrap}
+
+/* Search (order 4) — icon pill + naked text */
+html body.theme-m02 .th-sb-search{order:4; flex:0 0 auto; width:auto; margin-left:0 !important; padding:0 !important; border:none !important}
+html body.theme-m02 .th-sb-search-box{background:transparent !important; border:none !important; padding:0 !important; gap:20px; box-shadow:none !important; display:flex; align-items:center}
+html body.theme-m02 .th-sb-search-box::before{
+  content:""; width:var(--m02-btn); height:var(--m02-btn); border-radius:999px; border:1.5px solid var(--bd); background:#fff;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24' fill='none' stroke='%231A1D21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>");
+  background-position:center; background-repeat:no-repeat; flex-shrink:0;
+}
+html body.theme-m02 .th-sb-search-box svg{display:none}
+html body.theme-m02 .th-sb-search-box input{background:transparent; font-size:18px; color:var(--tx3); font-weight:400; min-width:200px}
+html body.theme-m02 .th-sb-search-box input::placeholder{color:var(--tx3)}
+html body.theme-m02 .th-sb-search-kbd{display:none !important}
+
+/* Hide chrome we replace */
+html body.theme-m02 .th-sb-footer{display:none !important}
+html body.theme-m02 .th-sb-edit-btn,html body.theme-m02 .th-sb-view-site{display:none !important}
+html body.theme-m02 #th-top .th-top-actions{display:none !important}
+html body.theme-m02 #th-top .th-top-title{display:none !important}
+
+/* ── HAMBURGER (order 1) — 64 white pill → fixed dropdown panel ─────────────*/
+html body.theme-m02 .th-sb-nav{
+  order:1; flex:0 0 auto; position:relative; display:flex !important; flex-direction:column;
+  width:var(--m02-btn); height:var(--m02-btn); align-items:center; justify-content:center; gap:0;
+  border-radius:999px; cursor:pointer; background:#fff; border:1.5px solid var(--bd); overflow:hidden;
+}
+html body.theme-m02 .th-sb-nav::before{content:"\2630"; font-size:26px; color:var(--tx); line-height:1; font-weight:700}
+html body.theme-m02 .th-sb-nav > *{display:none !important}
 html body.theme-m02 .th-sb-nav:hover,html body.theme-m02 .th-sb-nav:focus-within{
-  position:absolute; top:14px; left:80px; width:252px; height:auto;
-  background:#fff; border:1px solid var(--bd); border-radius:14px; box-shadow:0 20px 50px rgba(30,30,40,.16);
-  padding:8px; align-items:stretch; justify-content:flex-start; gap:2px; z-index:330;
+  position:fixed; top:46px; left:80px; width:308px; height:auto; max-height:calc(100vh - 96px);
+  background:#fff; border:1px solid var(--bd); border-radius:20px; box-shadow:0 24px 60px rgba(30,30,40,.18);
+  padding:12px; align-items:stretch; justify-content:flex-start; gap:2px; z-index:9999; overflow:auto;
 }
 html body.theme-m02 .th-sb-nav:hover::before,html body.theme-m02 .th-sb-nav:focus-within::before{display:none}
-html body.theme-m02 .th-sb-nav:hover > *,html body.theme-m02 .th-sb-nav:focus-within > *{display:block}
-/* dropdown contents */
-html body.theme-m02 .th-sb-nav .th-sb-item{display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; color:var(--tx2); font-weight:500; white-space:nowrap}
+html body.theme-m02 .th-sb-nav:hover > .th-sb-item,
+html body.theme-m02 .th-sb-nav:focus-within > .th-sb-item{display:flex !important}
+html body.theme-m02 .th-sb-nav:hover > .th-sb-section,
+html body.theme-m02 .th-sb-nav:focus-within > .th-sb-section{display:block !important}
+
+/* Dropdown contents */
+html body.theme-m02 .th-sb-nav .th-sb-item{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:var(--tx2); font-weight:500; white-space:nowrap; font-size:14px}
 html body.theme-m02 .th-sb-nav .th-sb-item:hover{background:var(--sf2); color:var(--tx)}
 html body.theme-m02 .th-sb-nav .th-sb-item.active{background:var(--ac-s); color:var(--ac)}
-html body.theme-m02 .th-sb-section{display:block}
-html body.theme-m02 .th-sb-section-label{padding:10px 12px 4px; color:var(--tx3); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; cursor:default}
+html body.theme-m02 .th-sb-section-label{padding:12px 12px 4px; color:var(--tx3); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; cursor:default}
 html body.theme-m02 .th-sb-section-label svg,html body.theme-m02 .th-sb-section-toggle svg{display:none}
 html body.theme-m02 .th-sb-section-items{display:block; position:static !important; opacity:1 !important; visibility:visible !important; transform:none !important; background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; min-width:0}
-html body.theme-m02 .th-sb-child{display:block; padding:6px 12px 6px 28px; color:var(--tx2); border-radius:8px}
+html body.theme-m02 .th-sb-child{display:block; padding:6px 12px 6px 28px; color:var(--tx2); border-radius:8px; font-size:13px}
 html body.theme-m02 .th-sb-child:hover{background:var(--sf2); color:var(--tx)}
 html body.theme-m02 .th-sb-section-rename,html body.theme-m02 .th-sb-section-x,html body.theme-m02 .th-sb-grip,html body.theme-m02 .th-sb-reset,html body.theme-m02 .th-sb-done,html body.theme-m02 .th-sb-section-add{display:none !important}
 
-/* ── TOPBAR (page header) merges into the bar; big light greeting ───────────*/
-html body.theme-m02 #th-top{background:transparent !important; border:none !important; box-shadow:none !important; border-radius:0 !important; margin:0 !important; min-height:auto; padding:24px 32px 4px !important}
-body.theme-m02 #th-top button,body.theme-m02 #th-top .th-top-btn{background:#fff; border:1px solid var(--bd); box-shadow:none}
-body.theme-m02 .th-lp-title,body.theme-m02 .th-cx-title{font-size:30px; font-weight:700; letter-spacing:-.02em; color:var(--tx)}
-body.theme-m02 .th-lp-sub,body.theme-m02 .th-cx-sub{color:var(--tx3); font-size:15px}
+/* ── ROW 2 — PAGE HEADER ────────────────────────────────────────────────────*/
+html body.theme-m02 #th-top{
+  position:relative; z-index:1 !important;
+  background:transparent !important; border:none !important; box-shadow:none !important; border-radius:0 !important;
+  margin:0 !important; min-height:var(--m02-row2h); height:var(--m02-row2h);
+  padding:0 var(--m02-pad) !important;
+  gap:32px; flex-shrink:0;
+  display:flex !important; align-items:center;
+}
 
-/* ── CARDS — white, very rounded, soft shadow; last bento = dark spotlight ──*/
-body.theme-m02 .th-card,body.theme-m02 .th-studio-card{background:#fff; border:none; border-radius:20px; box-shadow:0 1px 2px rgba(20,24,40,.04),0 12px 30px rgba(20,24,40,.06)}
-body.theme-m02 .th-studio-card-hero{margin:8px 8px 0; border-radius:14px}
-body.theme-m02 .th-studio-card-foot{border-top:1px solid var(--sf3)}
-body.theme-m02 .th-bento .th-card:last-child{background:var(--dark); color:#fff}
-body.theme-m02 .th-bento .th-card:last-child h3,body.theme-m02 .th-bento .th-card:last-child .th-stat-val{color:#fff}
+/* Date pill — outer pill containing day-circle + meta + divider + CTA + cal */
+html body.theme-m02 .th-m02-datepill{
+  display:flex; align-items:center; gap:18px;
+  padding:8px; padding-right:8px;
+  border:1.5px solid var(--bd); border-radius:999px; background:#fff;
+  flex-shrink:0;
+}
+html body.theme-m02 .th-m02-date-num{
+  width:72px; height:72px; border-radius:999px; border:1.5px solid var(--bd);
+  display:flex; align-items:center; justify-content:center;
+  font-size:36px; font-weight:700; line-height:1; color:var(--tx); letter-spacing:-.02em;
+  flex-shrink:0;
+}
+html body.theme-m02 .th-m02-date-meta{display:flex; flex-direction:column; font-size:16px; font-weight:500; line-height:1.15; color:var(--tx); white-space:nowrap}
+html body.theme-m02 .th-m02-divider{width:1px; height:48px; background:var(--bd); flex-shrink:0}
+html body.theme-m02 .th-m02-tasks{
+  display:inline-flex; align-items:center; gap:14px;
+  padding:18px 28px;
+  background:var(--ac); color:#fff !important;
+  border-radius:999px;
+  font-weight:600; font-size:16px;
+  text-decoration:none !important;
+  transition:background .15s ease;
+}
+html body.theme-m02 .th-m02-tasks:hover{background:var(--ac-h); color:#fff !important}
+html body.theme-m02 .th-m02-tasks svg{flex-shrink:0}
+html body.theme-m02 .th-m02-cal{
+  width:56px; height:56px; border-radius:999px;
+  border:1.5px solid var(--bd); background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--tx); text-decoration:none !important;
+  position:relative; flex-shrink:0;
+  transition:background .15s ease, border-color .15s ease;
+}
+html body.theme-m02 .th-m02-cal:hover{background:var(--sf2); border-color:var(--bd2)}
+html body.theme-m02 .th-m02-cal::after{
+  content:""; position:absolute; top:10px; right:10px;
+  width:9px; height:9px; border-radius:50%; background:var(--ac);
+}
 
+/* Greeting + prompt input — pushed right with margin-left:auto */
+html body.theme-m02 .th-m02-prompt{
+  margin-left:auto; display:flex; flex-direction:column; gap:0; align-items:flex-start;
+  min-width:0; flex-shrink:1; max-width:60%;
+}
+html body.theme-m02 .th-m02-prompt-greet{
+  font-size:48px; font-weight:700; color:var(--tx); letter-spacing:-.025em; line-height:1.02;
+  display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+}
+html body.theme-m02 .th-m02-prompt-wave{display:inline-block; font-size:44px; line-height:1; margin-left:2px}
+html body.theme-m02 .th-m02-prompt-form{display:flex; align-items:center; width:100%}
+html body.theme-m02 .th-m02-prompt-input{
+  background:transparent; border:none; outline:none; padding:0; margin:0;
+  font-family:inherit; font-size:48px; font-weight:400; color:var(--tx);
+  letter-spacing:-.025em; line-height:1.02;
+  width:100%; min-width:0; caret-color:var(--tx);
+}
+html body.theme-m02 .th-m02-prompt-input::placeholder{color:var(--tx3); opacity:1}
+
+/* Mic — far right of row 2 */
+html body.theme-m02 .th-m02-mic{
+  flex-shrink:0;
+  width:var(--m02-btn); height:var(--m02-btn); border-radius:999px;
+  border:1.5px solid var(--bd); background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--tx); cursor:pointer; padding:0;
+  transition:background .15s ease, border-color .15s ease, color .15s ease;
+}
+html body.theme-m02 .th-m02-mic:hover{background:var(--sf2); border-color:var(--bd2)}
+html body.theme-m02 .th-m02-mic.is-recording{background:var(--ac); border-color:var(--ac); color:#fff}
+
+/* ── CONTENT — bento on the shell tint; pure-white cards pop ────────────────*/
+html body.theme-m02 #th-content{
+  background:transparent !important;
+  padding:8px var(--m02-pad) 40px !important;
+  flex:1; overflow-y:auto; overflow-x:hidden;
+}
+html body.theme-m02 .th-dash,html body.theme-m02 .th-lp{padding:0 !important; max-width:none !important; margin:0 !important}
+
+/* Dashboard greeting (hero) — flatten WP dashboard's "Welcome back" block so
+   it doesn't double up with our row-2 greeting. Keep the action buttons. */
+html body.theme-m02 .th-dash-greet,html body.theme-m02 .th-dash-title,html body.theme-m02 .th-dash-sub{display:none !important}
+
+html body.theme-m02 .th-dash-actions{margin:0 0 20px}
+html body.theme-m02 .th-btn{
+  background:#fff; border:1.5px solid var(--bd); border-radius:999px;
+  padding:12px 20px; font-weight:600; font-size:14px; color:var(--tx);
+}
+html body.theme-m02 .th-btn:hover{background:var(--sf2); border-color:var(--bd2)}
+html body.theme-m02 .th-btn-primary,html body.theme-m02 .th-cx-btn.is-primary{
+  background:var(--ac) !important; color:#fff !important; border:none !important;
+  border-radius:999px !important; padding:14px 24px !important; font-weight:600; font-size:14px;
+}
+html body.theme-m02 .th-btn-primary:hover,html body.theme-m02 .th-cx-btn.is-primary:hover{background:var(--ac-h) !important}
+
+/* Bento cards — pure WHITE, very rounded, hairline border, no shadow */
+html body.theme-m02 .th-card,html body.theme-m02 .th-studio-card{
+  background:var(--card) !important;
+  border:1px solid var(--bd) !important;
+  border-radius:24px !important;
+  box-shadow:none !important;
+  padding:26px !important;
+  color:var(--tx);
+}
+html body.theme-m02 .th-card .th-card-label{font-size:11px; font-weight:700; letter-spacing:.08em; color:var(--tx3); text-transform:uppercase}
+html body.theme-m02 .th-card .th-card-link{color:var(--ac); font-size:13px; font-weight:600}
+html body.theme-m02 .th-card .th-stat-val{font-weight:700; letter-spacing:-.025em; color:var(--tx)}
+html body.theme-m02 .th-card .th-stat-sub{color:var(--tx2); font-size:13px}
+html body.theme-m02 .th-mini-list-row{border-color:var(--bd) !important}
+html body.theme-m02 .th-mini-list-name{color:var(--tx)}
+html body.theme-m02 .th-mini-list-meta{color:var(--tx3)}
+
+/* Last bento card = dark spotlight (N2's 36% growth circle) */
+html body.theme-m02 .th-bento{gap:18px}
+html body.theme-m02 .th-bento .th-card:last-child{background:var(--dark) !important; color:#fff !important; border-color:var(--dark) !important}
+html body.theme-m02 .th-bento .th-card:last-child h3,
+html body.theme-m02 .th-bento .th-card:last-child .th-stat-val,
+html body.theme-m02 .th-bento .th-card:last-child .th-card-label{color:#fff !important}
+html body.theme-m02 .th-bento .th-card:last-child .th-stat-sub{color:rgba(255,255,255,.7) !important}
+
+/* Studio cards */
+html body.theme-m02 .th-studio-card-hero{margin:8px 8px 0; border-radius:18px}
+html body.theme-m02 .th-studio-card-foot{border-top:1px solid var(--sf3)}
+
+/* Fonts */
 body.theme-m02 #th-sb,body.theme-m02 #th-top,body.theme-m02 #th-content,
 body.theme-m02 .th-cx-title,body.theme-m02 .th-lp-title,body.theme-m02 .th-studio-card-name,
-body.theme-m02 .th-card h3,body.theme-m02 .th-stat-val{font-family:var(--m02-font)}
+body.theme-m02 .th-card h3,body.theme-m02 .th-stat-val,body.theme-m02 .th-btn{font-family:var(--m02-font)}
 
-/* ── BUTTONS — coral pill ───────────────────────────────────────────────────*/
-body.theme-m02 .th-btn-primary,body.theme-m02 .th-cx-btn.is-primary{background:var(--ac); color:#fff; border:none; border-radius:999px}
-body.theme-m02 .th-btn-primary:hover,body.theme-m02 .th-cx-btn.is-primary:hover{background:var(--ac-h)}
+/* Settings pages, customizer page titles — keep the type pattern consistent */
+body.theme-m02 .th-cx-title,body.theme-m02 .th-lp-title{font-size:34px; font-weight:700; letter-spacing:-.02em}
+body.theme-m02 .th-cx-sub,body.theme-m02 .th-lp-sub{font-size:16px; color:var(--tx3)}

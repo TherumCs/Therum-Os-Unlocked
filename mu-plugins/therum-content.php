@@ -875,7 +875,7 @@ class Therum_Cards_Admin {
 					$thumb = get_the_post_thumbnail_url( $post, 'medium_large' );
 					$hue   = abs( crc32( $post->post_title ) ) % 7;
 					$edit  = get_edit_post_link( $post->ID );
-					$bricks_edit = function_exists( 'th_bricks_builder_url' ) ? th_bricks_builder_url( $post ) : '';
+					$bricks_edit = function_exists( 'therum_bricks_builder_url' ) ? therum_bricks_builder_url( $post ) : '';
 					$preview = get_preview_post_link( $post );
 					$live    = $post->post_status === 'publish' && is_post_type_viewable( $post->post_type ) ? get_permalink( $post ) : '';
 					$dup_url = wp_nonce_url(
@@ -1009,7 +1009,7 @@ add_action( 'load-post.php', function() {
  * the URL manually — Bricks just needs `?bricks=run` plus enough info
  * (`p` + `post_type`) to identify the post.
  */
-function th_bricks_builder_url( $post ): string {
+function therum_bricks_builder_url( $post ): string {
 	if ( ! $post || ! class_exists( '\\Bricks\\Helpers' ) ) return '';
 
 	// Bricks must support this post type (Settings → Builder → Post types)
@@ -1041,14 +1041,14 @@ function th_bricks_builder_url( $post ): string {
 //  EDITOR TOOLBAR — Internal (TinyMCE Visual) | Code (TinyMCE Text) | Bricks
 //  Internal/Code switch in-place via TinyMCE's built-in tabs (no reload).
 //  Bricks opens the full-screen builder. The inline Save button persists via
-//  the th_save_post AJAX endpoint so the user never leaves this page to save.
+//  the therum_save_post AJAX endpoint so the user never leaves this page to save.
 // ─────────────────────────────────────────────────────────────────────────────
 add_action( 'edit_form_top', function( $post ) {
 	if ( ! $post ) return;
 	if ( ! current_user_can( 'edit_post', $post->ID ) ) return;
 
-	$builder_url = th_bricks_builder_url( $post );
-	$nonce = wp_create_nonce( 'th_save_post' );
+	$builder_url = therum_bricks_builder_url( $post );
+	$nonce = wp_create_nonce( 'therum_save_post' );
 	?>
 	<div class="th-editor-bar" data-th-editor-bar data-post-id="<?php echo (int) $post->ID; ?>" data-nonce="<?php echo esc_attr( $nonce ); ?>">
 		<div class="th-editor-modes">
@@ -1077,7 +1077,7 @@ add_action( 'edit_form_top', function( $post ) {
 
 // If the post type doesn't natively support a content editor (e.g. bricks_template),
 // inject a TinyMCE instance below the title so the Default/Code toolbar buttons
-// have something to act on. Saves go to post_content via th_save_post.
+// have something to act on. Saves go to post_content via therum_save_post.
 add_action( 'edit_form_after_title', function( $post ) {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) return;
 	if ( post_type_supports( $post->post_type, 'editor' ) ) return; // WP renders its own
@@ -1132,7 +1132,7 @@ add_action( 'add_meta_boxes', function( $post_type, $post ) {
 
 // AJAX save — title + content for the current post, no page reload.
 add_action( 'wp_ajax_th_save_post', function() {
-	check_ajax_referer( 'th_save_post', 'nonce' );
+	check_ajax_referer( 'therum_save_post', 'nonce' );
 	$post_id = isset( $_POST['post_id'] ) ? (int) $_POST['post_id'] : 0;
 	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
 		wp_send_json_error( [ 'message' => 'No permission' ], 403 );

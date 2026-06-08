@@ -695,7 +695,17 @@ class Therum_Updates {
 					  Copies the new mu-plugin set from the selected bundle into <code>wp-content/mu-plugins/</code>.
 					  The existing set is moved to a timestamped backup beside it. No core, plugin, or theme files are touched.
 					</p>
-					<?php foreach ( [ 'patch', 'pure', 'pro' ] as $bid ):
+					<?php
+					// Order known bundles first (patch, pure, unlocked), then
+					// append any new bundles the manifest ships. Keys come from
+					// the manifest itself — adding a bundle no longer requires
+					// editing this loop.
+					$preferred = [ 'patch', 'pure', 'unlocked' ];
+					$bundle_ids = array_values( array_unique( array_merge(
+						array_intersect( $preferred, array_keys( $bundles ) ),
+						array_diff( array_keys( $bundles ), $preferred )
+					) ) );
+					foreach ( $bundle_ids as $bid ):
 						if ( empty( $bundles[ $bid ]['zip'] ) ) continue;
 						$b = $bundles[ $bid ];
 						$zip_path = self::dist_path() . '/' . $b['zip'];

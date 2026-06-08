@@ -379,7 +379,7 @@ add_action( 'init', function() {
 }, 21 );
 
 function thwp_render_store_perf(): void {
-	if ( ! function_exists( 'th_settings_group' ) ) return;
+	if ( ! function_exists( 'therum_settings_group' ) ) return;
 	$nonce  = wp_create_nonce( 'therum_options' );
 	$sqlite = function_exists( 'therum_is_sqlite' ) && therum_is_sqlite();
 
@@ -392,7 +392,7 @@ function thwp_render_store_perf(): void {
 	// HPOS and the Legacy REST API solve different problems and don't compete:
 	// one is *where orders live*, the other is *an API some integrations call*.
 	// Compatibility sync is the bridge that keeps both happy at once.
-	th_settings_group( 'How these fit together', 'HPOS and the Legacy REST API are independent layers — they don\'t conflict.', function () {
+	therum_settings_group( 'How these fit together', 'HPOS and the Legacy REST API are independent layers — they don\'t conflict.', function () {
 		?>
 		<div style="display:grid;gap:10px;font-size:13px;color:var(--tx2);">
 			<div><strong style="color:var(--tx);">HPOS = storage.</strong> Where order data physically lives (custom tables vs wp_posts). A speed/footprint choice.</div>
@@ -403,7 +403,7 @@ function thwp_render_store_perf(): void {
 	} );
 
 	// ── HPOS (storage layer) ──────────────────────────────────────────────────
-	th_settings_group( 'High-Performance Order Storage (HPOS)', 'Storage layer — keeps orders in dedicated tables for faster queries and a smaller footprint. Independent of any API.', function () use ( $sqlite, $hpos_on, $sync_on, $wc_feat, $nonce ) {
+	therum_settings_group( 'High-Performance Order Storage (HPOS)', 'Storage layer — keeps orders in dedicated tables for faster queries and a smaller footprint. Independent of any API.', function () use ( $sqlite, $hpos_on, $sync_on, $wc_feat, $nonce ) {
 		?>
 		<div data-th-hpos data-nonce="<?php echo esc_attr( $nonce ); ?>">
 		<?php if ( $sqlite ): ?>
@@ -449,7 +449,7 @@ function thwp_render_store_perf(): void {
 	} );
 
 	// ── Legacy REST API (access layer) — neutral on/off, not a nag ────────────
-	th_settings_group( 'Legacy REST API', 'Access layer — the v1–v3 WooCommerce REST API some older integrations call. Independent of HPOS; with compatibility sync on it runs safely alongside it. Turn it on for the plugins that need it, off to shrink your attack surface when nothing does.', function () use ( $legacy, $nonce ) {
+	therum_settings_group( 'Legacy REST API', 'Access layer — the v1–v3 WooCommerce REST API some older integrations call. Independent of HPOS; with compatibility sync on it runs safely alongside it. Turn it on for the plugins that need it, off to shrink your attack surface when nothing does.', function () use ( $legacy, $nonce ) {
 		?>
 		<div data-th-legacy data-nonce="<?php echo esc_attr( $nonce ); ?>" data-active="<?php echo $legacy['active'] ? '1' : '0'; ?>">
 		<?php if ( $legacy['active'] ): ?>

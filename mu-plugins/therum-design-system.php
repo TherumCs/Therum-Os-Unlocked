@@ -115,13 +115,13 @@ class Therum_Design_System_Page {
 	}
 
 	public static function inject_styles(): void {
-		$page = $_GET['page'] ?? '';
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 		if ( $page !== THERUM_DS_PAGE_SLUG ) return;
 		echo "<style id='therum-ds-inline'>" . self::css() . "</style>";
 	}
 
 	public static function inject_script(): void {
-		$page = $_GET['page'] ?? '';
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 		if ( $page !== THERUM_DS_PAGE_SLUG ) return;
 		$nonce = wp_create_nonce( 'therum_ds' );
 		$ajax  = admin_url( 'admin-ajax.php' );
@@ -325,7 +325,7 @@ class Therum_Design_System_Page {
 			[ 'label' => 'Mono',       'size' => 13, 'weight' => 400, 'family' => 'mono',    'lh' => 1.5,  'text' => '--th-font-mono: monospace;' ],
 		];
 		?>
-		<div class="ds-canvas" style="<?php echo $tile_vars; // phpcs:ignore — values escaped above ?>">
+		<div class="ds-canvas" style="<?php echo esc_attr( $tile_vars ); ?>">
 
 			<!-- 01 · Typography ─────────────────────────────────────────── -->
 			<section class="ds-band">

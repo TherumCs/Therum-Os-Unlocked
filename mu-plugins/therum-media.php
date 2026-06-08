@@ -22,32 +22,32 @@ if ( ! THERUM_MEDIA ) return;
  * Override any sub-module via add_filter:
  *   add_filter( 'therum_media_on_batch_rename', '__return_false' );
  */
-function thm_on( string $module, bool $default = true ): bool {
+function therum_media_on( string $module, bool $default = true ): bool {
     return (bool) apply_filters( 'therum_media_on_' . $module, $default );
 }
 
 // ── AJAX hooks ───────────────────────────────────────────────────────────────
-add_action( 'wp_ajax_therum_media_rename',         'thm_ajax_rename' );
-add_action( 'wp_ajax_therum_media_rename_preview', 'thm_ajax_rename_preview' );
-add_action( 'wp_ajax_therum_media_rename_single',  'thm_ajax_rename_single' );
+add_action( 'wp_ajax_therum_media_rename',         'therum_media_ajax_rename' );
+add_action( 'wp_ajax_therum_media_rename_preview', 'therum_media_ajax_rename_preview' );
+add_action( 'wp_ajax_therum_media_rename_single',  'therum_media_ajax_rename_single' );
 
 // ── Admin column + inline action ─────────────────────────────────────────────
-add_filter( 'manage_media_columns',       'thm_media_columns' );
-add_filter( 'manage_media_custom_column', 'thm_media_column_content', 10, 2 );
-add_action( 'admin_head',                 'thm_admin_styles' );
-add_action( 'admin_footer',               'thm_admin_scripts' );
+add_filter( 'manage_media_columns',       'therum_media_columns' );
+add_filter( 'manage_media_custom_column', 'therum_media_column_content', 10, 2 );
+add_action( 'admin_head',                 'therum_media_admin_styles' );
+add_action( 'admin_footer',               'therum_media_admin_scripts' );
 
 // ── Bulk action registration ─────────────────────────────────────────────────
-add_filter( 'bulk_actions-upload',        'thm_bulk_actions' );
-add_filter( 'handle_bulk_actions-upload', 'thm_handle_bulk_rename', 10, 3 );
-add_action( 'admin_notices',              'thm_bulk_rename_notice' );
+add_filter( 'bulk_actions-upload',        'therum_media_bulk_actions' );
+add_filter( 'handle_bulk_actions-upload', 'therum_media_handle_bulk_rename', 10, 3 );
+add_action( 'admin_notices',              'therum_media_bulk_rename_notice' );
 
 // ── Status filter for Performance dashboard ───────────────────────────────────
 add_filter( 'therum_media_status_rows', function ( array $rows ): array {
     $rows[] = [
         'label'  => 'NeoRename',
-        'status' => thm_on( 'batch_rename' ) ? 'active' : 'inactive',
-        'detail' => thm_on( 'batch_rename' )
+        'status' => therum_media_on( 'batch_rename' ) ? 'active' : 'inactive',
+        'detail' => therum_media_on( 'batch_rename' )
             ? 'Batch rename + single-file rename enabled'
             : 'Disabled via therum_media_on_batch_rename filter',
     ];
@@ -65,8 +65,8 @@ add_filter( 'therum_media_status_rows', function ( array $rows ): array {
  * @param  string $new_basename   New filename without extension (raw, will be sanitised).
  * @return array{success: bool, old_file: string, new_file: string, message: string}
  */
-function thm_rename_attachment( int $attachment_id, string $new_basename ): array {
-    if ( ! thm_on( 'batch_rename' ) ) {
+function therum_media_rename_attachment( int $attachment_id, string $new_basename ): array {
+    if ( ! therum_media_on( 'batch_rename' ) ) {
         return [ 'success' => false, 'message' => 'NeoRename is disabled.' ];
     }
 
@@ -97,7 +97,7 @@ function thm_rename_attachment( int $attachment_id, string $new_basename ): arra
     }
 
     // Rename generated image sizes
-    foreach ( thm_collect_size_files( $attachment_id, $old_file ) as $old_size_path => $size_suffix ) {
+    foreach ( therum_media_collect_size_files( $attachment_id, $old_file ) as $old_size_path => $size_suffix ) {
         $new_size_path = $dir . $new_basename . $size_suffix;
         if ( file_exists( $old_size_path ) ) rename( $old_size_path, $new_size_path );
     }
@@ -132,7 +132,7 @@ function thm_rename_attachment( int $attachment_id, string $new_basename ): arra
 
     $new_url = wp_get_attachment_url( $attachment_id );
     if ( $old_url && $new_url && $old_url !== $new_url ) {
-        thm_rewrite_content_urls( $old_url, $new_url, $attachment_id );
+        therum_media_rewrite_content_urls( $old_url, $new_url, $attachment_id );
     }
 
     return [
@@ -150,7 +150,7 @@ function thm_rename_attachment( int $attachment_id, string $new_basename ): arra
  *
  * @return array<string,string>  Maps old_full_path → size_suffix (e.g. "-150x150.jpg")
  */
-function thm_collect_size_files( int $attachment_id, string $primary_path ): array {
+function therum_media_collect_size_files( int $attachment_id, string $primary_path ): array {
     $result   = [];
     $meta     = wp_get_attachment_metadata( $attachment_id );
     $dir      = trailingslashit( dirname( $primary_path ) );
@@ -172,8 +172,8 @@ function thm_collect_size_files( int $attachment_id, string $primary_path ): arr
  * Rewrite all post_content occurrences of old URL → new URL.
  * Also stores old URL as rollback reference in postmeta.
  */
-function thm_rewrite_content_urls( string $old_url, string $new_url, int $attachment_id ): void {
-    if ( ! thm_on( 'rewrite_post_content' ) ) return;
+function therum_media_rewrite_content_urls( string $old_url, string $new_url, int $attachment_id ): void {
+    if ( ! therum_media_on( 'rewrite_post_content' ) ) return;
 
     global $wpdb;
 
@@ -209,7 +209,7 @@ function thm_rewrite_content_urls( string $old_url, string $new_url, int $attach
 // AJAX handlers
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function thm_ajax_rename(): void {
+function therum_media_ajax_rename(): void {
     check_ajax_referer( 'therum_media_rename', 'nonce' );
     if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'Insufficient permissions.' ], 403 );
 
@@ -224,14 +224,14 @@ function thm_ajax_rename(): void {
             $results[] = [ 'id' => $id, 'success' => false, 'message' => 'Missing id or new_basename.' ];
             continue;
         }
-        $results[] = array_merge( [ 'id' => $id ], thm_rename_attachment( $id, $new_basename ) );
+        $results[] = array_merge( [ 'id' => $id ], therum_media_rename_attachment( $id, $new_basename ) );
     }
 
     $success_count = count( array_filter( $results, fn( $r ) => $r['success'] ?? false ) );
     wp_send_json_success( [ 'renamed' => $success_count, 'total' => count( $results ), 'results' => $results ] );
 }
 
-function thm_ajax_rename_preview(): void {
+function therum_media_ajax_rename_preview(): void {
     check_ajax_referer( 'therum_media_rename', 'nonce' );
     if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'Insufficient permissions.' ], 403 );
 
@@ -259,7 +259,7 @@ function thm_ajax_rename_preview(): void {
     wp_send_json_success( [ 'preview' => $preview ] );
 }
 
-function thm_ajax_rename_single(): void {
+function therum_media_ajax_rename_single(): void {
     check_ajax_referer( 'therum_media_rename', 'nonce' );
     if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'Insufficient permissions.' ], 403 );
 
@@ -267,7 +267,7 @@ function thm_ajax_rename_single(): void {
     $new_basename = sanitize_text_field( $_POST['new_basename'] ?? '' );
     if ( ! $id || ! $new_basename ) wp_send_json_error( [ 'message' => 'Missing id or new_basename.' ] );
 
-    $result = thm_rename_attachment( $id, $new_basename );
+    $result = therum_media_rename_attachment( $id, $new_basename );
     if ( $result['success'] ) {
         wp_send_json_success( $result );
     } else {
@@ -279,17 +279,17 @@ function thm_ajax_rename_single(): void {
 // Bulk action
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function thm_bulk_actions( array $actions ): array {
-    if ( thm_on( 'batch_rename' ) ) $actions['therum_rename'] = 'Rename files (Therum)';
+function therum_media_bulk_actions( array $actions ): array {
+    if ( therum_media_on( 'batch_rename' ) ) $actions['therum_rename'] = 'Rename files (Therum)';
     return $actions;
 }
 
-function thm_handle_bulk_rename( string $redirect, string $action, array $ids ): string {
+function therum_media_handle_bulk_rename( string $redirect, string $action, array $ids ): string {
     if ( $action !== 'therum_rename' ) return $redirect;
     return add_query_arg( [ 'therum_rename' => implode( ',', array_map( 'intval', $ids ) ) ], admin_url( 'upload.php' ) );
 }
 
-function thm_bulk_rename_notice(): void {
+function therum_media_bulk_rename_notice(): void {
     if ( empty( $_GET['therum_rename_done'] ) ) return;
     $n = (int) $_GET['therum_rename_done'];
     printf(
@@ -302,15 +302,15 @@ function thm_bulk_rename_notice(): void {
 // Admin column
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function thm_media_columns( array $columns ): array {
-    if ( thm_on( 'batch_rename' ) ) $columns['therum_rename'] = 'Rename';
+function therum_media_columns( array $columns ): array {
+    if ( therum_media_on( 'batch_rename' ) ) $columns['therum_rename'] = 'Rename';
     return $columns;
 }
 
-function thm_media_column_content( string $column, int $post_id ): void {
+function therum_media_column_content( string $column, int $post_id ): void {
     if ( $column !== 'therum_rename' ) return;
     printf(
-        '<a href="#" class="thm-rename-link" data-id="%d" data-name="%s">Rename</a>',
+        '<button type="button" class="thm-rename-link button-link" data-id="%d" data-name="%s">Rename</button>',
         esc_attr( $post_id ),
         esc_attr( get_the_title( $post_id ) )
     );
@@ -320,7 +320,7 @@ function thm_media_column_content( string $column, int $post_id ): void {
 // Admin CSS + JS (upload.php only)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function thm_admin_styles(): void {
+function therum_media_admin_styles(): void {
     $screen = get_current_screen();
     if ( ! $screen || $screen->base !== 'upload' ) return;
     ?>
@@ -340,7 +340,7 @@ function thm_admin_styles(): void {
     <?php
 }
 
-function thm_admin_scripts(): void {
+function therum_media_admin_scripts(): void {
     $screen = get_current_screen();
     if ( ! $screen || $screen->base !== 'upload' ) return;
     $nonce    = wp_create_nonce( 'therum_media_rename' );

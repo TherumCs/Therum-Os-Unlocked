@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.24' );
+define( 'THERUM_OS_VERSION', '1.9.25' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
@@ -197,7 +197,7 @@ if ( ! function_exists( 'therum_desktop_mode_active_for_user' ) ) {
 }
 
 // Yield Therum's shell on every admin page when DM is active for the user.
-// Hooks into the existing escape hatch in therum-admin.php's th_is_frame().
+// Hooks into the existing escape hatch in therum-admin.php's therum_is_frame().
 add_filter( 'therum_admin_shell_bypass', function( $bypass ) {
 	if ( $bypass ) return $bypass;
 	return therum_desktop_mode_active_for_user();

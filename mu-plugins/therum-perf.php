@@ -107,34 +107,44 @@ function therum_minify_html( $html ) {
 	// matched the comment regex and got deleted, taking every <style>/<script>
 	// block with them — leaving every page silently unstyled and unscripted.
 	$placeholders = [];
-	$html = preg_replace_callback(
-		'#<(pre|textarea|script|style)([^>]*)>([\s\S]*?)</\1>#i',
-		function( $m ) use ( &$placeholders ) {
-			$key = "\x02TH_PH_" . count( $placeholders ) . "\x03";
-			$placeholders[ $key ] = $m[0];
-			return $key;
-		},
-		$html
-	);
+	$original     = $html;
+	try {
+		$html = preg_replace_callback(
+			'#<(pre|textarea|script|style)([^>]*)>([\s\S]*?)</\1>#i',
+			function( $m ) use ( &$placeholders ) {
+				$key = "\x02TH_PH_" . count( $placeholders ) . "\x03";
+				$placeholders[ $key ] = $m[0];
+				return $key;
+			},
+			$html
+		);
+		if ( $html === null ) return $original; // PCRE backtrack limit hit
 
-	// Remove HTML comments (but keep IE conditional)
-	$html = preg_replace( '/<!--(?!\s*(?:\[if [^\]]+]|<!|>))(?:(?!-->).)*-->/s', '', $html );
+		// Remove HTML comments (but keep IE conditional)
+		$html = preg_replace( '/<!--(?!\s*(?:\[if [^\]]+]|<!|>))(?:(?!-->).)*-->/s', '', $html );
 
-	// Collapse whitespace between tags
-	$html = preg_replace( '/>\s+</', '><', $html );
+		// Collapse whitespace between tags
+		$html = preg_replace( '/>\s+</', '><', $html );
 
-	// Collapse runs of whitespace within text
-	$html = preg_replace( '/\s{2,}/', ' ', $html );
+		// Collapse runs of whitespace within text
+		$html = preg_replace( '/\s{2,}/', ' ', $html );
 
-	// Trim line breaks
-	$html = preg_replace( '/[\r\n]+/', "\n", $html );
+		// Trim line breaks
+		$html = preg_replace( '/[\r\n]+/', "\n", $html );
 
-	// Restore preserved blocks
-	foreach ( $placeholders as $key => $content ) {
-		$html = str_replace( $key, $content, $html );
+		if ( $html === null ) return $original;
+
+		return $html;
+	} finally {
+		// Always restore placeholders — even if a regex above returned null
+		// or an exception bubbled up. Without this, a partial-minify could
+		// ship the raw \x02TH_PH_N\x03 sentinels to the browser.
+		if ( $html !== null ) {
+			foreach ( $placeholders as $key => $content ) {
+				$html = str_replace( $key, $content, $html );
+			}
+		}
 	}
-
-	return $html;
 }
 
 

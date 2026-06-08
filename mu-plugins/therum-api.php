@@ -574,7 +574,7 @@ add_action( 'wp_ajax_therum_webhook_test', function() {
 
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  RENDER — replaces th_render_api_webhooks in therum-settings.php
+//  RENDER — replaces therum_render_api_webhooks in therum-settings.php
 // ═════════════════════════════════════════════════════════════════════════════
 
 function therum_render_api_full() {
@@ -590,7 +590,7 @@ function therum_render_api_full() {
 	$therum_v1     = rest_url( 'therum/v1' );
 
 	// ── Connect ─────────────────────────────────────────────────────────────
-	th_settings_group( 'Connect', 'Your site\'s live API connection details.', function() use ( $rest_base, $therum_v1, $headless_mode ) {
+	therum_settings_group( 'Connect', 'Your site\'s live API connection details.', function() use ( $rest_base, $therum_v1, $headless_mode ) {
 		?>
 		<div class="th-connect-grid" style="display:grid;gap:10px;margin-bottom:4px;">
 
@@ -618,7 +618,7 @@ function therum_render_api_full() {
 			Auth: <code style="background:var(--sf2);padding:1px 6px;border-radius:4px;">Authorization: Basic base64(username:application_password)</code>
 		</div>
 
-		<?php th_setting_row( 'Headless mode', 'Suppresses the WP theme for all public requests. Visitors receive a JSON pointer to the REST API. Use when a decoupled frontend (Next.js, Astro, etc.) handles rendering.', th_toggle( 'th_headless_mode', $headless_mode ) ); ?>
+		<?php therum_setting_row( 'Headless mode', 'Suppresses the WP theme for all public requests. Visitors receive a JSON pointer to the REST API. Use when a decoupled frontend (Next.js, Astro, etc.) handles rendering.', therum_toggle( 'th_headless_mode', $headless_mode ) ); ?>
 
 		<?php if ( $headless_mode ): ?>
 		<div style="margin-top:8px;padding:10px 14px;background:color-mix(in srgb, var(--ac) 10%, transparent);border:1px solid color-mix(in srgb, var(--ac) 30%, transparent);border-radius:8px;font-size:12px;color:var(--tx2);">
@@ -645,16 +645,16 @@ function therum_render_api_full() {
 	} );
 
 	// REST API hardening
-	th_settings_group( 'REST API', 'WP\'s built-in REST API at /wp-json/.', function() use ( $rest_enabled, $rest_auth_req ) {
-		th_setting_row( 'REST API enabled', 'Disable to fully lock down /wp-json/ endpoints. Bricks needs this on.', th_toggle( 'th_rest_enabled', $rest_enabled ) );
-		th_setting_row( 'Require authentication', 'Block unauthenticated reads (anonymous calls). Recommended for private sites.', th_toggle( 'th_rest_require_auth', $rest_auth_req ) );
+	therum_settings_group( 'REST API', 'WP\'s built-in REST API at /wp-json/.', function() use ( $rest_enabled, $rest_auth_req ) {
+		therum_setting_row( 'REST API enabled', 'Disable to fully lock down /wp-json/ endpoints. Bricks needs this on.', therum_toggle( 'th_rest_enabled', $rest_enabled ) );
+		therum_setting_row( 'Require authentication', 'Block unauthenticated reads (anonymous calls). Recommended for private sites.', therum_toggle( 'th_rest_require_auth', $rest_auth_req ) );
 	});
 
-	th_settings_group( 'CORS', 'Allow cross-origin requests from these domains.', function() use ( $cors ) {
-		th_setting_row( 'Allowed origins', 'One per line. Use * for wildcard (not recommended). Each origin should include scheme, e.g. https://app.example.com', '<textarea class="th-input th-textarea" data-th-text="th_cors_origins" rows="4" placeholder="https://app.example.com">' . esc_textarea( $cors ) . '</textarea>' );
+	therum_settings_group( 'CORS', 'Allow cross-origin requests from these domains.', function() use ( $cors ) {
+		therum_setting_row( 'Allowed origins', 'One per line. Use * for wildcard (not recommended). Each origin should include scheme, e.g. https://app.example.com', '<textarea class="th-input th-textarea" data-th-text="th_cors_origins" rows="4" placeholder="https://app.example.com">' . esc_textarea( $cors ) . '</textarea>' );
 	});
 
-	th_settings_group( 'Application passwords', 'Per-user API tokens for Bearer auth.', function() {
+	therum_settings_group( 'Application passwords', 'Per-user API tokens for Bearer auth.', function() {
 		?>
 		<div style="font-size:13px;color:var(--tx2);line-height:1.6;">
 			Generate per-user API tokens in your profile. Use them as <code style="background:var(--sf2);padding:1px 6px;border-radius:4px;">Authorization: Basic base64(user:token)</code> headers for REST API calls.
@@ -664,7 +664,7 @@ function therum_render_api_full() {
 	});
 
 	// Webhooks
-	th_settings_group( 'Webhooks', 'Send HTTP POST to your endpoints when site events occur.', function() use ( $webhooks, $events, $nonce ) {
+	therum_settings_group( 'Webhooks', 'Send HTTP POST to your endpoints when site events occur.', function() use ( $webhooks, $events, $nonce ) {
 		?>
 		<div class="th-webhooks" data-th-webhooks data-nonce="<?php echo esc_attr( $nonce ); ?>">
 			<button type="button" class="th-button th-button-primary" data-webhook-new>+ New webhook</button>
@@ -925,7 +925,7 @@ function therum_render_api_full() {
 	});
 
 	// Format reference
-	th_settings_group( 'Webhook payload format', 'What we send when an event fires.', function() {
+	therum_settings_group( 'Webhook payload format', 'What we send when an event fires.', function() {
 		?>
 		<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:16px;font-family:monospace;font-size:12px;color:var(--tx);overflow-x:auto;line-height:1.5;">
 <pre style="margin:0;">POST {your_url}
@@ -1217,19 +1217,19 @@ function therum_connectors_by_category( string $cat ): array {
 //  PERSISTENCE
 // ═════════════════════════════════════════════════════════════════════════════
 
-function th_get_connector( string $id ): array {
+function therum_get_connector( string $id ): array {
 	$raw = get_option( 'th_connector_' . sanitize_key( $id ), '' );
 	if ( ! $raw ) return [];
 	$data = json_decode( $raw, true );
 	return is_array( $data ) ? $data : [];
 }
 
-function th_save_connector( string $id, array $data ): void {
+function therum_save_connector( string $id, array $data ): void {
 	update_option( 'th_connector_' . sanitize_key( $id ), wp_json_encode( $data ), false );
 }
 
-function th_connector_is_configured( string $id ): bool {
-	$data = th_get_connector( $id );
+function therum_connector_is_configured( string $id ): bool {
+	$data = therum_get_connector( $id );
 	if ( empty( $data['config'] ) ) return false;
 	foreach ( $data['config'] as $v ) {
 		if ( $v !== '' ) return true;
@@ -1237,7 +1237,7 @@ function th_connector_is_configured( string $id ): bool {
 	return false;
 }
 
-function th_connector_status( array $connector ): array {
+function therum_connector_status( array $connector ): array {
 	$id = $connector['id'];
 
 	if ( ! empty( $connector['built_in'] ) ) {
@@ -1247,7 +1247,7 @@ function th_connector_status( array $connector ): array {
 		return [ 'label' => 'Active', 'class' => 'th-conn-status-active' ];
 	}
 
-	if ( th_connector_is_configured( $id ) ) {
+	if ( therum_connector_is_configured( $id ) ) {
 		return [ 'label' => 'Connected', 'class' => 'th-conn-status-connected' ];
 	}
 	return [ 'label' => 'Not configured', 'class' => 'th-conn-status-off' ];
@@ -1293,7 +1293,7 @@ add_action( 'wp_ajax_therum_connector_save', function() {
 		}
 	}
 
-	th_save_connector( $id, [
+	therum_save_connector( $id, [
 		'enabled' => true,
 		'config'  => $clean,
 		'updated' => time(),
@@ -1316,7 +1316,7 @@ add_action( 'wp_ajax_therum_connector_delete', function() {
 //  SHARED RENDER HELPERS
 // ═════════════════════════════════════════════════════════════════════════════
 
-function th_conn_styles(): void {
+function therum_conn_styles(): void {
 	static $printed = false;
 	if ( $printed ) return;
 	$printed = true;
@@ -1354,7 +1354,7 @@ function th_conn_styles(): void {
 	<?php
 }
 
-function th_conn_js( string $nonce ): void {
+function therum_conn_js( string $nonce ): void {
 	static $printed = false;
 	if ( $printed ) return;
 	$printed = true;
@@ -1457,17 +1457,17 @@ function th_conn_js( string $nonce ): void {
 	<?php
 }
 
-function th_conn_render_cards( array $connectors, string $nonce ): void {
-	th_conn_styles();
-	th_conn_js( $nonce );
+function therum_conn_render_cards( array $connectors, string $nonce ): void {
+	therum_conn_styles();
+	therum_conn_js( $nonce );
 	?>
 	<div class="th-conn-grid">
 	<?php foreach ( $connectors as $connector ):
 		$id      = $connector['id'];
-		$status  = th_connector_status( $connector );
-		$saved   = th_get_connector( $id );
+		$status  = therum_connector_status( $connector );
+		$saved   = therum_get_connector( $id );
 		$config  = $saved['config'] ?? [];
-		$is_configured = th_connector_is_configured( $id );
+		$is_configured = therum_connector_is_configured( $id );
 		$is_builtin    = ! empty( $connector['built_in'] );
 		$updated = ! empty( $saved['updated'] ) ? human_time_diff( $saved['updated'] ) . ' ago' : null;
 	?>
@@ -1572,22 +1572,22 @@ function th_conn_render_cards( array $connectors, string $nonce ): void {
 
 function therum_render_connections_cms(): void {
 	$nonce = wp_create_nonce( 'therum_connector' );
-	th_settings_group( 'CMS Connections', 'Connect content management platforms to federate or migrate data.', function() use ( $nonce ) {
-		th_conn_render_cards( therum_connectors_by_category( 'cms' ), $nonce );
+	therum_settings_group( 'CMS Connections', 'Connect content management platforms to federate or migrate data.', function() use ( $nonce ) {
+		therum_conn_render_cards( therum_connectors_by_category( 'cms' ), $nonce );
 	} );
 }
 
 function therum_render_connections_ecommerce(): void {
 	$nonce = wp_create_nonce( 'therum_connector' );
-	th_settings_group( 'Ecommerce Connections', 'Link storefronts for product sync, order management, and fulfillment routing.', function() use ( $nonce ) {
-		th_conn_render_cards( therum_connectors_by_category( 'ecommerce' ), $nonce );
+	therum_settings_group( 'Ecommerce Connections', 'Link storefronts for product sync, order management, and fulfillment routing.', function() use ( $nonce ) {
+		therum_conn_render_cards( therum_connectors_by_category( 'ecommerce' ), $nonce );
 	} );
 }
 
 function therum_render_connections_apis(): void {
 	$nonce = wp_create_nonce( 'therum_connector' );
-	th_settings_group( 'API Connections', 'Third-party services — fulfillment, payments, email, and custom endpoints.', function() use ( $nonce ) {
-		th_conn_render_cards( therum_connectors_by_category( 'apis' ), $nonce );
+	therum_settings_group( 'API Connections', 'Third-party services — fulfillment, payments, email, and custom endpoints.', function() use ( $nonce ) {
+		therum_conn_render_cards( therum_connectors_by_category( 'apis' ), $nonce );
 	} );
 }
 
@@ -1596,48 +1596,25 @@ function therum_render_connections_apis(): void {
 //  REGISTER SETTINGS SECTIONS
 // ═════════════════════════════════════════════════════════════════════════════
 
-// Connect-X entries moved out of Settings into Connections > Connectors:
-//   - Connect CMS  → Therum_Connections_Page 'cms'        (new tab)
-//   - Connect Ecommerce → Therum_Connections_Page 'ecommerce' (new tab)
-//   - Connect APIs → existing Therum_Connections_Page 'apis' tab covers it
-//   - Connect AI   → existing Therum_Connections_Page 'ai'   tab covers it
-// Renderers `therum_render_connections_cms|ecommerce|apis|ai` remain defined
-// below; the CMS + Ecommerce ones are now wired in via the Connections register
-// block (search this file for "'cms', [").
+// Connect-X entries moved out of Settings into Connections > Connectors. The
+// live registry is driven by therum_cn_render_{ai,apis,payments,apps} (see
+// the Tab Registrations block below) plus therum_render_connections_{cms,
+// ecommerce} for the legacy Settings-side surface. State for each card comes
+// from the `therum_connectors` option via therum_cn_apply_saved_state().
 
 /**
- * AI connectors renderer. Two paths:
- *   - WP < 7.0  → stub card noting GA date + what'll land here
- *   - WP >= 7.0 → adapter to WP's Connectors API + WP AI Client (filled in
- *                 after 7.0 GA on 2026-05-20; current scaffold marks the slot)
+ * AI connectors renderer. Wraps the real card-grid renderer
+ * therum_cn_render_ai() in a settings group so it can mount under the legacy
+ * Settings → Connections → AI surface. Card state is driven by the saved
+ * `therum_connectors` option via therum_cn_apply_saved_state(); the cards
+ * themselves are defined in therum_cn_render_ai().
  */
 function therum_render_connections_ai(): void {
-	$wp_version = function_exists( 'get_bloginfo' ) ? get_bloginfo( 'version' ) : '0';
-	$on_seven   = version_compare( $wp_version, '7.0', '>=' );
-
-	th_settings_group(
+	therum_settings_group(
 		'AI Connections',
-		'Therum routes WP 7.0\'s native Connectors UI through the Therum surface, then layers Therum-specific behaviors on top (audit log, role-gated keys, multi-account routing).',
-		function() use ( $on_seven ) {
-			if ( ! $on_seven ) {
-				echo '<div class="th-settings-card th-settings-card-stub" style="padding:24px;border:1px dashed var(--bd,#e0dcd0);border-radius:12px;background:transparent">'
-					. '<div style="font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3,#94a3b8);margin-bottom:8px">Activating · WP 7.0 GA · 2026-05-20</div>'
-					. '<div style="font-size:15px;font-weight:600;color:var(--tx,#0f172a);margin-bottom:6px">AI connectors land with WordPress 7.0.</div>'
-					. '<div style="font-size:13px;color:var(--tx2,#475569);line-height:1.55;max-width:55ch">When the WP core bump lands, this surface absorbs WP\'s Connectors UI for AI providers (OpenAI, Anthropic, Google AI, local models). Therum hides WP\'s top-level Connectors menu and owns the surface so all connectors — CMS, ecommerce, APIs, and AI — sit under one canonical registry.</div>'
-					. '</div>';
-				return;
-			}
-			// 7.0+ adapter. Stub for now — filled in post-GA when the real
-			// Connectors API + WP AI Client class names are confirmed.
-			echo '<div class="th-settings-card" style="padding:24px;border:1px solid var(--bd,#e0dcd0);border-radius:12px">'
-				. '<div style="font-size:13px;color:var(--tx2,#475569)">WP 7.0 detected. AI connectors adapter loading — see <code>therum_connections_ai_render</code> hook.</div>'
-				. '</div>';
-			/**
-			 * Fires when the AI connectors surface renders under WP 7.0+.
-			 * Therum's adapter hooks here to inject the WP Connectors UI in
-			 * Therum chrome and add the audit log + role gating.
-			 */
-			do_action( 'therum_connections_ai_render' );
+		'Frontier language models, voice synthesis, and local runtimes. Connect a provider to make it available across Therum surfaces (Copilot, Studio, content generation).',
+		function() {
+			therum_cn_render_ai( 'ai', [ 'desc' => '' ] );
 		}
 	);
 }
@@ -1670,136 +1647,6 @@ add_action( 'admin_menu', function() {
 // The Therum_Connections_Page::register() calls below + therum_render_connections_*
 // renderers are orphan code retained for backward compat with any external
 // plugin that may have hooked them. Schedule full removal once verified safe.
-if ( ! class_exists( 'Therum_Connections_Page' ) ) :
-
-final class Therum_Connections_Page {
-
-	/** @var array<string,array> $tabs */
-	private static $tabs = [];
-
-	public static function register( string $id, array $args ): void {
-		self::$tabs[ $id ] = wp_parse_args( $args, [
-			'label'    => ucfirst( $id ),
-			'section'  => 'connectors',
-			'icon'     => 'dot',
-			'priority' => 100,
-			'render'   => null,
-			'desc'     => '',
-			'count'    => '',
-		] );
-	}
-
-	public static function tabs(): array {
-		$tabs = apply_filters( 'therum_connections_page_tabs', self::$tabs );
-		uasort( $tabs, fn( $a, $b ) => (int)($a['priority'] ?? 100) <=> (int)($b['priority'] ?? 100) );
-		return $tabs;
-	}
-
-	public static function current_tab_id(): string {
-		$tabs = self::tabs();
-		$want = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( (string) $_GET['tab'] ) ) : '';
-		if ( $want && isset( $tabs[ $want ] ) ) return $want;
-		return $want ?: ( array_key_first( $tabs ) ?: 'ai' );
-	}
-
-	public static function render(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'therum' ) );
-		}
-		$tabs = self::tabs();
-		$cur  = self::current_tab_id();
-		?>
-		<div class="wrap"><div class="th-cx" data-th-cn>
-			<div class="th-cx-head">
-				<div>
-					<div class="th-cx-eyebrow">Admin · Connections</div>
-					<h1 class="th-cx-title">Connections</h1>
-					<p class="th-cx-sub">Wire Therum to the outside world. AI models, APIs, payment gateways, and external apps — all behind one canonical surface, with provider account dashboards embedded inside Therum chrome.</p>
-				</div>
-				<div style="display:flex;align-items:center;gap:10px">
-					<div class="th-cn-status-strip">
-						<span><strong>4</strong> connected</span>
-						<span style="opacity:.4">·</span>
-						<span><strong style="color:var(--wrn,#f59e0b)">1</strong> action needed</span>
-						<span style="opacity:.4">·</span>
-						<span>18 total</span>
-					</div>
-				</div>
-			</div>
-
-			<div class="th-cx-grid">
-				<?php self::render_nav( $tabs, $cur ); ?>
-
-				<main class="th-cx-main">
-					<?php
-					$tab = $tabs[ $cur ] ?? null;
-					if ( $tab && is_callable( $tab['render'] ) ) {
-						call_user_func( $tab['render'], $cur, $tab );
-					} else {
-						self::render_stub( $cur, $tab );
-					}
-					?>
-				</main>
-			</div>
-		</div></div>
-		<?php
-	}
-
-	private static function render_nav( array $tabs, string $cur ): void {
-		$sections = [
-			'connectors' => 'Connections',
-			'manage'     => 'Manage',
-		];
-		$grouped = [];
-		foreach ( $tabs as $id => $t ) {
-			$grouped[ $t['section'] ?? 'connectors' ][ $id ] = $t;
-		}
-		?>
-		<aside class="th-cx-nav">
-			<?php foreach ( $sections as $sect_id => $sect_label ):
-				if ( empty( $grouped[ $sect_id ] ) ) continue; ?>
-				<div class="th-cx-nav-section"><?php echo esc_html( $sect_label ); ?></div>
-				<?php foreach ( $grouped[ $sect_id ] as $id => $t ):
-					$href = add_query_arg( [ 'page' => 'therum-connections', 'tab' => $id ], admin_url( 'admin.php' ) );
-					$cls  = 'th-cx-nav-item' . ( $cur === $id ? ' is-active' : '' );
-					$dot_color = $t['dot'] ?? '';
-					?>
-					<a class="<?php echo esc_attr( $cls ); ?>" href="<?php echo esc_url( $href ); ?>">
-						<span class="th-cx-nav-item-dot" <?php if ( $dot_color ): ?>style="background:<?php echo esc_attr( $dot_color ); ?>;opacity:1"<?php endif; ?>></span>
-						<?php echo esc_html( $t['label'] ); ?>
-						<?php if ( ! empty( $t['count'] ) ): ?>
-						<span class="th-cx-nav-item-count"><?php echo esc_html( $t['count'] ); ?></span>
-						<?php endif; ?>
-					</a>
-				<?php endforeach; ?>
-				<?php if ( $sect_id !== array_key_last( $sections ) && ! empty( $grouped[ $sect_id ] ) ): ?>
-				<div class="th-cx-nav-divider"></div>
-				<?php endif; ?>
-			<?php endforeach; ?>
-		</aside>
-		<?php
-	}
-
-	private static function render_stub( string $id, ?array $t ): void {
-		$label = $t['label'] ?? ucfirst( $id );
-		?>
-		<div class="th-cx-page-head">
-			<div>
-				<div class="th-cx-page-eyebrow">Connections · <?php echo esc_html( $label ); ?></div>
-				<h2 class="th-cx-page-title"><?php echo esc_html( $label ); ?></h2>
-				<p class="th-cx-page-sub"><?php echo esc_html( $t['desc'] ?? 'Coming next.' ); ?></p>
-			</div>
-		</div>
-		<div class="th-cx-stub">
-			<div class="th-cx-stub-mark">Phase 4 · scaffold</div>
-			<h4 class="th-cx-stub-title"><?php echo esc_html( $label ); ?> page.</h4>
-			<p class="th-cx-stub-sub">Lands in Phase 4 — port from <code>previews/connections-and-dashboard.html</code> §<?php echo esc_html( $id ); ?>.</p>
-		</div>
-		<?php
-	}
-}
-
-endif; // class_exists
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  ADMIN ROUTE + ASSETS  — REMOVED (was duplicating therum-admin.php's
@@ -1873,29 +1720,11 @@ add_action( 'init', function() {
 		'render'   => 'therum_cn_render_apps',
 	] );
 
-	Therum_Connections_Page::register( 'keys', [
-		'label'    => 'API keys vault',
-		'section'  => 'manage',
-		'priority' => 60,
-		'count'    => '11',
-		'desc'     => 'Encrypted credential vault — masked, audited, rotatable.',
-	] );
-
-	Therum_Connections_Page::register( 'webhooks', [
-		'label'    => 'Webhooks log',
-		'section'  => 'manage',
-		'priority' => 70,
-		'count'    => '2.3k',
-		'desc'     => 'Inbound + outbound webhook event stream with replay.',
-	] );
-
-	Therum_Connections_Page::register( 'audit', [
-		'label'    => 'Audit log',
-		'section'  => 'manage',
-		'priority' => 80,
-		'count'    => '488',
-		'desc'     => 'Tamper-evident connector + credential lifecycle log.',
-	] );
+	// Phase-4 tabs (keys / webhooks / audit) were previously registered here
+	// with stub renderers (render_stub() emits "Phase 4 · scaffold — Lands in
+	// Phase 4 — port from previews/…"). Hidden from the live nav until the
+	// real renderers ship. To re-enable, register with an explicit `render`
+	// callback pointing at the implementation.
 
 	// Merged in from Settings > API & Webhooks. Renderer lives in therum-api.php
 	// (therum_render_api_full) and covers REST API kill switch, auth, CORS,
@@ -1905,7 +1734,7 @@ add_action( 'init', function() {
 		'section'  => 'manage',
 		'priority' => 50,
 		'desc'     => 'REST API surface, headless mode, CORS origins, outbound webhooks.',
-		'render'   => function_exists( 'therum_render_api_full' ) ? 'therum_render_api_full' : 'th_render_api_webhooks',
+		'render'   => function_exists( 'therum_render_api_full' ) ? 'therum_render_api_full' : 'therum_render_api_webhooks',
 	] );
 }, 20 );
 
@@ -1917,8 +1746,8 @@ function therum_cn_render_ai( string $tab_id, array $tab ): void {
 	therum_cn_page_head( 'AI Tools', $tab['desc'], '＋ Add AI provider' );
 	therum_cn_render_card_grid( 'ai', [
 		// Language models — frontier
-		[ 'id' => 'anthropic',  'name' => 'Anthropic · Claude',   'icon' => 'A', 'bg' => '#cc785c', 'desc' => 'claude-sonnet-4.5 · 200k context · function calling',          'state' => 'connected',     'meta' => 'linked 2d ago', 'auth' => 'API key' ],
-		[ 'id' => 'openai',     'name' => 'OpenAI · ChatGPT',     'icon' => 'O', 'bg' => '#10a37f', 'desc' => 'gpt-5-turbo · 128k context · vision · code interpreter',     'state' => 'connected',     'meta' => 'linked 6d ago', 'auth' => 'API key' ],
+		[ 'id' => 'anthropic',  'name' => 'Anthropic · Claude',   'icon' => 'A', 'bg' => '#cc785c', 'desc' => 'claude-sonnet-4.5 · 200k context · function calling',          'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
+		[ 'id' => 'openai',     'name' => 'OpenAI · ChatGPT',     'icon' => 'O', 'bg' => '#10a37f', 'desc' => 'gpt-5-turbo · 128k context · vision · code interpreter',     'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
 		[ 'id' => 'google-ai',  'name' => 'Google AI · Gemini',   'icon' => 'G', 'bg' => '#4285f4', 'desc' => 'gemini-2.5-pro · 2M context · multimodal native',           'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'xai',        'name' => 'xAI · Grok',           'icon' => 'X', 'bg' => '#000000', 'desc' => 'grok-4 · 256k context · real-time X integration',           'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
 		[ 'id' => 'mistral',    'name' => 'Mistral',              'icon' => 'M', 'bg' => '#ff7000', 'desc' => 'mistral-large · open-weight EU host · code + general',      'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
@@ -1937,7 +1766,7 @@ function therum_cn_render_apis( string $tab_id, array $tab ): void {
 	therum_cn_page_head( 'APIs', $tab['desc'], '＋ Add custom API' );
 	therum_cn_render_card_grid( 'apis', [
 		// Email — transactional + marketing
-		[ 'id' => 'mailchimp', 'name' => 'Mailchimp', 'icon' => 'M', 'bg' => '#ffe01b', 'color' => '#000', 'desc' => 'Audiences · campaigns · automations. 2 audiences synced.', 'state' => 'connected',     'meta' => 'linked 9d ago', 'auth' => 'API key' ],
+		[ 'id' => 'mailchimp', 'name' => 'Mailchimp', 'icon' => 'M', 'bg' => '#ffe01b', 'color' => '#000', 'desc' => 'Audiences · campaigns · automations.', 'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
 		[ 'id' => 'sendgrid',  'name' => 'SendGrid',                  'icon' => 'S', 'bg' => '#1a82e2', 'desc' => 'Transactional email · templates · delivery analytics',           'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
 		[ 'id' => 'postmark',  'name' => 'Postmark',                  'icon' => 'P', 'bg' => '#ffde00', 'color' => '#000', 'desc' => 'Fastest transactional delivery · separate streams',  'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
 		[ 'id' => 'resend',    'name' => 'Resend',                    'icon' => 'R', 'bg' => '#000000', 'desc' => 'Developer-first email · React templates · webhooks',             'state' => 'not_connected', 'meta' => '', 'auth' => 'API key' ],
@@ -1958,8 +1787,8 @@ function therum_cn_render_payments( string $tab_id, array $tab ): void {
 	therum_cn_page_head( 'Payment Gateways', $tab['desc'], '＋ Add gateway' );
 	therum_cn_render_card_grid( 'payments', [
 		// Cards + accounts
-		[ 'id' => 'stripe',       'name' => 'Stripe',          'icon' => 'S', 'bg' => '#635bff', 'desc' => 'Stripe Connect · balance · payouts · 5 active customers',          'state' => 'connected',     'meta' => 'linked 60d ago',  'auth' => 'OAuth' ],
-		[ 'id' => 'plaid',        'name' => 'Plaid',           'icon' => 'P', 'bg' => '#000000', 'desc' => 'Bank account linking · ACH · balance lookups. Token expired.',     'state' => 'reauth',        'meta' => 'token expired',   'auth' => 'OAuth' ],
+		[ 'id' => 'stripe',       'name' => 'Stripe',          'icon' => 'S', 'bg' => '#635bff', 'desc' => 'Stripe Connect · balance · payouts',                                'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
+		[ 'id' => 'plaid',        'name' => 'Plaid',           'icon' => 'P', 'bg' => '#000000', 'desc' => 'Bank account linking · ACH · balance lookups.',                     'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'square',       'name' => 'Square',          'icon' => 'S', 'bg' => '#000000', 'border' => true, 'desc' => 'Seller dashboard · in-person + online payments',  'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'paypal',       'name' => 'PayPal',          'icon' => 'P', 'bg' => '#0070ba', 'desc' => 'Standard checkout · subscriptions · payouts',                      'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'braintree',    'name' => 'Braintree',       'icon' => 'B', 'bg' => '#0070ba', 'desc' => 'Full-stack payments by PayPal · cards · Venmo · Apple/Google Pay', 'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
@@ -1984,7 +1813,7 @@ function therum_cn_render_apps( string $tab_id, array $tab ): void {
 		[ 'id' => 'gdrive',     'name' => 'Google Drive',      'icon' => 'G', 'bg' => '#4285f4', 'desc' => 'Docs · Sheets · Slides · files — read into Therum surfaces',     'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'dropbox',    'name' => 'Dropbox',           'icon' => 'D', 'bg' => '#0061ff', 'desc' => 'Files · Paper · sign — pull assets into Therum media',           'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		// Communication
-		[ 'id' => 'slack',      'name' => 'Slack',             'icon' => 'S', 'bg' => '#4a154b', 'desc' => 'Notifications · channel posting · slash commands',               'state' => 'connected',     'meta' => 'linked 4d ago', 'auth' => 'OAuth' ],
+		[ 'id' => 'slack',      'name' => 'Slack',             'icon' => 'S', 'bg' => '#4a154b', 'desc' => 'Notifications · channel posting · slash commands',               'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'teams',      'name' => 'Microsoft Teams',   'icon' => 'T', 'bg' => '#5059c9', 'desc' => 'Channel posts · adaptive cards · bot replies',                   'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'discord-app','name' => 'Discord',           'icon' => 'D', 'bg' => '#5865f2', 'desc' => 'Server · channels · slash commands · presence',                  'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
 		[ 'id' => 'zoom',       'name' => 'Zoom',              'icon' => 'Z', 'bg' => '#2d8cff', 'desc' => 'Meetings · webinars · recording links',                          'state' => 'not_connected', 'meta' => '', 'auth' => 'OAuth' ],
