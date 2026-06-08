@@ -141,10 +141,18 @@ final class Therum_Media_Upload {
 								<span>Caption</span>
 								<input type="text" name="caption" maxlength="500" />
 							</label>
-							<label class="tmu-field">
+							<div class="tmu-field tmu-field-rt">
 								<span>Description</span>
-								<textarea name="description" rows="3" maxlength="1000"></textarea>
-							</label>
+								<?php if ( class_exists( 'Therum_Editor' ) ): ?>
+									<?php Therum_Editor::field( 'description', '', [
+										'placeholder' => 'Optional — describe this file in your own words.',
+										'min_height'  => 120,
+										'features'    => [ 'b', 'i', 'u', 'color', 'list', 'link' ],
+									] ); ?>
+								<?php else: ?>
+									<textarea name="description" rows="3" maxlength="1000"></textarea>
+								<?php endif; ?>
+							</div>
 							<div class="tmu-meta-status" data-tmu-meta-status></div>
 						</div>
 					</form>
@@ -404,6 +412,23 @@ final class Therum_Media_Upload {
 
 			function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
 
+			function setFieldValue(name, val){
+				val = val || '';
+				// Therum rich-text editor case: write into the contenteditable
+				// surface and let its own sync push to the hidden input.
+				var ed = metaFields.querySelector('[data-th-ed][data-th-ed-name="'+ name +'"]');
+				if (ed) {
+					var surface = ed.querySelector('[data-th-ed-surface]');
+					var hidden  = ed.querySelector('[data-th-ed-value]');
+					if (surface) surface.innerHTML = val;
+					if (hidden)  hidden.value      = val;
+					if (surface) surface.dispatchEvent(new Event('input', { bubbles:true }));
+					return;
+				}
+				var input = metaFields.querySelector('[name="'+ name +'"]');
+				if (input) input.value = val;
+			}
+
 			function selectActive(id){
 				var q = queue.find(function(x){ return x.id === id; });
 				if (!q || q.status !== 'done') return;
@@ -411,10 +436,10 @@ final class Therum_Media_Upload {
 				renderQueue();
 				metaEmpty.hidden = true;
 				metaFields.hidden = false;
-				metaFields.querySelector('[name="title"]').value       = q.meta.title || '';
-				metaFields.querySelector('[name="alt"]').value         = q.meta.alt || '';
-				metaFields.querySelector('[name="caption"]').value     = q.meta.caption || '';
-				metaFields.querySelector('[name="description"]').value = q.meta.description || '';
+				setFieldValue('title',       q.meta.title);
+				setFieldValue('alt',         q.meta.alt);
+				setFieldValue('caption',     q.meta.caption);
+				setFieldValue('description', q.meta.description);
 				metaStatus.className = 'tmu-meta-status';
 				metaStatus.textContent = '';
 			}
