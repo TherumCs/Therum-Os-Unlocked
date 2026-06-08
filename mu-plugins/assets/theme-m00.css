@@ -15,9 +15,9 @@ html body.theme-m00{
   --bd:rgba(255,255,255,.09); --bd2:rgba(255,255,255,.16);
   --ac:#5B7CFA; --ac-h:#7C97FF; --ac-s:rgba(91,124,250,.18);
   --ink:#F2F4F7;
-  /* sidebar = LIGHT/white in dark mode (inverse) */
-  --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#101113; --m00-sbmut:#8C8F94;
-  --m00-sbbd:#E3E5E8; --m00-sbhover:#F1F3F5; --m00-sbactivebg:rgba(56,88,233,.10); --m00-sbactivetx:#3858E9; --m00-sblogo:#3858E9;
+  /* sidebar = DARK in BOTH modes (matches the references; cohesive) */
+  --m00-sbbg:#16181E; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
+  --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.07); --m00-sbactivebg:rgba(255,255,255,.08); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#3858E9;
   --m00-cardshadow:0 1px 2px rgba(0,0,0,.3);
   --m00-font:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   font-family:var(--m00-font); color:var(--tx);
@@ -29,9 +29,7 @@ html body.theme-m00.light{
   --bd:#E3E5E8; --bd2:#D2D5D9;
   --ac:#3858E9; --ac-h:#2E45C5; --ac-s:rgba(56,88,233,.10);
   --ink:#1E1E1E;
-  /* sidebar = DARK in light mode (inverse) */
-  --m00-sbbg:#16181E; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
-  --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.07); --m00-sbactivebg:rgba(255,255,255,.08); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#3858E9;
+  /* sidebar stays DARK in light mode too (inherits base dark-rail vars) */
   --m00-cardshadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);
 }
 
