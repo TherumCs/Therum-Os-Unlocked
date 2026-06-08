@@ -13,6 +13,7 @@ html body.theme-m00{
   --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#6E7480;
   --bd:rgba(255,255,255,.09); --bd2:rgba(255,255,255,.16);
   --ac:#5B7CFA; --ac-h:#7C97FF; --ac-s:rgba(91,124,250,.18); --ink:#F2F4F7;
+  --m00-desktop:#0E0F12;  /* gray/dark desktop behind the framed app */
   /* sidebar = WHITE in dark mode (inverse) */
   --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#101113; --m00-sbmut:#8C8F94;
   --m00-sbbd:#E3E5E8; --m00-sbhover:#F1F3F5; --m00-sbactivebg:rgba(56,88,233,.10); --m00-sbactivetx:#3858E9; --m00-sblogo:#3858E9;
@@ -26,27 +27,39 @@ html body.theme-m00.light{
   --tx:#1E1E1E; --tx2:#50575E; --tx3:#8C8F94;
   --bd:#E3E5E8; --bd2:#D2D5D9;
   --ac:#3858E9; --ac-h:#2E45C5; --ac-s:rgba(56,88,233,.10); --ink:#1E1E1E;
+  --m00-desktop:#E7E9EC;  /* light gray desktop behind the framed app (WP redesign) */
   /* sidebar = DARK in light mode (inverse) */
   --m00-sbbg:#16181E; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
   --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.07); --m00-sbactivebg:rgba(255,255,255,.08); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#3858E9;
   --m00-cardshadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);
 }
 
-/* ── CANVAS — force the content background everywhere it could leak ──────────
- * (base paints #wpwrap; glass-tint makes it transparent; cover all wrappers) */
+/* ── FRAMED APP (WP-redesign look): gray desktop, rounded inset sidebar +
+ *    content cards floating on it. ─────────────────────────────────────────── */
 html body.theme-m00,
 html body.theme-m00 #wpwrap,
 html body.theme-m00 #wpcontent,
-html body.theme-m00 #wpbody-content{background:var(--bg) !important}
-html body.theme-m00 #th-shell,
-html body.theme-m00 #th-main,
+html body.theme-m00 #wpbody-content,
+html body.theme-m00 #th-shell{background:var(--m00-desktop) !important}
+/* content card */
+html body.theme-m00 #th-main{
+  background:var(--sf) !important;
+  margin:12px 12px 12px calc(var(--sidebar-w, 256px) + 24px) !important;
+  border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,.10),0 12px 32px rgba(0,0,0,.06);
+  min-height:calc(100vh - 24px);
+}
 html body.theme-m00 #th-content,
 html body.theme-m00 .wrap,
 html body.theme-m00 .th-cx{background:transparent !important}
 html body.theme-m00 #th-top{background:transparent !important; border-bottom:1px solid var(--bd) !important; box-shadow:none !important}
 
-/* ── SIDEBAR — inverse of content (vars flip per mode) ──────────────────────*/
-html body.theme-m00 #th-sb{background:var(--m00-sbbg) !important; border-right:1px solid var(--m00-sbbd) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important}
+/* ── SIDEBAR — rounded inset card; inverse palette per mode ─────────────────*/
+html body.theme-m00 #th-sb{
+  background:var(--m00-sbbg) !important; border:1px solid var(--m00-sbbd) !important;
+  top:12px !important; left:12px !important; bottom:12px !important; height:auto !important;
+  border-radius:16px !important; overflow:auto;
+  -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+}
 body.theme-m00 .th-sb-header,
 body.theme-m00 .th-site-name{color:var(--m00-sbtxh)}
 body.theme-m00 .th-site-host{color:var(--m00-sbmut)}
