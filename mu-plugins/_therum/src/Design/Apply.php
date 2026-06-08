@@ -56,16 +56,28 @@ final class Apply {
 			$result['typography'] = self::write_theme_styles( $candidate );
 		}
 
-		// ── 4. Regenerate Bricks CSS if available ─────────────────────────
+		// ── 4. Regenerate builder CSS if available ────────────────────────
+		$builder_regen = false;
 		if ( class_exists( '\\Bricks\\Assets_Files' )
 			&& method_exists( '\\Bricks\\Assets_Files', 'regenerate' ) ) {
 			try {
 				\Bricks\Assets_Files::regenerate();
+				$builder_regen = true;
 			} catch ( \Throwable $e ) {
 				$result['warnings'][] = 'CSS regeneration failed: ' . $e->getMessage();
 			}
-		} else {
-			$result['warnings'][] = 'Bricks CSS-file regeneration not invoked — re-render one page to trigger it.';
+		}
+		// Notify sibling builder integrations (Elementor mu-plugin, etc.) so
+		// each clears its own CSS cache. The hook is a no-op when no other
+		// builder is loaded.
+		if ( function_exists( 'do_action' ) ) {
+			\do_action( 'therum_cache_purged', 'design_tokens' );
+			if ( function_exists( 'therum_elementor_active' ) && therum_elementor_active() ) {
+				$builder_regen = true;
+			}
+		}
+		if ( ! $builder_regen ) {
+			$result['warnings'][] = 'No builder CSS regeneration invoked — re-render one page to trigger it.';
 		}
 
 		CandidateRepository::mark_applied( $candidate );

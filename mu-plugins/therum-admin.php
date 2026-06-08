@@ -5498,6 +5498,13 @@ function therum_render_editor_defaults() {
 		</div>
 		<?php
 	});
+
+	/**
+	 * Extension point — sibling mu-plugins (therum-elementor.php, etc.) hook
+	 * this to inject their own "X shortcuts" group right after the Bricks
+	 * group. Same `therum_settings_group()` API.
+	 */
+	do_action( 'therum_settings_groups' );
 }
 
 // ─── UPLOADS ────────────────────────────────────────────────────────────────
