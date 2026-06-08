@@ -1,34 +1,37 @@
 /* ============================================================================
  * THERUM OS · THEME 00 — "Default" (modern WordPress-admin redesign)
- * Scoped to body.theme-m00. Dark left sidebar (always) + switchable content:
- *   - light mode  (body.theme-m00.light) → light gray canvas, white cards
- *   - dark  mode  (body.theme-m00)        → dark canvas, dark cards
+ * Scoped to body.theme-m00. INVERSE sidebar:
+ *   - light mode (body.theme-m00.light) → DARK sidebar + light content
+ *   - dark  mode (body.theme-m00)        → WHITE sidebar + dark content
  * Blue accent, flat subtle cards, generous whitespace, system type.
  * Default left-sidebar layout (no structural reflow).
- * Refs: make.wordpress.org 2023 admin redesign + Behance WP admin redesign
- * (dark rail + light content).
+ * Refs: make.wordpress.org 2023 admin redesign + Behance WP admin redesign.
  * ========================================================================== */
 
-/* ── CONTENT PALETTE · DARK (default / dark mode) ───────────────────────────*/
+/* ── CONTENT + SIDEBAR PALETTE · DARK mode (default) → white sidebar ─────────*/
 html body.theme-m00{
   --bg:#15161A; --bg-color:#15161A; --sf:#1E2027; --sf2:#262932; --sf3:#2F333D;
   --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#6E7480;
   --bd:rgba(255,255,255,.09); --bd2:rgba(255,255,255,.16);
   --ac:#5B7CFA; --ac-h:#7C97FF; --ac-s:rgba(91,124,250,.18);
-  --ink:#F2F4F7; --dark:#16181E;
-  /* dark sidebar tokens — used in BOTH modes */
-  --m00-sbbg:#16181E; --m00-sbtx:#C7CCD6; --m00-sbmut:rgba(255,255,255,.42);
-  --m00-font:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --ink:#F2F4F7;
+  /* sidebar = LIGHT/white in dark mode (inverse) */
+  --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#101113; --m00-sbmut:#8C8F94;
+  --m00-sbbd:#E3E5E8; --m00-sbhover:#F1F3F5; --m00-sbactivebg:rgba(56,88,233,.10); --m00-sbactivetx:#3858E9; --m00-sblogo:#3858E9;
   --m00-cardshadow:0 1px 2px rgba(0,0,0,.3);
+  --m00-font:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   font-family:var(--m00-font); color:var(--tx);
 }
-/* ── CONTENT PALETTE · LIGHT (body gets .light when mode=light) ──────────────*/
+/* ── LIGHT mode → dark sidebar + light content ──────────────────────────────*/
 html body.theme-m00.light{
   --bg:#F6F7F9; --bg-color:#F6F7F9; --sf:#FFFFFF; --sf2:#F1F3F5; --sf3:#E9ECEF;
   --tx:#1E1E1E; --tx2:#50575E; --tx3:#8C8F94;
   --bd:#E3E5E8; --bd2:#D2D5D9;
   --ac:#3858E9; --ac-h:#2E45C5; --ac-s:rgba(56,88,233,.10);
   --ink:#1E1E1E;
+  /* sidebar = DARK in light mode (inverse) */
+  --m00-sbbg:#16181E; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
+  --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.07); --m00-sbactivebg:rgba(255,255,255,.08); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#3858E9;
   --m00-cardshadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);
 }
 
@@ -40,14 +43,14 @@ html body.theme-m00 #th-content,
 html body.theme-m00 .th-cx{background:transparent}
 html body.theme-m00 #th-top{background:transparent; border-bottom:1px solid var(--bd)}
 
-/* ── SIDEBAR — DARK in every mode (matches the reference) ────────────────────*/
-html body.theme-m00 #th-sb{background:var(--m00-sbbg) !important; border-right:1px solid rgba(255,255,255,.07) !important; -webkit-backdrop-filter:none; backdrop-filter:none}
+/* ── SIDEBAR — inverse of content (vars flip per mode above) ─────────────────*/
+html body.theme-m00 #th-sb{background:var(--m00-sbbg) !important; border-right:1px solid var(--m00-sbbd) !important; -webkit-backdrop-filter:none; backdrop-filter:none}
 body.theme-m00 .th-sb-header,
-body.theme-m00 .th-site-name{color:#fff}
+body.theme-m00 .th-site-name{color:var(--m00-sbtxh)}
 body.theme-m00 .th-site-host{color:var(--m00-sbmut)}
-body.theme-m00 .th-logo{background:var(--ac); color:#fff}
-body.theme-m00 .th-sb-search-box{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.09)}
-body.theme-m00 .th-sb-search-box input{color:#fff}
+body.theme-m00 .th-logo{background:var(--m00-sblogo); color:#fff}
+body.theme-m00 .th-sb-search-box{background:var(--m00-sbhover); border:1px solid var(--m00-sbbd)}
+body.theme-m00 .th-sb-search-box input{color:var(--m00-sbtxh)}
 body.theme-m00 .th-sb-cap,
 body.theme-m00 .th-sb-section-name{color:var(--m00-sbmut)}
 body.theme-m00 .th-sb-item,
@@ -55,12 +58,12 @@ body.theme-m00 .th-sb-section-label,
 body.theme-m00 .th-sb-child{color:var(--m00-sbtx); border-radius:8px}
 body.theme-m00 .th-sb-item svg{color:var(--m00-sbmut)}
 body.theme-m00 .th-sb-item:hover,
-body.theme-m00 .th-sb-section-label:hover{background:rgba(255,255,255,.07); color:#fff}
-body.theme-m00 .th-sb-item.active{background:rgba(255,255,255,.08); color:#fff; box-shadow:inset 2px 0 0 var(--ac)}
-body.theme-m00 .th-sb-item.active svg{color:var(--ac)}
-body.theme-m00 .th-sb-footer{border-top:1px solid rgba(255,255,255,.07)}
+body.theme-m00 .th-sb-section-label:hover{background:var(--m00-sbhover); color:var(--m00-sbtxh)}
+body.theme-m00 .th-sb-item.active{background:var(--m00-sbactivebg); color:var(--m00-sbactivetx); box-shadow:inset 2px 0 0 var(--ac)}
+body.theme-m00 .th-sb-item.active svg{color:var(--m00-sbactivetx)}
+body.theme-m00 .th-sb-footer{border-top:1px solid var(--m00-sbbd)}
 
-/* ── CARDS — flat, subtle border + shadow, modest radius ─────────────────────*/
+/* ── CARDS ───────────────────────────────────────────────────────────────────*/
 body.theme-m00 .th-card,
 body.theme-m00 .th-studio-card{background:var(--sf); border:1px solid var(--bd); border-radius:10px; box-shadow:var(--m00-cardshadow)}
 body.theme-m00 .th-studio-card-hero{margin:0; border-radius:0}

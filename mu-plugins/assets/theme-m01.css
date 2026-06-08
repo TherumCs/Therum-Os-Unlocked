@@ -117,8 +117,16 @@ body.theme-m01 .th-cx-title,body.theme-m01 .th-lp-title,body.theme-m01 .th-cx-pa
 body.theme-m01 .th-logo,body.theme-m01 .th-studio-card-name,body.theme-m01 .th-card h3,
 body.theme-m01 .th-stat-val{font-family:var(--m01-display); letter-spacing:-.01em}
 
-/* ── TOPBAR (page header inside #th-main) ────────────────────────────────────*/
-body.theme-m01 #th-top{background:transparent; border-bottom:1px solid var(--bd)}
+/* ── TOPBAR — merge into the top nav: no separate floating bar, flush under
+ *    the nav on the canvas (kill the white card chrome). ──────────────────── */
+html body.theme-m01 #th-top{
+  background:transparent !important; border:none !important; box-shadow:none !important;
+  border-radius:0 !important; margin:0 !important; min-height:auto;
+  padding:18px 40px !important;
+}
+/* topbar action chips sit on the canvas */
+body.theme-m01 #th-top button,
+body.theme-m01 #th-top .th-top-btn{background:rgba(255,255,255,.6); border:1px solid var(--bd); box-shadow:none}
 
 /* ── CARDS ───────────────────────────────────────────────────────────────────*/
 body.theme-m01 .th-card,
