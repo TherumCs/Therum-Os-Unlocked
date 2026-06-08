@@ -147,3 +147,20 @@ body.blur-heavy{--th-blur-amount:48px}
 /* Skip-to-content link — visually hidden until focused (2.4.1) */
 .th-skip-link{position:absolute;left:-9999px;top:0;z-index:1000;background:var(--ac,#3858E9);color:#fff;padding:10px 16px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none}
 .th-skip-link:focus{left:0}
+
+/* ============================================================================
+ * BASE LIGHT/DARK DEFAULT PALETTE — safety net so EVERY admin page has
+ * readable contrast in either mode even when the active theme doesn't define
+ * a dark variant (replaces the old glass-tint default palette, no !important).
+ * Themes (html body.theme-*) are more specific and override these.
+ * ========================================================================== */
+body.therum-themed{                 /* DARK is the default (no .light class) */
+  --bg:#15161A; --bg-color:#15161A; --sf:#1E2027; --sf2:#262932; --sf3:#2F333D;
+  --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#8A909C;
+  --bd:rgba(255,255,255,.10); --bd2:rgba(255,255,255,.18);
+}
+body.therum-themed.light{           /* LIGHT mode */
+  --bg:#F6F7F9; --bg-color:#F6F7F9; --sf:#FFFFFF; --sf2:#F1F3F5; --sf3:#E9ECEF;
+  --tx:#1E1E1E; --tx2:#50575E; --tx3:#6B7177;
+  --bd:#E3E5E8; --bd2:#D2D5D9;
+}
