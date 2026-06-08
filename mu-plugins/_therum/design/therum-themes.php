@@ -268,7 +268,8 @@ class Therum_Themes {
 	 * Accept either so saves work from both pages.
 	 */
 	private static function verify_theme_nonce(): void {
-		$nonce = $_POST['nonce'] ?? $_REQUEST['_wpnonce'] ?? '';
+		$raw   = $_POST['nonce'] ?? $_REQUEST['_wpnonce'] ?? '';
+		$nonce = sanitize_text_field( wp_unslash( (string) $raw ) );
 		if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) ) {
 			wp_send_json_error( 'Invalid or expired nonce.', 403 );
 		}
@@ -350,9 +351,11 @@ class Therum_Themes {
 		// NB: sanitize_key() lowercases — Therum state uses camelCase keys
 		// (glassTint, sidebarStyle, cardStyle, bgImage, surfaceEffect). Use a
 		// case-preserving filter and validate against the whitelist below.
-		$raw   = (string) ( $_POST['field'] ?? '' );
+		// wp_unslash on raw POST data per WP coding standards (defensive even
+		// though field/value are immediately filtered/coerced below).
+		$raw   = (string) wp_unslash( $_POST['field'] ?? '' );
 		$field = preg_replace( '/[^a-zA-Z0-9_-]/', '', $raw );
-		$value = $_POST['value'] ?? '';
+		$value = wp_unslash( $_POST['value'] ?? '' );
 		$defaults = self::default_state();
 		if (!array_key_exists($field, $defaults)) {
 			wp_send_json_error(['message' => 'Unknown field: ' . $field]);

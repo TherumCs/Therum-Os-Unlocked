@@ -1774,7 +1774,10 @@ document.addEventListener("click",function(e){
 			$api_key = get_option('therum_rest_api_key', '');
 			if (!$api_key) {
 				$api_key = wp_generate_password(40, false);
-				update_option('therum_rest_api_key', $api_key);
+				// autoload=false — the key is only read when a REST request
+				// hits the Therum hook endpoint, so there's no reason to load
+				// it on every pageview.
+				update_option('therum_rest_api_key', $api_key, false);
 			}
 			$webhook_url = rest_url('therum/v1/hook');
 			echo '<div class="th-settings-group"><div class="th-settings-group-body">';

@@ -58,7 +58,7 @@ class Therum_Wizard {
 		if ( in_array( $pagenow ?? '', $allow_pagenow, true ) ) return;
 
 		// Already on the wizard page — let it render.
-		$page = sanitize_text_field( $_GET['page'] ?? '' );
+		$page = sanitize_text_field( wp_unslash( $_GET['page'] ?? '' ) );
 		if ( $page === self::PAGE_SLUG ) return;
 
 		wp_safe_redirect( admin_url( 'admin.php?page=' . self::PAGE_SLUG ) );

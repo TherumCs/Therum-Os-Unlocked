@@ -292,7 +292,11 @@ final class Therum_Editor {
 			if (window.__therum_editor_init) return; window.__therum_editor_init = true;
 
 			function ready(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
-			function clamp(s){ return String(s||'').slice(0, 9); }
+			// Trim incoming hex color values to the longest accepted form
+			// (#RRGGBBAA = 9 chars). Misnomer "clamp" → "truncHex" reflects
+			// what it actually does so the next reader doesn't think it's a
+			// numeric clamp.
+			function truncHex(s){ return String(s||'').slice(0, 9); }
 			function isValidHex(s){ return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s); }
 
 			// URL allow-list for the link/image inserts. Refuses javascript:,
@@ -502,7 +506,7 @@ final class Therum_Editor {
 					});
 					picker.addEventListener('change', function(){ applyColor(picker.value); });
 					hex.addEventListener('change', function(){
-						var v = clamp(hex.value.trim());
+						var v = truncHex(hex.value.trim());
 						if (!v) return;
 						if (v[0] !== '#') v = '#' + v;
 						if (isValidHex(v)) applyColor(v);
@@ -539,9 +543,16 @@ final class Therum_Editor {
 					else {
 						url = normalizeUrl(url);
 						document.execCommand('createLink', false, url);
-						// Reinforce target=_blank on the newly created link.
+						// Reinforce target=_blank on the newly created link — but
+						// only for http(s) destinations. mailto: and tel: should
+						// open in the user's handler, not a new browser tab.
+						var isWeb = /^https?:\/\//i.test(url) || url.indexOf('/') === 0;
 						surface.querySelectorAll('a[href]').forEach(function(a){
-							if (a.getAttribute('href') === url) { a.setAttribute('target', '_blank'); a.setAttribute('rel','noopener'); }
+							if (a.getAttribute('href') !== url) return;
+							if (isWeb) {
+								a.setAttribute('target', '_blank');
+								a.setAttribute('rel', 'noopener');
+							}
 						});
 					}
 					sync();

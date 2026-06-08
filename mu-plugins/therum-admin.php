@@ -22,6 +22,23 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
+ * Safe-require a child page class file. Logs + soft-fails if missing instead
+ * of fataling the whole admin — protects against partial extracts during an
+ * in-place update, a rsync glitch, or an .htaccess-blocked path.
+ */
+if ( ! function_exists( 'therum_admin_require_page' ) ) {
+	function therum_admin_require_page( string $relative ): void {
+		$abs = __DIR__ . '/_therum/admin/pages/' . ltrim( $relative, '/' );
+		if ( is_file( $abs ) ) {
+			require_once $abs;
+			return;
+		}
+		// Don't fatal — log and let the rest of admin still load.
+		error_log( '[therum-admin] missing page class: ' . $abs );
+	}
+}
+
+/**
  * Keep Therum admin chrome clean from PHP deprecation / notice spam.
  *
  * PHP 8.1+ emits a flood of "Passing null to parameter ..." deprecation
@@ -930,7 +947,7 @@ add_action( 'in_admin_header', function() {
 	$nav = apply_filters( 'therum_admin_nav_items', therum_nav() );
 	$nav = therum_apply_sidebar_layout( $nav );
 
-	$uri = $_SERVER['REQUEST_URI'] ?? '';
+	$uri = wp_unslash( $_SERVER['REQUEST_URI'] ?? '' );
 	$is_dash = strpos( $uri, 'page=therum' ) !== false && strpos( $uri, 'therum-' ) === false;
 
 	// Determine current section/item for active state — include children so a
@@ -1430,7 +1447,9 @@ function therum_render_dashboard() {
       <div class="th-recent" style="border-top:none;padding-top:0;margin-top:0;">
         <?php foreach ( $recent as $r ):
           $author = get_userdata( $r['post_author'] );
-          $when = human_time_diff( strtotime( $r['post_modified'] ), current_time( 'timestamp' ) ) . ' ago';
+          // current_time('timestamp') was deprecated in WP 5.3 — use the
+          // GMT-aware integer the same way the docs recommend.
+          $when = human_time_diff( strtotime( $r['post_modified'] ), (int) current_time( 'U' ) ) . ' ago';
         ?>
         <div class="th-recent-row">
           <span><?php echo esc_html( $r['post_title'] ?: '(untitled)' ); ?></span>
@@ -1756,9 +1775,9 @@ add_action('admin_head', function() {
  * background based on the user's preferred image source: gradient, featured,
  * stock (Picsum), or wireframe.
  */
-require_once __DIR__ . '/_therum/admin/pages/therum-card-style.php';
+therum_admin_require_page( 'therum-card-style.php' );
 
-require_once __DIR__ . '/_therum/admin/pages/therum-list-page.php';
+therum_admin_require_page( 'therum-list-page.php' );
 
 // ─── PER-PAGE BUILDERS ────────────────────────────────────────────────────────
 //
@@ -1777,25 +1796,25 @@ if ( ! defined( 'THERUM_ADMIN_LIST_CAP' ) ) {
 	define( 'THERUM_ADMIN_LIST_CAP', 2000 );
 }
 
-require_once __DIR__ . '/_therum/admin/pages/therum-pages-page.php';
+therum_admin_require_page( 'therum-pages-page.php' );
 
 // ─── Case Studies ────────────────────────────────────────────────────────────
 // Mirrors Therum_Pages_Page exactly but for the `case_study` CPT registered in
 // therum-case-study-cpt.php. Reuses Therum_Pages_Page::render_card / render_row
 // so the card markup matches Pages 1:1 — same chrome, same kebab, same picker.
-require_once __DIR__ . '/_therum/admin/pages/therum-case-studies-page.php';
+therum_admin_require_page( 'therum-case-studies-page.php' );
 
-require_once __DIR__ . '/_therum/admin/pages/therum-posts-page.php';
+therum_admin_require_page( 'therum-posts-page.php' );
 
-require_once __DIR__ . '/_therum/admin/pages/therum-media-page.php';
+therum_admin_require_page( 'therum-media-page.php' );
 
-require_once __DIR__ . '/_therum/admin/pages/therum-users-page.php';
+therum_admin_require_page( 'therum-users-page.php' );
 
 /* ─────────────────────────────────────────────────────────────────────
  * BRICKS TEMPLATES — list page for bricks_template post type
  * Renders inline (not iframed) using the standard Therum_List_Page
  * ─────────────────────────────────────────────────────────────────── */
-require_once __DIR__ . '/_therum/admin/pages/therum-templates-page.php';
+therum_admin_require_page( 'therum-templates-page.php' );
 
 // Duplicate template handler
 add_action('admin_post_therum_duplicate_template', function() {
@@ -1876,15 +1895,15 @@ add_action('admin_post_therum_duplicate_post', function() {
 	exit;
 });
 
-require_once __DIR__ . '/_therum/admin/pages/therum-plugins-page.php';
+therum_admin_require_page( 'therum-plugins-page.php' );
 
-require_once __DIR__ . '/_therum/admin/pages/therum-plugin-detail-page.php';
+therum_admin_require_page( 'therum-plugin-detail-page.php' );
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  UPDATES PAGE
 // ═════════════════════════════════════════════════════════════════════════════
 
-require_once __DIR__ . '/_therum/admin/pages/therum-updates-page.php';
+therum_admin_require_page( 'therum-updates-page.php' );
 add_action( 'wp_ajax_therum_check_updates', [ 'Therum_Updates_Page', 'ajax_check' ] );
 
 
@@ -1892,7 +1911,7 @@ add_action( 'wp_ajax_therum_check_updates', [ 'Therum_Updates_Page', 'ajax_check
 //  CONNECTIONS PAGE
 // ═════════════════════════════════════════════════════════════════════════════
 
-require_once __DIR__ . '/_therum/admin/pages/therum-connections-page.php';
+therum_admin_require_page( 'therum-connections-page.php' );
 
 add_action( 'wp_ajax_therum_connection_connect',       [ 'Therum_Connections_Page', 'ajax_connect' ] );
 add_action( 'wp_ajax_therum_connection_test',          [ 'Therum_Connections_Page', 'ajax_test' ] );
@@ -1933,7 +1952,7 @@ add_action( 'rest_api_init', function() {
 //    {site}/wp-json/therum/v1/oauth/callback?provider={id}
 //  Admin must register this exact URL in the provider's app dashboard.
 // ════════════════════════════════════════════════════════════════════════════
-require_once __DIR__ . '/_therum/admin/pages/therum-oauth.php';
+therum_admin_require_page( 'therum-oauth.php' );
 
 /**
  * Public helper — call Anthropic Claude via the stored connector credential.
@@ -2045,7 +2064,7 @@ add_action('admin_menu', function() {
  * the list outgrows that, this lifts to a JSON in TherumCs/registry that the
  * page fetches + caches.
  * ───────────────────────────────────────────────────────────────────────── */
-require_once __DIR__ . '/_therum/admin/pages/therum-studio-page.php';
+therum_admin_require_page( 'therum-studio-page.php' );
 
 /**
  * Studio module installer — downloads the latest GitHub release ZIP for the
@@ -4811,7 +4830,7 @@ function thd_render_settings(): void {
 //  3. SETTINGS — from therum-settings.php
 // ════════════════════════════════════════════════════════════════════════════
 
-require_once __DIR__ . '/_therum/admin/pages/therum-settings.php';
+therum_admin_require_page( 'therum-settings.php' );
 
 // Register the default sections. Appearance, Branding, and Site Identity
 // were moved to the Admin Theme (Customization) surface — their tab
@@ -5930,7 +5949,15 @@ function therum_render_backup() {
 				btn.disabled = false; btn.style.opacity = '';
 				if (j && j.success) {
 				  var size = j.data && j.data.size ? Math.round(j.data.size / 1024 / 1024 * 10) / 10 + ' MB' : '';
-				  res.innerHTML = '✓ Backup created: <strong>' + (j.data.file || '') + '</strong> ' + (size ? '('+size+')' : '');
+				  // Build via DOM nodes — never via innerHTML on server-supplied
+				  // strings. The filename is server-controlled today but a
+				  // defense-in-depth escape costs nothing.
+				  res.textContent = '';
+				  res.appendChild(document.createTextNode('✓ Backup created: '));
+				  var strong = document.createElement('strong');
+				  strong.textContent = (j.data && j.data.file) || '';
+				  res.appendChild(strong);
+				  if (size) res.appendChild(document.createTextNode(' (' + size + ')'));
 				  res.style.color = 'var(--ok)';
 				  setTimeout(function(){ location.reload(); }, 1500);
 				} else {

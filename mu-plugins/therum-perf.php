@@ -509,14 +509,21 @@ function therum_send_notification( $subject, $body, $tone = 'info' ) {
 		wp_mail( $admin_email, $full_subject, $body );
 	}
 
-	// Slack
+	// Slack — cap body length. Slack rejects payloads >40KB silently with a
+	// 400; a runaway stack trace or generated payload would otherwise just
+	// vanish. Cap well below the limit to leave headroom for the JSON envelope
+	// + emoji + subject.
 	if ( $slack_url ) {
-		$emoji = [ 'info' => ':information_source:', 'warn' => ':warning:', 'error' => ':rotating_light:', 'success' => ':white_check_mark:' ][ $tone ] ?? ':information_source:';
+		$emoji      = [ 'info' => ':information_source:', 'warn' => ':warning:', 'error' => ':rotating_light:', 'success' => ':white_check_mark:' ][ $tone ] ?? ':information_source:';
+		$body_short = mb_substr( (string) $body, 0, 35000 );
+		if ( $body_short !== (string) $body ) {
+			$body_short .= "\n…[truncated]";
+		}
 		wp_remote_post( $slack_url, [
 			'timeout' => 8,
 			'headers' => [ 'Content-Type' => 'application/json' ],
 			'body'    => wp_json_encode([
-				'text' => "{$emoji} *{$full_subject}*\n{$body}",
+				'text' => "{$emoji} *{$full_subject}*\n{$body_short}",
 			]),
 		]);
 	}

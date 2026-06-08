@@ -2815,7 +2815,7 @@ function therum_cx_render_behavior( string $tab_id, array $tab ): void {
 
 add_action( 'wp_ajax_therum_save_behavior', function () {
 	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
-	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
 	$landing = sanitize_key( $_POST['login_landing'] ?? 'default' );
 	if ( ! in_array( $landing, [ 'default', 'dashboard', 'therum', 'posts', 'pages' ], true ) ) $landing = 'default';
 	$fold = ! empty( $_POST['fold_menu'] ) && $_POST['fold_menu'] !== 'false';
@@ -2904,7 +2904,7 @@ function therum_cx_render_advanced( string $tab_id, array $tab ): void {
 
 add_action( 'wp_ajax_therum_save_custom_css', function () {
 	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
-	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
 	$css = therum_sanitize_admin_css( (string) wp_unslash( $_POST['css'] ?? '' ) );
 	update_user_meta( get_current_user_id(), 'therum_admin_custom_css', $css );
 	wp_send_json_success( [ 'len' => strlen( $css ) ] );
@@ -2912,7 +2912,7 @@ add_action( 'wp_ajax_therum_save_custom_css', function () {
 
 add_action( 'wp_ajax_therum_import_theme', function () {
 	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
-	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
 	if ( ! class_exists( 'Therum_Themes' ) ) wp_send_json_error( 'Theme engine unavailable.', 500 );
 	$data = json_decode( (string) wp_unslash( $_POST['json'] ?? '' ), true );
 	if ( ! is_array( $data ) ) wp_send_json_error( 'Invalid JSON.', 400 );
@@ -2982,7 +2982,7 @@ function therum_cx_render_m01_gradient_control(): void {
 
 add_action( 'wp_ajax_therum_save_m01_gradient', function () {
 	if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'unauthorized', 403 );
-	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'therum_theme' ) ) wp_send_json_error( 'Invalid or expired nonce.', 403 );
 	$hex = function ( $v, $fb ) {
 		$v = is_string( $v ) ? trim( $v ) : '';
 		return preg_match( '/^#[0-9a-fA-F]{6}$/', $v ) ? $v : $fb;

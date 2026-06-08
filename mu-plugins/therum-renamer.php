@@ -406,9 +406,14 @@ final class Therum_Renamer {
 		if ( ! is_string( $value ) ) return $value;
 
 		// Serialized PHP — unserialize, recurse, re-serialize.
+		// allowed_classes=false blocks object-instantiation gadget chains. We
+		// only walk arrays/scalars (URL pairs are strings); any object in the
+		// payload would have been corrupted by our re-encoding anyway, so
+		// downgrading them to __PHP_Incomplete_Class is the right trade-off
+		// and keeps a poisoned meta row from triggering __wakeup.
 		$is_serialized = is_serialized( $value );
 		if ( $is_serialized ) {
-			$un = @unserialize( $value );
+			$un = @unserialize( $value, [ 'allowed_classes' => false ] );
 			if ( $un !== false || $value === 'b:0;' ) {
 				$un = self::deep_replace_recursive( $un, $pairs );
 				return serialize( $un );
@@ -575,7 +580,7 @@ final class Therum_Renamer_AI {
 
 add_action( 'attachment_updated', function( $post_id, $post_after, $post_before ) {
 	if ( ! get_option( 'th_renamer_auto', false ) ) return;
-	if ( wp_doing_ajax() && ( $_POST['action'] ?? '' ) === 'therum_renamer_rename' ) return; // we're already inside a manual rename
+	if ( wp_doing_ajax() && sanitize_text_field( wp_unslash( $_POST['action'] ?? '' ) ) === 'therum_renamer_rename' ) return; // we're already inside a manual rename
 	if ( get_post_meta( $post_id, '_th_renamer_skip_auto', true ) ) return;
 	if ( $post_after->post_title === $post_before->post_title ) return; // nothing changed
 
@@ -748,7 +753,7 @@ add_action( 'wp_ajax_therum_renamer_bulk_rename', function() {
 // ─── Modal markup + JS, printed on the Media list page only ─────────────────
 
 add_action( 'admin_footer', function() {
-	$page = $_GET['page'] ?? '';
+	$page = sanitize_key( wp_unslash( $_GET['page'] ?? '' ) );
 	if ( $page !== 'therum-media' ) return;
 	$nonce = wp_create_nonce( 'therum_renamer' );
 	?>

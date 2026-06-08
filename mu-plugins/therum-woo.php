@@ -797,7 +797,7 @@ add_action( 'send_headers', function() {
 	}
 
 	// REST/login/cron paths — don't cache
-	$uri = $_SERVER['REQUEST_URI'] ?? '';
+	$uri = wp_unslash( $_SERVER['REQUEST_URI'] ?? '' );
 	if (
 		str_contains( $uri, '/wp-json' ) ||
 		str_contains( $uri, '/wp-login.php' ) ||

@@ -823,7 +823,7 @@ class Therum_Cards_Admin {
 			'order'          => 'DESC',
 		];
 		if ( ! empty( $_GET['s'] ) ) {
-			$query_args['s'] = sanitize_text_field( $_GET['s'] );
+			$query_args['s'] = sanitize_text_field( wp_unslash( $_GET['s'] ) );
 		}
 		$q     = new WP_Query( $query_args );
 		$total = $q->found_posts;
@@ -851,7 +851,7 @@ class Therum_Cards_Admin {
 				</div>
 				<form class="therum-cards__search" method="get" action="<?php echo esc_url( admin_url( 'edit.php' ) ); ?>">
 					<input type="hidden" name="post_type" value="<?php echo esc_attr( $post_type ); ?>">
-					<input type="search" name="s" value="<?php echo esc_attr( $_GET['s'] ?? '' ); ?>" placeholder="Search <?php echo esc_attr( strtolower( $pto->labels->name ) ); ?>…">
+					<input type="search" name="s" value="<?php echo esc_attr( wp_unslash( $_GET['s'] ?? '' ) ); ?>" placeholder="Search <?php echo esc_attr( strtolower( $pto->labels->name ) ); ?>…">
 				</form>
 			</div>
 

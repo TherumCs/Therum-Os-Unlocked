@@ -213,9 +213,23 @@ class Therum_Redirects {
 		// and via a daily cron so write contention from high-traffic 301s
 		// never lands inline on the redirect path.
 		add_action( 'shutdown', function() {
-			if ( ! is_admin() ) return;
-			Therum_Redirects::flush_hits();
-			Therum_Redirects::flush_404();
+			// Admin shutdown — always drain both buckets. Cheap, runs once
+			// per admin pageview.
+			if ( is_admin() ) {
+				Therum_Redirects::flush_hits();
+				Therum_Redirects::flush_404();
+				return;
+			}
+			// Public shutdown — only drain the 404 buffer if it's filling up.
+			// Public pageviews are the hot path; we don't want every visitor
+			// triggering an update_option. But if a 404-heavy site has
+			// no admin traffic for a stretch, the hourly cron is the only
+			// other drain and the buffer can be lost to TTL eviction.
+			// 80% of MAX_404 is the safety threshold.
+			$buf = (array) get_transient( Therum_Redirects::OPTION_404 . '_buf' );
+			if ( count( $buf ) >= (int) ( Therum_Redirects::MAX_404 * 0.8 ) ) {
+				Therum_Redirects::flush_404();
+			}
 		} );
 		if ( ! wp_next_scheduled( 'therum_redirects_flush' ) ) {
 			wp_schedule_event( time() + 300, 'hourly', 'therum_redirects_flush' );
@@ -306,7 +320,7 @@ class Therum_Redirects {
 	// ── Front-end matching ────────────────────────────────────────────────────
 	public static function maybe_redirect(): void {
 		if ( is_admin() ) return;
-		$path  = self::norm_path( (string) ( $_SERVER['REQUEST_URI'] ?? '' ) );
+		$path  = self::norm_path( (string) ( wp_unslash( $_SERVER['REQUEST_URI'] ?? '' ) ) );
 		$rules = self::get_all();
 
 		$match = null; $target = null; $code = 301;
@@ -386,7 +400,7 @@ class Therum_Redirects {
 	public static function log_404(): void {
 		if ( is_admin() || ! is_404() ) return;
 		if ( empty( self::cfg()['log_404'] ) ) return;
-		$path = self::norm_path( (string) ( $_SERVER['REQUEST_URI'] ?? '' ) );
+		$path = self::norm_path( (string) ( wp_unslash( $_SERVER['REQUEST_URI'] ?? '' ) ) );
 		if ( $path === '/' ) return;
 		foreach ( [ '/favicon.ico', '/robots.txt', '/apple-touch', '/.well-known', '/wp-sitemap', '/sitemap' ] as $ignore ) {
 			if ( str_starts_with( $path, $ignore ) ) return;
