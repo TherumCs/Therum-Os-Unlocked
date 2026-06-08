@@ -10,9 +10,10 @@
 /* ── DARK mode (default: no .light) → WHITE sidebar + DARK content ───────────*/
 html body.theme-m00{
   --bg:#15161A; --bg-color:#15161A; --sf:#1E2027; --sf2:#262932; --sf3:#2F333D;
-  --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#6E7480;
+  --tx:#F2F4F7; --tx2:#A9AEB8; --tx3:#8A909C;  /* tx3 lightened for 4.5:1 (a11y) */
   --bd:rgba(255,255,255,.09); --bd2:rgba(255,255,255,.16);
   --ac:#5B7CFA; --ac-h:#7C97FF; --ac-s:rgba(91,124,250,.18); --ink:#F2F4F7;
+  --m00-btn-ink:#0E1016;  /* dark text on the lighter dark-mode accent (4.5:1) */
   --m00-desktop:#0E0F12;  /* gray/dark desktop behind the framed app */
   /* sidebar = WHITE in dark mode (inverse) */
   --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#101113; --m00-sbmut:#8C8F94;
@@ -24,9 +25,10 @@ html body.theme-m00{
 /* ── LIGHT mode (.light) → DARK sidebar + WHITE/light content ────────────────*/
 html body.theme-m00.light{
   --bg:#F6F7F9; --bg-color:#F6F7F9; --sf:#FFFFFF; --sf2:#F1F3F5; --sf3:#E9ECEF;
-  --tx:#1E1E1E; --tx2:#50575E; --tx3:#8C8F94;
+  --tx:#1E1E1E; --tx2:#50575E; --tx3:#6B7177;  /* tx3 darkened for 4.5:1 (a11y) */
   --bd:#E3E5E8; --bd2:#D2D5D9;
   --ac:#3858E9; --ac-h:#2E45C5; --ac-s:rgba(56,88,233,.10); --ink:#1E1E1E;
+  --m00-btn-ink:#FFFFFF;  /* white on the darker light-mode accent (5.6:1) */
   --m00-desktop:#E7E9EC;  /* light gray desktop behind the framed app (WP redesign) */
   /* sidebar = DARK in light mode (inverse) */
   --m00-sbbg:#16181E; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
@@ -92,7 +94,7 @@ body.theme-m00 .th-cx-title,body.theme-m00 .th-lp-title{font-weight:700; letter-
 
 /* ── BUTTONS / ACCENT ────────────────────────────────────────────────────────*/
 body.theme-m00 .th-btn-primary,
-body.theme-m00 .th-cx-btn.is-primary{background:var(--ac); color:#fff; border:none}
+body.theme-m00 .th-cx-btn.is-primary{background:var(--ac); color:var(--m00-btn-ink); border:none}
 body.theme-m00 .th-btn-primary:hover,
 body.theme-m00 .th-cx-btn.is-primary:hover{background:var(--ac-h)}
 
@@ -112,7 +114,10 @@ body.theme-m00.content-wide #th-sb::after{
   content:""; position:absolute; top:50%; right:5px; transform:translateY(-50%);
   width:4px; height:46px; border-radius:4px; background:var(--ac); opacity:.85; pointer-events:none;
 }
-html body.theme-m00.content-wide #th-sb:hover{transform:translateX(0); box-shadow:0 24px 64px rgba(0,0,0,.30)}
-body.theme-m00.content-wide #th-sb:hover::after{opacity:0}
+html body.theme-m00.content-wide #th-sb:hover,
+html body.theme-m00.content-wide #th-sb:focus-within{transform:translateX(0); box-shadow:0 24px 64px rgba(0,0,0,.30)}
+body.theme-m00.content-wide #th-sb:hover::after,
+body.theme-m00.content-wide #th-sb:focus-within::after{opacity:0}
 
-body.theme-m00.content-narrow #th-content{padding:32px 100px}
+/* NARROW = centered comfortable reading column (not just tight padding) */
+body.theme-m00.content-narrow #th-content{max-width:900px; margin:0 auto; padding:32px 40px}

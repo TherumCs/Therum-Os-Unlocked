@@ -23,7 +23,7 @@
 /* ── PALETTE ─────────────────────────────────────────────────────────────────*/
 html body.theme-m01{
   --bg:#F4ECD4; --bg-color:#F4ECD4; --sf:#FFFFFF; --sf2:#FBF6EA; --sf3:#F0E8D6;
-  --tx:#1C1A16; --tx2:#7A7466; --tx3:#A8A292;
+  --tx:#1C1A16; --tx2:#7A7466; --tx3:#736D5C;  /* tx3 darkened to 5.2:1 (a11y) */
   --bd:rgba(40,30,10,.12); --bd2:rgba(40,30,10,.20);
   --ac:#F2C20E; --ac-h:#D9A800; --ac-s:rgba(242,194,14,.14);
   --ink:#1C1A16; --dark:#1A1916;

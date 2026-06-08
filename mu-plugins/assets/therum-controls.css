@@ -1,0 +1,146 @@
+/* THERUM OS · QUICK-CONTROLS BEHAVIOR (density, radius, shadow, glass, blur,
+   fonts, bg, sidebar variants). Recovered from the legacy theme CSS with the
+   theme palettes + dark-forcing stripped out, so Quick Controls work OS-wide
+   without fighting the new themes. */
+body.font-system,body.font-system .th-shell,body.font-system #th-content,body.font-system #th-sb,body.font-system #th-topbar{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',system-ui,sans-serif}
+body.font-space-grotesk,body.font-space-grotesk .th-shell,body.font-space-grotesk #th-content,body.font-space-grotesk #th-sb,body.font-space-grotesk #th-topbar{font-family:'Space Grotesk','Inter',sans-serif;letter-spacing:-0.01em}
+body.font-dm-sans,body.font-dm-sans .th-shell,body.font-dm-sans #th-content,body.font-dm-sans #th-sb,body.font-dm-sans #th-topbar{font-family:'DM Sans','Inter',sans-serif;letter-spacing:-0.005em}
+body.font-jetbrains,body.font-jetbrains .th-shell,body.font-jetbrains #th-content,body.font-jetbrains #th-sb,body.font-jetbrains #th-topbar,body.font-mono,body.font-mono .th-shell,body.font-mono #th-content,body.font-mono #th-sb,body.font-mono #th-topbar{font-family:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace}
+body.font-ibm-plex,body.font-ibm-plex .th-shell,body.font-ibm-plex #th-content,body.font-ibm-plex #th-sb,body.font-ibm-plex #th-topbar{font-family:'IBM Plex Sans','Inter',sans-serif}
+body.font-ibm-plex code,body.font-ibm-plex pre{font-family:'IBM Plex Mono',monospace}
+body.font-crimson,body.font-crimson .th-shell,body.font-crimson #th-content,body.font-crimson #th-sb,body.font-crimson #th-topbar,body.font-serif,body.font-serif .th-shell,body.font-serif #th-content,body.font-serif #th-sb,body.font-serif #th-topbar{font-family:'Crimson Pro','Iowan Old Style','Charter',Georgia,serif}
+body.font-playfair,body.font-playfair .th-shell,body.font-playfair #th-content,body.font-playfair #th-sb,body.font-playfair #th-topbar{font-family:'Playfair Display','Iowan Old Style',Georgia,serif}
+body.font-playfair h1,body.font-playfair h2,body.font-playfair .th-stat-val,body.font-playfair .th-settings-group-title{font-weight:700;letter-spacing:-0.02em}
+body.font-archivo,body.font-archivo .th-shell,body.font-archivo #th-content,body.font-archivo #th-sb,body.font-archivo #th-topbar{font-family:'Inter',sans-serif}
+body.font-archivo h1,body.font-archivo h2,body.font-archivo .th-stat-val,body.font-archivo .th-settings-group-title,body.font-archivo .th-btn,body.font-archivo .th-sb-section-label{font-family:'Archivo Black','Inter',sans-serif;letter-spacing:0.02em;text-transform:uppercase}
+body.font-bebas,body.font-bebas .th-shell,body.font-bebas #th-content,body.font-bebas #th-sb,body.font-bebas #th-topbar{font-family:'Inter',sans-serif}
+body.font-bebas h1,body.font-bebas h2,body.font-bebas .th-stat-val,body.font-bebas .th-settings-group-title,body.font-bebas .th-sb-section-label,body.font-bebas .th-btn{font-family:'Bebas Neue','Inter',sans-serif;letter-spacing:0.04em}
+body.font-audiowide,body.font-audiowide .th-shell,body.font-audiowide #th-content,body.font-audiowide #th-sb,body.font-audiowide #th-topbar{font-family:'Inter',sans-serif}
+body.font-audiowide h1,body.font-audiowide h2,body.font-audiowide .th-stat-val,body.font-audiowide .th-settings-group-title,body.font-audiowide .th-sb-section-label{font-family:'Audiowide','Inter',sans-serif;letter-spacing:0.02em}
+body.font-orbitron,body.font-orbitron .th-shell,body.font-orbitron #th-content,body.font-orbitron #th-sb,body.font-orbitron #th-topbar{font-family:'Inter',sans-serif}
+body.font-orbitron h1,body.font-orbitron h2,body.font-orbitron .th-stat-val,body.font-orbitron .th-settings-group-title,body.font-orbitron .th-sb-section-label,body.font-orbitron .th-btn{font-family:'Orbitron','Inter',sans-serif;letter-spacing:0.04em;text-transform:uppercase}
+body.font-vt323,body.font-vt323 .th-shell,body.font-vt323 #th-content,body.font-vt323 #th-sb,body.font-vt323 #th-topbar{font-family:'VT323','VCR OSD Mono',ui-monospace,monospace;font-size:1.05em;letter-spacing:0.02em}
+body.font-caveat,body.font-caveat .th-shell,body.font-caveat #th-content,body.font-caveat #th-sb,body.font-caveat #th-topbar{font-family:'Inter',sans-serif}
+body.font-caveat h1,body.font-caveat h2,body.font-caveat .th-stat-val,body.font-caveat .th-settings-group-title,body.font-caveat .th-sb-section-label,body.font-caveat .th-row-title{font-family:'Caveat','Comic Sans MS',cursive;font-weight:700}
+body.therum-themed.density-breathing{--row-pad:36px;--nav-pad-y:20px;--nav-pad-x:26px}
+body.therum-themed.density-comfortable{--row-pad:22px;--nav-pad-y:14px;--nav-pad-x:22px}
+body.therum-themed.density-compact{--row-pad:10px;--nav-pad-y:6px;--nav-pad-x:16px}
+body.therum-themed.glass #th-pane-dash,body.therum-themed.glass #th-pane-wp{background:transparent !important}
+body.therum-themed.glass .th-card,body.therum-themed.glass .th-lp-card{background:rgba(255,255,255,0.04);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%)}
+body.th-sb-floating #th-sb{top:12px !important;left:12px !important;bottom:12px !important;height:auto !important;border-radius:16px !important;border:1px solid var(--bd) !important;box-shadow:0 10px 40px rgba(0,0,0,0.15) !important;overflow:hidden !important}
+body.th-sb-floating #th-main{margin-left:calc(var(--sidebar-w)+24px) !important}
+body.th-sb-floating #th-topbar{left:calc(var(--sidebar-w)+24px) !important}
+body.th-sb-solid #th-sb{background:var(--ac) !important;border-right-color:var(--ac) !important}
+body.th-sb-solid .th-sb-item,body.th-sb-solid .th-sb-section-label,body.th-sb-solid .th-site-name,body.th-sb-solid .th-site-host{color:rgba(255,255,255,0.85) !important}
+body.th-sb-solid .th-sb-item svg{color:rgba(255,255,255,0.7) !important}
+body.th-sb-solid .th-sb-item:hover{background:rgba(255,255,255,0.1) !important;color:white !important}
+body.th-sb-solid .th-sb-item.active{background:rgba(255,255,255,0.18) !important;color:white !important}
+body.th-sb-solid .th-sb-section-label{color:rgba(255,255,255,0.5) !important}
+body.th-sb-solid .th-sb-header{border-bottom-color:rgba(255,255,255,0.15) !important}
+body.th-sb-minimal #th-sb{background:transparent !important;border-right:none !important}
+body.th-sb-minimal .th-sb-item.active{background:transparent !important;color:var(--ac) !important;font-weight:600}
+body.th-sb-minimal .th-sb-header{border-bottom-color:transparent !important}
+body.density-compact #th-sb .th-sb-item{padding:5px 10px !important;font-size:12px !important}
+body.density-compact .th-sb-section-label{padding:6px 14px !important;margin-top:4px !important}
+body.density-compact .th-card,body.density-compact .th-lp-card{padding:12px 14px !important}
+body.density-compact .th-settings-group{margin-bottom:8px !important}
+body.density-compact .th-settings-group-header{padding:12px 18px 4px !important}
+body.density-compact .th-settings-group-body{padding:4px 18px 14px !important}
+body.density-compact .th-settings-group-title{font-size:13px !important}
+body.density-compact .th-settings-group-sub{font-size:11px !important;margin-top:2px !important}
+body.density-compact .th-setting-row{padding:10px 0 !important}
+body.density-compact .th-radio{padding:5px 10px !important;font-size:11px !important}
+body.density-compact .th-radio-row{gap:6px !important;padding:4px 0 !important}
+body.density-compact .th-input{padding:6px 10px !important;font-size:12px !important}
+body.density-compact .th-btn{padding:6px 12px !important;font-size:12px !important}
+body.density-compact .th-row{padding:8px 14px !important}
+body.density-compact .th-bento{gap:10px !important}
+body.density-standard #th-sb .th-sb-item{padding:9px 12px !important;font-size:13px !important}
+body.density-standard .th-sb-section-label{padding:12px 14px !important;margin-top:8px !important}
+body.density-standard .th-card,body.density-standard .th-lp-card{padding:18px !important}
+body.density-standard .th-settings-group{margin-bottom:14px !important}
+body.density-standard .th-settings-group-header{padding:16px 20px 4px !important}
+body.density-standard .th-settings-group-body{padding:4px 20px 18px !important}
+body.density-standard .th-settings-group-title{font-size:15px !important}
+body.density-standard .th-settings-group-sub{font-size:13px !important;margin-top:4px !important}
+body.density-standard .th-setting-row{padding:14px 0 !important}
+body.density-standard .th-radio{padding:8px 14px !important;font-size:12px !important}
+body.density-standard .th-radio-row{gap:8px !important;padding:6px 0 !important}
+body.density-standard .th-input{padding:8px 12px !important;font-size:13px !important}
+body.density-standard .th-btn{padding:8px 14px !important;font-size:13px !important}
+body.density-standard .th-row{padding:12px 18px !important}
+body.density-standard .th-bento{gap:14px !important}
+body.density-comfortable #th-sb .th-sb-item{padding:11px 14px !important;font-size:13px !important}
+body.density-comfortable .th-sb-section-label{padding:16px 16px !important;margin-top:12px !important}
+body.density-comfortable .th-card,body.density-comfortable .th-lp-card{padding:22px 24px !important}
+body.density-comfortable .th-settings-group{margin-bottom:18px !important}
+body.density-comfortable .th-settings-group-header{padding:20px 24px 6px !important}
+body.density-comfortable .th-settings-group-body{padding:6px 24px 22px !important}
+body.density-comfortable .th-settings-group-title{font-size:16px !important}
+body.density-comfortable .th-settings-group-sub{font-size:14px !important;margin-top:5px !important}
+body.density-comfortable .th-setting-row{padding:18px 0 !important}
+body.density-comfortable .th-radio{padding:10px 18px !important;font-size:13px !important}
+body.density-comfortable .th-radio-row{gap:10px !important;padding:8px 0 !important}
+body.density-comfortable .th-input{padding:10px 14px !important;font-size:14px !important}
+body.density-comfortable .th-btn{padding:10px 18px !important;font-size:13px !important}
+body.density-comfortable .th-row{padding:16px 22px !important}
+body.density-comfortable .th-bento{gap:18px !important}
+body.density-breathing #th-sb .th-sb-item{padding:14px 16px !important;font-size:14px !important}
+body.density-breathing .th-sb-section-label{padding:22px 18px !important;margin-top:16px !important}
+body.density-breathing .th-card,body.density-breathing .th-settings-group,body.density-breathing .th-lp-card{padding:28px !important}
+body.density-breathing .th-settings-group{margin-bottom:24px !important;padding:0 !important}
+body.density-breathing .th-settings-group-header{padding:26px 28px 8px !important}
+body.density-breathing .th-settings-group-body{padding:8px 28px 28px !important}
+body.density-breathing .th-settings-group-title{font-size:17px !important}
+body.density-breathing .th-settings-group-sub{font-size:14px !important;margin-top:6px !important}
+body.density-breathing .th-setting-row{padding:22px 0 !important}
+body.density-breathing .th-radio{padding:12px 22px !important;font-size:14px !important}
+body.density-breathing .th-radio-row{gap:12px !important;padding:10px 0 !important}
+body.density-breathing .th-input{padding:12px 16px !important;font-size:14px !important}
+body.density-breathing .th-btn{padding:12px 22px !important;font-size:14px !important}
+body.density-breathing .th-row{padding:22px 26px !important}
+body.density-breathing .th-bento{gap:24px !important}
+body.radius-sharp .th-card,body.radius-sharp .th-lp-card,body.radius-sharp .th-stat,body.radius-sharp .th-btn,body.radius-sharp .th-sb-item,body.radius-sharp .th-sb-section-label,body.radius-sharp .th-input,body.radius-sharp input[type="text"],body.radius-sharp input[type="search"],body.radius-sharp input[type="email"],body.radius-sharp select,body.radius-sharp .therum-card,body.radius-sharp .button,body.radius-sharp .button-primary,body.radius-sharp .page-title-action{border-radius:0 !important}
+body.radius-round .th-card,body.radius-round .th-lp-card,body.radius-round .th-stat{border-radius:24px !important}
+body.radius-round .th-btn,body.radius-round .button,body.radius-round .button-primary,body.radius-round .page-title-action{border-radius:999px !important}
+body.radius-round .th-sb-item{border-radius:16px !important}
+body.radius-round .th-input,body.radius-round input[type="text"],body.radius-round input[type="search"],body.radius-round input[type="email"],body.radius-round select{border-radius:14px !important}
+body.radius-round .therum-card{border-radius:28px !important}
+body.shadow-flat .th-card,body.shadow-flat .th-lp-card,body.shadow-flat .th-stat,body.shadow-flat .therum-card,body.shadow-flat .th-btn,body.shadow-flat .button,body.shadow-flat .button-primary{box-shadow:none !important}
+body.shadow-flat .th-card,body.shadow-flat .th-lp-card,body.shadow-flat .th-stat,body.shadow-flat .therum-card{border:2px solid var(--bd,var(--bd,rgba(0,0,0,0.08))) !important}
+body.shadow-soft .th-card,body.shadow-soft .th-lp-card,body.shadow-soft .th-stat,body.shadow-soft .therum-card{box-shadow:0 2px 8px rgba(0,0,0,0.04),0 12px 32px rgba(0,0,0,0.06) !important}
+body.shadow-bold .th-card,body.shadow-bold .th-lp-card,body.shadow-bold .th-stat,body.shadow-bold .therum-card{box-shadow:0 8px 24px rgba(0,0,0,0.18),0 32px 64px rgba(0,0,0,0.22) !important}
+body.shadow-bold.theme-neon .th-card,body.shadow-bold.theme-neon .th-lp-card,body.shadow-bold.theme-neon .th-stat{box-shadow:0 0 40px var(--ac,#ec4899),0 0 80px var(--ac,#ec4899) !important}
+body.shadow-glow .th-card,body.shadow-glow .th-lp-card,body.shadow-glow .th-stat,body.shadow-glow .therum-card{box-shadow:0 0 0 1px var(--ac,currentColor),0 12px 32px color-mix(in srgb,var(--ac,currentColor) 25%,transparent) !important}
+body.glass.glass-tint-light .th-card,body.glass.glass-tint-light .th-lp-card,body.glass.glass-tint-light .th-settings-group,body.glass.glass-tint-light .therum-card{background:rgba(255,255,255,0.55) !important;backdrop-filter:blur(20px) saturate(140%) !important;-webkit-backdrop-filter:blur(20px) saturate(140%) !important;border:1px solid rgba(255,255,255,0.7) !important;box-shadow:0 8px 32px rgba(0,0,0,0.06) !important}
+body.glass.glass-tint-dark .th-card,body.glass.glass-tint-dark .th-lp-card,body.glass.glass-tint-dark .th-settings-group,body.glass.glass-tint-dark .therum-card{background:rgba(15,23,42,0.55) !important;backdrop-filter:blur(24px) saturate(160%) !important;-webkit-backdrop-filter:blur(24px) saturate(160%) !important;border:1px solid rgba(255,255,255,0.10) !important;color:#ffffff !important}
+body.glass.glass-tint-color .th-card,body.glass.glass-tint-color .th-lp-card,body.glass.glass-tint-color .th-settings-group,body.glass.glass-tint-color .therum-card{background:rgba(var(--glass-tint-rgb,30 60 138),0.20) !important;backdrop-filter:blur(22px) saturate(180%) !important;-webkit-backdrop-filter:blur(22px) saturate(180%) !important;border:1px solid rgba(var(--glass-tint-rgb,30 60 138),0.35) !important}
+body.bg-gradient{background:radial-gradient(ellipse at 10% 0%,color-mix(in srgb,var(--ac,#f5389a) 35%,transparent) 0%,transparent 50%),radial-gradient(ellipse at 90% 100%,color-mix(in srgb,var(--ac,#9333ea) 28%,transparent) 0%,transparent 55%),radial-gradient(ellipse at 50% 50%,color-mix(in srgb,var(--ac,#2563eb) 18%,transparent) 0%,transparent 60%),var(--bg,#0a0a0e) !important;background-attachment:fixed !important;background-size:200% 200%,200% 200%,200% 200%,auto !important;animation:th-grad-drift 30s ease-in-out infinite alternate}
+body.bg-gradient #th-sb,body.bg-gradient #th-topbar{background:rgba(255,255,255,0.04) !important;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
+body.bg-gradient.light #th-sb,body.bg-gradient.light #th-topbar{background:rgba(255,255,255,0.55) !important}
+body.bg-blurred .th-card,body.bg-blurred .th-lp-card,body.bg-blurred .th-settings-group,body.bg-blurred .therum-card,body.bg-blurred #th-sb,body.bg-blurred #th-topbar{backdrop-filter:blur(40px) saturate(200%) !important;-webkit-backdrop-filter:blur(40px) saturate(200%) !important;background:rgba(255,255,255,0.12) !important;border:1px solid rgba(255,255,255,0.18) !important}
+body.bg-blurred:not(.light) .th-card,body.bg-blurred:not(.light) .th-lp-card,body.bg-blurred:not(.light) .th-settings-group,body.bg-blurred:not(.light) .therum-card,body.bg-blurred:not(.light) #th-sb,body.bg-blurred:not(.light) #th-topbar{background:rgba(0,0,0,0.30) !important;border-color:rgba(255,255,255,0.08) !important}
+body.bg-blurred{background:radial-gradient(circle at 20% 30%,color-mix(in srgb,var(--ac,#f5389a) 40%,transparent),transparent 40%),radial-gradient(circle at 80% 70%,color-mix(in srgb,var(--ac,#9333ea) 30%,transparent),transparent 45%),var(--bg,#0a0a0e) !important;background-attachment:fixed !important}
+body.glass .th-card,body.glass .th-stat,body.glass .th-lp-card,body.glass .therum-card{backdrop-filter:blur(var(--th-blur-amount,20px)) saturate(150%) !important;-webkit-backdrop-filter:blur(var(--th-blur-amount,20px)) saturate(150%) !important;background:color-mix(in srgb,var(--sf,var(--sf,#ffffff)) 55%,transparent) !important;border:1px solid color-mix(in srgb,var(--bd,var(--bd,currentColor)) 60%,transparent) !important}
+body.glass-tint-light .th-card,body.glass-tint-light .th-stat,body.glass-tint-light .th-lp-card,body.glass-tint-light .therum-card{backdrop-filter:blur(var(--th-blur-amount,22px)) saturate(160%) !important;-webkit-backdrop-filter:blur(var(--th-blur-amount,22px)) saturate(160%) !important;background:color-mix(in srgb,var(--sf,#ffffff) 60%,white) !important;border:1px solid color-mix(in srgb,var(--sf,#ffffff) 30%,white) !important;color:var(--tx,var(--tx,#0f172a)) !important}
+body.glass-tint-dark .th-card,body.glass-tint-dark .th-stat,body.glass-tint-dark .th-lp-card,body.glass-tint-dark .therum-card{backdrop-filter:blur(var(--th-blur-amount,22px)) saturate(160%) !important;-webkit-backdrop-filter:blur(var(--th-blur-amount,22px)) saturate(160%) !important;background:color-mix(in srgb,var(--bg,var(--sf2,#0a0a0a)) 60%,black) !important;border:1px solid color-mix(in srgb,var(--tx,#ffffff) 12%,transparent) !important;color:var(--tx,var(--tx,#ffffff)) !important}
+body.glass-tint-color .th-card,body.glass-tint-color .th-stat,body.glass-tint-color .th-lp-card,body.glass-tint-color .therum-card{backdrop-filter:blur(var(--th-blur-amount,22px)) saturate(180%) !important;-webkit-backdrop-filter:blur(var(--th-blur-amount,22px)) saturate(180%) !important;background:color-mix(in srgb,var(--ac,var(--ac,#2563eb)) 22%,transparent) !important;border:1px solid color-mix(in srgb,var(--ac,var(--ac,#2563eb)) 40%,transparent) !important}
+body.glass #th-sb,body.glass #th-topbar{backdrop-filter:blur(var(--th-blur-amount,30px)) saturate(180%) !important;-webkit-backdrop-filter:blur(var(--th-blur-amount,30px)) saturate(180%) !important;background:color-mix(in srgb,var(--sb-bg,var(--bg,var(--sf,#ffffff))) 55%,transparent) !important}
+body.glass-tint-light #th-sb,body.glass-tint-light #th-topbar{background:color-mix(in srgb,var(--sf,#ffffff) 60%,white) !important}
+body.glass-tint-dark #th-sb,body.glass-tint-dark #th-topbar{background:color-mix(in srgb,var(--bg,#0a0a0a) 60%,black) !important}
+body.glass-tint-color #th-sb,body.glass-tint-color #th-topbar{background:color-mix(in srgb,var(--ac,#2563eb) 22%,transparent) !important}
+body.blur-light{--th-blur-amount:12px}
+body.blur-medium{--th-blur-amount:24px}
+body.blur-heavy{--th-blur-amount:48px}
+
+/* ============================================================================
+ * ACCESSIBILITY BASELINE (WCAG 2.1 AA) — OS-wide
+ * ========================================================================== */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+/* Visible keyboard focus (2.4.7) — 2px, accent, 3:1+, never removed */
+:where(a,button,[role="button"],input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:2px solid var(--ac,#3858E9)!important; outline-offset:2px!important; border-radius:4px;
+}
+.th-sb-item:focus-visible,.th-cx-nav-item:focus-visible,.th-sb-section-label:focus-visible{outline:2px solid var(--ac,#3858E9)!important;outline-offset:-2px!important}

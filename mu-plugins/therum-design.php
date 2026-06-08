@@ -2088,6 +2088,12 @@ add_action('admin_head', function() {
 // stylesheet scoped to body.theme-<palette> that owns its full palette — no
 // legacy layer, no override hacks.
 add_action( 'admin_enqueue_scripts', function() {
+	// Quick-Controls behavior (density/radius/shadow/glass/blur/fonts/etc.) —
+	// loaded first so theme palettes layer on top.
+	$ctl = __DIR__ . '/assets/therum-controls.css';
+	if ( file_exists( $ctl ) ) {
+		wp_enqueue_style( 'therum-controls', plugins_url( 'assets/therum-controls.css', __FILE__ ), [], filemtime( $ctl ) );
+	}
 	foreach ( [ 'theme-m00', 'theme-m01' ] as $morph ) {
 		$mp = __DIR__ . '/assets/' . $morph . '.css';
 		if ( file_exists( $mp ) ) {
