@@ -13,11 +13,23 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // LOGIN SKIN — from therum-login.php
 // ════════════════════════════════════════════════════════════════════════
 
-// Login chrome rides the main release. Reading a defined-const lets the
-// footer stamp show the actual installed version instead of fossilizing
-// here.
-if ( ! defined( 'THERUM_LOGIN_VERSION' ) ) {
-	define( 'THERUM_LOGIN_VERSION', defined( 'THERUM_OS_VERSION' ) ? THERUM_OS_VERSION : '1.9.0' );
+/**
+ * Resolve the version shown in the login footer at RUNTIME, not at
+ * file-include time. therum-auth.php loads alphabetically before
+ * therum-core.php (which defines THERUM_OS_VERSION), so a top-of-file
+ * `define()` would always fall back to the placeholder value. Reading
+ * the constant inside the footer callback below sidesteps the ordering
+ * problem entirely.
+ */
+function therum_login_version(): string {
+	if ( defined( 'THERUM_OS_VERSION' ) ) return THERUM_OS_VERSION;
+	// Last-resort fallback — parse the active core file header.
+	$core = __DIR__ . '/therum-core.php';
+	if ( is_readable( $core ) ) {
+		$head = file_get_contents( $core, false, null, 0, 1024 );
+		if ( $head && preg_match( "/THERUM_OS_VERSION'\\s*,\\s*'([^']+)'/", $head, $m ) ) return $m[1];
+	}
+	return '';
 }
 
 
@@ -541,7 +553,8 @@ add_action( 'login_footer', function() {
 
 	if ( $show_version ) {
 		echo '<div class="th-login-foot-fixed" style="position:fixed;bottom:18px;left:0;right:0;text-align:center;font-size:11px;opacity:0.4;z-index:10;color:inherit;">';
-		echo 'Therum OS · v' . esc_html( THERUM_LOGIN_VERSION );
+		$_ver = therum_login_version();
+		echo 'Therum OS' . ( $_ver ? ' · v' . esc_html( $_ver ) : '' );
 		echo '</div>';
 	}
 });
