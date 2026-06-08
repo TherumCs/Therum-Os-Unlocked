@@ -1643,6 +1643,25 @@ class Therum_Themes {
 					'layout' => [ 'navHeight' => 66, 'nav' => 'top-pill' ],
 				],
 			],
+			'theme-02' => [
+				'name' => '02 · Coral Finance', 'desc' => 'N2 financial dashboard — light cool-gray canvas, white very-rounded cards with soft shadows, coral accent, top pill-nav, one dark spotlight card.',
+				'group' => 'foundations', 'mode' => 'light', 'accent' => '#F0563E', 'density' => 'comfortable',
+				'sidebar' => 'full', 'sidebarStyle' => 'default', 'font' => 'inter', 'radius' => 'large', 'shadow' => 'soft',
+				'glass' => false, 'bgImage' => 'none', 'palette' => 'm02', 'previewMain' => '#EFF0F3', 'previewRail' => '#F0563E',
+				'designSystemDoc' => 'assets/theme-m02.design-system.md',
+				'tokens' => [
+					'colors' => [ 'accent' => '#F0563E', 'accentHover' => '#DC4528', 'accentSoft' => 'rgba(240,86,62,.12)',
+						'dark' => '#16181C', 'canvas' => '#EFF0F3', 'surface' => '#FFFFFF', 'surface2' => '#F6F7F9', 'surface3' => '#EEEFF2',
+						'text' => '#1A1D21', 'text2' => '#6B7178', 'text3' => '#9AA0A8', 'border' => 'rgba(20,24,30,.08)', 'border2' => 'rgba(20,24,30,.14)',
+						'success' => '#16A34A', 'warning' => '#E6A817', 'error' => '#E5533D', 'info' => '#3B82F6' ],
+					'typography' => [ 'display' => 'Inter', 'body' => 'Inter', 'mono' => 'JetBrains Mono',
+						'scale' => [ 'hero' => 30, 'h1' => 30, 'cardTitle' => 16, 'stat' => 28, 'body' => 14, 'label' => 14, 'small' => 12 ] ],
+					'radius' => [ 'sm' => 8, 'md' => 12, 'lg' => 14, 'card' => 20, 'pill' => 999 ],
+					'shadow' => [ 'card' => '0 1px 2px rgba(20,24,40,.04),0 12px 30px rgba(20,24,40,.06)' ],
+					'spacing' => [ 'xs' => 4, 'sm' => 8, 'md' => 16, 'lg' => 24, 'xl' => 32 ],
+					'layout' => [ 'navHeight' => 68, 'nav' => 'top-pill', 'spotlight' => 'last-bento-card-dark' ],
+				],
+			],
 		];
 	}
 
@@ -2094,7 +2113,7 @@ add_action( 'admin_enqueue_scripts', function() {
 	if ( file_exists( $ctl ) ) {
 		wp_enqueue_style( 'therum-controls', plugins_url( 'assets/therum-controls.css', __FILE__ ), [], filemtime( $ctl ) );
 	}
-	foreach ( [ 'theme-m00', 'theme-m01' ] as $morph ) {
+	foreach ( [ 'theme-m00', 'theme-m01', 'theme-m02' ] as $morph ) {
 		$mp = __DIR__ . '/assets/' . $morph . '.css';
 		if ( file_exists( $mp ) ) {
 			wp_enqueue_style(
