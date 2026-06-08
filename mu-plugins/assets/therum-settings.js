@@ -29,9 +29,15 @@ var label=span.dataset.original||span.textContent;
 if (q&&matches){
 var idx=label.toLowerCase().indexOf(q);
 if (idx!==-1){
-span.innerHTML=label.slice(0,idx)+
-'<mark>'+label.slice(idx,idx+q.length)+'</mark>'+
-label.slice(idx+q.length);
+// Rebuild via DOM nodes instead of innerHTML so a setting label
+// containing '<' (or future user-influenced labels) can't become
+// a DOM-XSS sink.
+span.textContent='';
+span.appendChild(document.createTextNode(label.slice(0,idx)));
+var mk=document.createElement('mark');
+mk.textContent=label.slice(idx,idx+q.length);
+span.appendChild(mk);
+span.appendChild(document.createTextNode(label.slice(idx+q.length)));
 return;
 }
 }

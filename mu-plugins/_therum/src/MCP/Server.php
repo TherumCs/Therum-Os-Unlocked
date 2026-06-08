@@ -48,6 +48,20 @@ final class Server {
 
 		// Batch requests: array of request objects
 		if ( is_array( $raw ) && array_is_list( $raw ) ) {
+			// Hard cap batch size — a client sending {batch: [10000 calls]}
+			// would otherwise run every tool serially. 32 is generous for
+			// real-world MCP usage.
+			$max_batch = (int) apply_filters( 'therum_mcp_max_batch', 32 );
+			if ( count( $raw ) > $max_batch ) {
+				return new \WP_REST_Response(
+					[
+						'jsonrpc' => '2.0',
+						'error'   => [ 'code' => -32600, 'message' => 'Batch exceeds maximum size of ' . $max_batch ],
+						'id'      => null,
+					],
+					413
+				);
+			}
 			$out = [];
 			foreach ( $raw as $req ) {
 				$resp = $this->dispatch_one( is_array( $req ) ? $req : [], $request );

@@ -46,17 +46,25 @@
     wrap.appendChild(plus);
 
     var user = el('div', { class: 'th-m02-user' });
-    var avStyle = data.avatar ? 'background-image:url(' + data.avatar + ')' : '';
-    user.appendChild(el('div', {
+    // Encode the avatar URL and wrap in url("…") so a URL containing a literal
+    // quote can't break out of the style attribute. encodeURI preserves the
+    // legal URL chars including / : ? &.
+    var avEl = el('div', {
       class: 'th-m02-avatar' + (data.avatar ? ' has-photo' : ''),
-      style: avStyle,
-    }, data.avatar ? '' : (data.initial || 'U')));
+    }, data.avatar ? '' : (data.initial || 'U'));
+    if (data.avatar) {
+      avEl.style.backgroundImage = 'url("' + encodeURI(String(data.avatar)).replace(/"/g, '%22') + '")';
+    }
+    user.appendChild(avEl);
     if (data.name) {
-      var info = el('div', { class: 'th-m02-userinfo' },
-        '<div class="th-m02-name"></div><div class="th-m02-role"></div>'
-      );
-      info.querySelector('.th-m02-name').textContent = data.name;
-      info.querySelector('.th-m02-role').textContent = data.role || '';
+      // Build via DOM nodes — no innerHTML for server-supplied values.
+      var info = el('div', { class: 'th-m02-userinfo' });
+      var nameEl = el('div', { class: 'th-m02-name' });
+      var roleEl = el('div', { class: 'th-m02-role' });
+      nameEl.textContent = data.name;
+      roleEl.textContent = data.role || '';
+      info.appendChild(nameEl);
+      info.appendChild(roleEl);
       user.appendChild(info);
     }
     wrap.appendChild(user);

@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.35' );
+define( 'THERUM_OS_VERSION', '1.9.36' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
@@ -538,16 +538,21 @@ function therum_featured_grid_meta_box_callback( $post ) {
 	</script>';
 }
 
-// Save featured grid media meta
+// Save featured grid media meta.
+// Hardened:
+//   - wp_unslash on the nonce value before verify
+//   - autosave guard
+//   - per-post capability check (edit_post is the canonical save_post gate;
+//     manage_options would over-restrict, current_user_can('edit_posts') would
+//     under-restrict because it doesn't tie the cap to THIS post)
 add_action( 'save_post', function( $post_id ) {
-	if ( ! isset( $_POST['therum_featured_grid_nonce'] ) || ! wp_verify_nonce( $_POST['therum_featured_grid_nonce'], 'therum_featured_grid_nonce' ) ) {
-		return;
-	}
-	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-		return;
-	}
-	
-	$att_id = isset( $_POST['therum_featured_grid_id'] ) ? intval( $_POST['therum_featured_grid_id'] ) : 0;
+	if ( ! isset( $_POST['therum_featured_grid_nonce'] ) ) return;
+	$nonce = sanitize_text_field( wp_unslash( $_POST['therum_featured_grid_nonce'] ) );
+	if ( ! wp_verify_nonce( $nonce, 'therum_featured_grid_nonce' ) ) return;
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+	if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+
+	$att_id = isset( $_POST['therum_featured_grid_id'] ) ? intval( wp_unslash( $_POST['therum_featured_grid_id'] ) ) : 0;
 	if ( $att_id ) {
 		update_post_meta( $post_id, '_therum_featured_grid', $att_id );
 	} else {

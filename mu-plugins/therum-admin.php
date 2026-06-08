@@ -1978,7 +1978,12 @@ function therum_ask_claude( string $prompt, array $args = [] ) {
 	] );
 
 	$res = wp_remote_post( 'https://api.anthropic.com/v1/messages', [
-		'timeout' => 30,
+		'timeout'             => 30,
+		// Cap inbound response size — a compromised credential routed to a
+		// hostile mock endpoint could otherwise stream a huge body into PHP
+		// memory. 5 MiB is well above any plausible legitimate completion.
+		'limit_response_size' => 5 * 1024 * 1024,
+		'sslverify'           => true,
 		'headers' => [
 			'x-api-key'         => $cred['key'],
 			'anthropic-version' => '2023-06-01',
@@ -2010,7 +2015,9 @@ function therum_ask_gpt( string $prompt, array $args = [] ) {
 	] );
 
 	$res = wp_remote_post( 'https://api.openai.com/v1/chat/completions', [
-		'timeout' => 30,
+		'timeout'             => 30,
+		'limit_response_size' => 5 * 1024 * 1024,
+		'sslverify'           => true,
 		'headers' => [
 			'authorization' => 'Bearer ' . $cred['key'],
 			'content-type'  => 'application/json',

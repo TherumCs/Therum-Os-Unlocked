@@ -1092,15 +1092,27 @@ add_action( 'edit_form_after_title', function( $post ) {
 // Persist post_content from our injected editor on standard WP form submit
 // (covers Save Draft / Publish in the right column when editor isn't native).
 add_action( 'save_post', function( $post_id, $post ) {
+	// Static re-entrancy guard. The previous version called
+	// remove_action('save_post', __FUNCTION__, 10) — but inside a closure
+	// __FUNCTION__ resolves to '{closure}', not the actual callable, so the
+	// removal silently no-op'd and a wp_update_post() below would re-fire
+	// save_post into the same closure on installs where the post type didn't
+	// hit the early-return guards above.
+	static $reentry = false;
+	if ( $reentry ) return;
 	if ( wp_is_post_revision( $post_id ) ) return;
 	if ( post_type_supports( $post->post_type, 'editor' ) ) return; // WP handles
 	if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 	if ( ! isset( $_POST['content'] ) ) return;
-	remove_action( 'save_post', __FUNCTION__, 10 );
-	wp_update_post( [
-		'ID'           => $post_id,
-		'post_content' => wp_kses_post( wp_unslash( $_POST['content'] ) ),
-	] );
+	$reentry = true;
+	try {
+		wp_update_post( [
+			'ID'           => $post_id,
+			'post_content' => wp_kses_post( wp_unslash( $_POST['content'] ) ),
+		] );
+	} finally {
+		$reentry = false;
+	}
 }, 10, 2 );
 
 // Reposition meta boxes that hang in the main column for non-editor post types

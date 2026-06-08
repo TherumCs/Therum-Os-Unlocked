@@ -1194,7 +1194,10 @@ if (state.edition) {
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( ! empty( $body['success'] ) ) {
-			update_option( 'bricks_license_key', $license );
+			// Bricks reads its license key on its own settings page + during
+			// activation checks — not on every pageview. autoload=false keeps
+			// it out of the wp_options autoload row.
+			update_option( 'bricks_license_key', $license, false );
 			wp_send_json_success( [ 'message' => 'Bricks license activated.' ] );
 		} else {
 			wp_send_json_error( [ 'message' => $body['message'] ?? 'License could not be verified.' ] );

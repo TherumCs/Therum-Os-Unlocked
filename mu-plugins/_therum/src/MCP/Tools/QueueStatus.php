@@ -65,6 +65,20 @@ final class QueueStatus extends Tool {
 	 * @return array<string, mixed>
 	 */
 	private function job_status( int $job_id ): array {
+		// The Job model has no per-user ownership column, so we can't filter
+		// "show me my own jobs". Until that exists, restrict specific-job
+		// lookups to operators with manage_options — anyone with an mcp.read
+		// token can still see aggregate queue counts. This stops a leaked
+		// low-privilege MCP token from enumerating arbitrary job payloads
+		// (which can include filesystem paths and the truncated last_error).
+		if ( ! current_user_can( 'manage_options' ) ) {
+			throw new McpError(
+				-32603,
+				'Specific-job lookups require manage_options. Use the queue parameter for aggregate counts.',
+				[ 'job_id' => $job_id ]
+			);
+		}
+
 		$job = Queue::find( $job_id );
 
 		if ( $job === null ) {

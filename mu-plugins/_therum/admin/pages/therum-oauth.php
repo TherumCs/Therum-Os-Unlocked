@@ -113,7 +113,16 @@ class Therum_OAuth {
 		// Restore the user session — REST callbacks don't carry the admin
 		// cookie context, so set_current_user lets save_connection() use
 		// per-user storage if it wants. (Today storage is install-wide.)
-		if ( ! empty( $state['user_id'] ) ) wp_set_current_user( (int) $state['user_id'] );
+		//
+		// Re-check capability: the user may have been demoted between issuing
+		// the OAuth handshake and the callback firing. We refuse to persist
+		// the token under an account that no longer has manage_options.
+		$state_user_id = (int) ( $state['user_id'] ?? 0 );
+		if ( $state_user_id <= 0 || ! user_can( $state_user_id, 'manage_options' ) ) {
+			wp_safe_redirect( add_query_arg( 'oauth_err', 'cap-revoked', $base_back ) );
+			exit;
+		}
+		wp_set_current_user( $state_user_id );
 
 		$provider = $state['provider'];
 		$p        = self::find_provider( $provider );

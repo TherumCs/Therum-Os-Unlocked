@@ -2859,8 +2859,19 @@ function therum_get_custom_admin_css(): string {
 
 // Author is a manage_options user (already trusted with theme/plugin file edit);
 // this only prevents breaking out of the <style> wrapper.
+//
+// Loop until stable. Single-pass str_ireplace is bypassable by nesting —
+// "<scr<scriptipt>" becomes "<script>" after one pass. Iterate until either a
+// fixed point or a hard cap (defensive bound, can't actually run more than a
+// handful of passes on real input).
 function therum_sanitize_admin_css( string $css ): string {
-	return str_ireplace( [ '</style', '<script', '</script', 'javascript:', 'expression(' ], '', $css );
+	$banned = [ '</style', '<script', '</script', 'javascript:', 'expression(' ];
+	for ( $i = 0; $i < 12; $i++ ) {
+		$next = str_ireplace( $banned, '', $css );
+		if ( $next === $css ) return $next;
+		$css = $next;
+	}
+	return $css;
 }
 
 function therum_cx_render_advanced( string $tab_id, array $tab ): void {

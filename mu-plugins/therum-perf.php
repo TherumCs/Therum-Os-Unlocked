@@ -512,10 +512,11 @@ function therum_send_notification( $subject, $body, $tone = 'info' ) {
 	// Slack — cap body length. Slack rejects payloads >40KB silently with a
 	// 400; a runaway stack trace or generated payload would otherwise just
 	// vanish. Cap well below the limit to leave headroom for the JSON envelope
-	// + emoji + subject.
+	// + emoji + subject. Filterable so ops can tune.
 	if ( $slack_url ) {
 		$emoji      = [ 'info' => ':information_source:', 'warn' => ':warning:', 'error' => ':rotating_light:', 'success' => ':white_check_mark:' ][ $tone ] ?? ':information_source:';
-		$body_short = mb_substr( (string) $body, 0, 35000 );
+		$max_body   = (int) apply_filters( 'therum_slack_body_max_chars', 35000 );
+		$body_short = mb_substr( (string) $body, 0, $max_body );
 		if ( $body_short !== (string) $body ) {
 			$body_short .= "\n…[truncated]";
 		}

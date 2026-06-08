@@ -71,19 +71,46 @@ add_action( 'rest_api_init', function() {
 		$origins_raw = trim( (string) get_option( 'th_cors_origins', '' ) );
 		if ( ! $origins_raw ) return $served;
 
-		$origins = array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', $origins_raw ) ) );
-		$incoming = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+		// Normalize: trim, lowercase scheme+host, strip trailing slash. We
+		// compare URL-normalized values so "https://Example.com/" matches the
+		// configured "https://example.com".
+		$normalize = static function( string $u ): string {
+			$u = trim( $u );
+			if ( $u === '' || $u === '*' ) return $u;
+			$parts = wp_parse_url( $u );
+			if ( ! $parts || empty( $parts['host'] ) ) return strtolower( $u );
+			$scheme = strtolower( $parts['scheme'] ?? 'https' );
+			$host   = strtolower( $parts['host'] );
+			$port   = isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '';
+			return $scheme . '://' . $host . $port;
+		};
 
-		$allow = false;
-		foreach ( $origins as $o ) {
-			if ( $o === '*' ) { $allow = $incoming ?: '*'; break; }
-			if ( $o === $incoming ) { $allow = $incoming; break; }
+		$origins  = array_filter( array_map( $normalize, preg_split( '/\r\n|\r|\n/', $origins_raw ) ) );
+		$incoming_raw = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+		$incoming     = $normalize( $incoming_raw );
+
+		$wildcard = in_array( '*', $origins, true );
+		$allow    = false;
+		if ( $incoming !== '' && $wildcard ) {
+			// Reflect the actual origin; emitting literal "*" together with
+			// Allow-Credentials is forbidden by the CORS spec.
+			$allow = $incoming_raw;
+		} elseif ( $incoming !== '' && in_array( $incoming, $origins, true ) ) {
+			$allow = $incoming_raw;
 		}
 
+		// No incoming Origin header (same-origin or non-browser client) → emit
+		// no CORS headers at all. Browsers don't need them; preventing the
+		// wildcard+credentials combo from ever shipping.
 		if ( $allow ) {
 			header( 'Access-Control-Allow-Origin: ' . $allow );
 			header( 'Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH' );
-			header( 'Access-Control-Allow-Credentials: true' );
+			// Only emit Allow-Credentials when we're echoing a specific origin
+			// (which we always are above — wildcard is never sent). Belt-and-
+			// suspenders: re-verify $allow isn't '*'.
+			if ( $allow !== '*' ) {
+				header( 'Access-Control-Allow-Credentials: true' );
+			}
 			header( 'Access-Control-Allow-Headers: Authorization, Content-Type, X-WP-Nonce' );
 			header( 'Vary: Origin' );
 
@@ -278,6 +305,81 @@ function therum_supported_events() {
 }
 
 
+// ─── Webhook URL safety guard ────────────────────────────────────────────────
+/**
+ * Reject webhook URLs that would let an admin POST event payloads to internal
+ * network targets. We resolve the host and refuse private (RFC 1918), loopback,
+ * link-local, multicast, cloud-metadata, and unspecified addresses.
+ *
+ * Mitigates an SSRF where an admin (compromised account, malicious insider, or
+ * just a confused click) registers `https://169.254.169.254/...` or
+ * `https://10.0.0.1/admin` and gets the application to fan-out POST data to
+ * those targets from the server's own IP.
+ *
+ * Returns true when the URL is OK to send to. Returns false when refused; the
+ * caller logs the refusal.
+ *
+ * Filterable: `therum_webhook_url_allowed` ( bool $ok, string $url, string $host, string $ip )
+ * — let ops override for staging or self-host-on-LAN cases.
+ */
+function therum_webhook_url_safe( string $url ): bool {
+	if ( $url === '' ) return false;
+	$parts = wp_parse_url( $url );
+	if ( ! $parts || empty( $parts['host'] ) || empty( $parts['scheme'] ) ) return false;
+	if ( strtolower( $parts['scheme'] ) !== 'https' ) return false;
+
+	$host = strtolower( $parts['host'] );
+
+	// Resolve host → IP. dns_get_record fails open on misconfigured DNS; treat
+	// "couldn't resolve" as refused.
+	$ips = [];
+	if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+		$ips = [ $host ];
+	} else {
+		// IPv4
+		$records = @dns_get_record( $host, DNS_A );
+		if ( is_array( $records ) ) {
+			foreach ( $records as $r ) if ( ! empty( $r['ip'] ) ) $ips[] = $r['ip'];
+		}
+		// IPv6
+		$records6 = @dns_get_record( $host, DNS_AAAA );
+		if ( is_array( $records6 ) ) {
+			foreach ( $records6 as $r ) if ( ! empty( $r['ipv6'] ) ) $ips[] = $r['ipv6'];
+		}
+	}
+	if ( ! $ips ) return false;
+
+	// Every resolved IP must clear the public-IP filter — otherwise a single
+	// rogue A record (DNS rebinding) is enough to send the request to a
+	// private target. We refuse if ANY resolved address is private/reserved.
+	foreach ( $ips as $ip ) {
+		$ok = (bool) filter_var(
+			$ip,
+			FILTER_VALIDATE_IP,
+			FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+		);
+		if ( ! $ok ) {
+			return apply_filters( 'therum_webhook_url_allowed', false, $url, $host, $ip );
+		}
+		// Block the AWS / GCP / Azure cloud-metadata address explicitly. It
+		// IS technically a public-routed IP from filter_var's POV (169.254/16
+		// is link-local but FILTER_FLAG_NO_RES_RANGE catches that anyway);
+		// the explicit check guards against /16 escapes via SRV records.
+		if ( $ip === '169.254.169.254' ) {
+			return apply_filters( 'therum_webhook_url_allowed', false, $url, $host, $ip );
+		}
+	}
+
+	return apply_filters( 'therum_webhook_url_allowed', true, $url, $host, $ips[0] );
+}
+
+// Hard cap on outbound webhook payload size. A media.uploaded event for a 2GB
+// attachment can otherwise produce a massive JSON body and OOM the cron worker.
+if ( ! defined( 'THERUM_WEBHOOK_MAX_BODY' ) ) {
+	define( 'THERUM_WEBHOOK_MAX_BODY', 1024 * 1024 ); // 1 MiB
+}
+
+
 // ─── Event firing ────────────────────────────────────────────────────────────
 function therum_fire_webhook_event( $event, $payload ) {
 	$hooks = therum_get_webhooks();
@@ -308,12 +410,27 @@ add_action( 'therum_webhook_dispatch', function( $id, $event, $payload ) {
 		return;
 	}
 
+	// SSRF guard — resolve the host and refuse private/loopback/link-local/
+	// metadata targets. Prevents an admin from pointing the dispatcher at
+	// 169.254.169.254 or 10.x and exfiltrating event data inside the LAN.
+	if ( ! therum_webhook_url_safe( (string) $hook['url'] ) ) {
+		error_log( sprintf( 'Therum webhook %s skipped: URL refused by SSRF guard.', $id ) );
+		return;
+	}
+
 	$body = wp_json_encode([
 		'event'   => $event,
 		'site'    => home_url(),
 		'sent_at' => gmdate( 'c' ),
 		'data'    => $payload,
 	]);
+
+	// Payload size cap. wp_json_encode returns false on encoding failure (e.g.
+	// non-UTF8 binary in the payload); bail in that case too.
+	if ( $body === false || strlen( $body ) > THERUM_WEBHOOK_MAX_BODY ) {
+		error_log( sprintf( 'Therum webhook %s skipped: payload %d bytes exceeds cap.', $id, $body === false ? 0 : strlen( $body ) ) );
+		return;
+	}
 
 	$headers = [
 		'Content-Type'  => 'application/json',
@@ -484,6 +601,9 @@ add_action( 'wp_ajax_therum_webhook_save', function() {
 	$events  = isset( $_POST['events'] ) ? array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['events'] ) ) : [];
 	$enabled = ! empty( $_POST['enabled'] ) && $_POST['enabled'] === '1';
 	$secret  = sanitize_text_field( wp_unslash( $_POST['secret'] ?? '' ) );
+	// Cap secret length. 256 chars is well above any reasonable shared secret;
+	// a stray paste of arbitrary content shouldn't bloat the option.
+	if ( strlen( $secret ) > 256 ) wp_send_json_error( 'Signing secret too long (max 256 chars).' );
 
 	if ( ! $name )   wp_send_json_error( 'name required' );
 	if ( ! $url )    wp_send_json_error( 'url required' );
@@ -491,6 +611,10 @@ add_action( 'wp_ajax_therum_webhook_save', function() {
 	// endpoint must encrypt in transit. The dispatcher enforces this too as a
 	// backstop for any webhook saved before this check existed.
 	if ( stripos( $url, 'https://' ) !== 0 ) wp_send_json_error( 'Webhook URL must use HTTPS.' );
+	// Refuse SSRF-shaped URLs at save time too, so the admin gets immediate
+	// feedback instead of silently scheduling a dispatch that the dispatcher
+	// then refuses with only an error_log line.
+	if ( ! therum_webhook_url_safe( $url ) ) wp_send_json_error( 'URL points at a private/internal target — refused by SSRF guard.' );
 
 	if ( ! $id ) {
 		$id = 'wh_' . wp_generate_password( 8, false, false );
@@ -534,6 +658,10 @@ add_action( 'wp_ajax_therum_webhook_test', function() {
 	if ( ! isset( $hooks[ $id ] ) ) wp_send_json_error( 'webhook not found' );
 	$hook = $hooks[ $id ];
 
+	if ( ! therum_webhook_url_safe( (string) ( $hook['url'] ?? '' ) ) ) {
+		wp_send_json_error( 'URL refused by SSRF guard — webhook must point at a public HTTPS endpoint.' );
+	}
+
 	$body = wp_json_encode([
 		'event'   => 'test.ping',
 		'site'    => home_url(),
@@ -552,10 +680,11 @@ add_action( 'wp_ajax_therum_webhook_test', function() {
 	}
 
 	$response = wp_remote_post( $hook['url'], [
-		'method'   => 'POST',
-		'timeout'  => 10,
-		'headers'  => $headers,
-		'body'     => $body,
+		'method'    => 'POST',
+		'timeout'   => 10,
+		'headers'   => $headers,
+		'body'      => $body,
+		'sslverify' => true,
 	]);
 
 	if ( is_wp_error( $response ) ) {
@@ -767,15 +896,21 @@ function therum_render_api_full() {
 		</div>
 
 		<?php
+		// The webhook editor JS used to receive the signing secret value directly
+		// — convenient for re-edits, but it meant every Settings page load
+		// shipped every webhook's secret into a JS global where any third-party
+		// admin script could read it. Now we only expose a `has_secret` flag;
+		// the secret input is left blank in the editor, and the save handler
+		// (line ~625) preserves the existing secret when the field is empty.
 		$payload = [];
 		foreach ( $webhooks as $k => $h ) {
 			$payload[ $k ] = [
-				'id'      => $k,
-				'name'    => $h['name'] ?? '',
-				'url'     => $h['url'] ?? '',
-				'secret'  => $h['secret'] ?? '',
-				'events'  => $h['events'] ?? [],
-				'enabled' => ! empty( $h['enabled'] ),
+				'id'         => $k,
+				'name'       => $h['name'] ?? '',
+				'url'        => $h['url'] ?? '',
+				'has_secret' => ! empty( $h['secret'] ),
+				'events'     => $h['events'] ?? [],
+				'enabled'    => ! empty( $h['enabled'] ),
 			];
 		}
 		?>
@@ -802,7 +937,17 @@ function therum_render_api_full() {
 				setVal('[data-webhook-id]', hook ? hook.id : '');
 				setVal('[data-webhook-name]', hook ? hook.name : '');
 				setVal('[data-webhook-url]', hook ? hook.url : '');
-				setVal('[data-webhook-secret]', hook ? hook.secret : '');
+				// Secret is never shipped to the client. The field starts
+				// blank; leaving it blank on save preserves the existing
+				// secret (server-side; see the wp_ajax_therum_webhook_save
+				// handler). To clear or replace, type a new value.
+				var secretEl = $('[data-webhook-secret]');
+				if (secretEl) {
+					secretEl.value = '';
+					secretEl.placeholder = (hook && hook.has_secret)
+						? '••••• (set — leave blank to keep, or type to replace)'
+						: 'Leave blank to skip signing';
+				}
 				$('[data-webhook-enabled]').checked = hook ? hook.enabled : true;
 
 				$$('[data-event]').forEach(function(cb) {
