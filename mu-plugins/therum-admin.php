@@ -972,7 +972,7 @@ add_action( 'in_admin_header', function() {
     <div class="th-sb-search">
       <div class="th-sb-search-box">
         <?php echo th_i('search'); ?>
-        <input type="text" id="th-sb-search-input" placeholder="Search…" />
+        <input type="text" id="th-sb-search-input" placeholder="Search…" aria-label="Search admin" />
         <span class="th-sb-search-kbd">⌘K</span>
       </div>
     </div>
@@ -1071,12 +1071,13 @@ add_action( 'in_admin_header', function() {
   </aside>
 
   <div id="th-main">
+    <a class="th-skip-link" href="#th-content">Skip to content</a>
 
     <header id="th-top">
       <div class="th-top-title"><?php echo esc_html( $page_title ); ?></div>
 
       <div class="th-top-actions">
-        <button class="th-top-btn" id="th-theme-toggle" title="Toggle light/dark">
+        <button class="th-top-btn" id="th-theme-toggle" title="Toggle light/dark" aria-label="Toggle light or dark mode">
           <?php echo th_i('sun'); ?>
         </button>
         <?php
@@ -1087,10 +1088,10 @@ add_action( 'in_admin_header', function() {
             ? therum_desktop_mode_active_for_user()
             : ( get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) === '1' );
         ?>
-        <button class="th-top-btn<?php echo $dm_user_on ? ' is-active' : ''; ?>" id="th-desktop-toggle" title="Desktop Mode" data-dm-installed="<?php echo $dm_installed ? '1' : '0'; ?>">
+        <button class="th-top-btn<?php echo $dm_user_on ? ' is-active' : ''; ?>" id="th-desktop-toggle" title="Desktop Mode" aria-label="Toggle Desktop Mode" data-dm-installed="<?php echo $dm_installed ? '1' : '0'; ?>">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </button>
-        <a class="th-top-btn" href="<?php echo esc_url( home_url() ); ?>" target="_blank" title="View site">
+        <a class="th-top-btn" href="<?php echo esc_url( home_url() ); ?>" target="_blank" title="View site" aria-label="View site (opens in a new tab)">
           <?php echo th_i('external'); ?>
         </a>
         <div class="th-top-avatar"><?php echo esc_html( $av_letter ); ?></div>

@@ -3983,13 +3983,13 @@ function therum_cx_render_m01_gradient_control(): void {
 			<?php endforeach; ?>
 		</div>
 		<div class="th-cx-grad-stops">
-			<label>From<input type="color" data-grad="g1" value="<?php echo esc_attr( $g['g1'] ); ?>"></label>
-			<label>Mid<input type="color" data-grad="g2" value="<?php echo esc_attr( $g['g2'] ); ?>"></label>
-			<label>To<input type="color" data-grad="g3" value="<?php echo esc_attr( $g['g3'] ); ?>"></label>
+			<label>From<input type="color" data-grad="g1" aria-label="Gradient start color" value="<?php echo esc_attr( $g['g1'] ); ?>"></label>
+			<label>Mid<input type="color" data-grad="g2" aria-label="Gradient middle color" value="<?php echo esc_attr( $g['g2'] ); ?>"></label>
+			<label>To<input type="color" data-grad="g3" aria-label="Gradient end color" value="<?php echo esc_attr( $g['g3'] ); ?>"></label>
 		</div>
 		<div class="th-cx-grad-angle">
 			<span>Angle</span>
-			<input type="range" min="0" max="360" value="<?php echo (int) $g['angle']; ?>" data-grad="angle">
+			<input type="range" min="0" max="360" value="<?php echo (int) $g['angle']; ?>" data-grad="angle" aria-label="Gradient angle in degrees">
 			<b data-grad-angleval><?php echo (int) $g['angle']; ?>&deg;</b>
 		</div>
 		<label class="th-cx-grad-flat"><span>Flat (no gradient)</span><input type="checkbox" data-grad="flat" <?php checked( ! empty( $g['flat'] ) ); ?>></label>

@@ -57,11 +57,11 @@ Method: automated contrast computation (WCAG formula) + code review. Screen-read
 ---
 
 ## Known Issues / TODO
-1. Add `aria-label` to icon-only topbar buttons.
-2. Add a skip-to-content link.
-3. Theme 00 Wide sidebar: add `:focus-within` reveal (keyboard parity with hover).
-4. Wire gradient color inputs as `<label for>`.
-5. Manual AT passes not yet done: NVDA / VoiceOver, axe DevTools, 200% zoom, color-blindness sim.
+1. ✅ DONE — `aria-label` added to icon-only topbar buttons (theme toggle, desktop, view-site) + sidebar search.
+2. ✅ DONE — skip-to-content link added (`.th-skip-link` → `#th-content`, visible on focus).
+3. ✅ DONE — Theme 00 Wide sidebar reveals on `:focus-within` (keyboard parity with hover).
+4. ✅ DONE — gradient color inputs + angle slider given explicit `aria-label`s (also implicitly labelled).
+5. ⏳ Manual AT passes still recommended: NVDA / VoiceOver, axe DevTools, 200% zoom, color-blindness sim (cannot be automated here).
 
 ## Status
 - **Contrast (1.4.3):** PASS for all theme text tokens after fixes.

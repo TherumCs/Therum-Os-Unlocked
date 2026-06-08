@@ -144,3 +144,6 @@ body.blur-heavy{--th-blur-amount:48px}
   outline:2px solid var(--ac,#3858E9)!important; outline-offset:2px!important; border-radius:4px;
 }
 .th-sb-item:focus-visible,.th-cx-nav-item:focus-visible,.th-sb-section-label:focus-visible{outline:2px solid var(--ac,#3858E9)!important;outline-offset:-2px!important}
+/* Skip-to-content link — visually hidden until focused (2.4.1) */
+.th-skip-link{position:absolute;left:-9999px;top:0;z-index:1000;background:var(--ac,#3858E9);color:#fff;padding:10px 16px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none}
+.th-skip-link:focus{left:0}
