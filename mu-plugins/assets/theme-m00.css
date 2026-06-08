@@ -18,8 +18,9 @@ html body.theme-m00{
   --bd:rgba(255,255,255,.09); --bd2:rgba(255,255,255,.16);
   --ac:#6B86FF; --ac-h:#8AA0FF; --ac-s:rgba(107,134,255,.18); --ink:#F2F4F7; --m00-btn-ink:#0E1016;
   --m00-desktop:#0C0D10;
-  --m00-sbbg:#1A1C22; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
-  --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.06); --m00-sbactivebg:rgba(255,255,255,.10); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#2B2F3A;
+  /* DARK mode → WHITE sidebar (inverse) */
+  --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#1D2025; --m00-sbmut:#8A8F98;
+  --m00-sbbd:#E6E7E9; --m00-sbhover:#F4F4F5; --m00-sbactivebg:#EDEDEE; --m00-sbactivetx:#1D2025; --m00-sblogo:#1E1E2E;
   --m00-cardshadow:0 1px 2px rgba(0,0,0,.3);
   --m00-font:'InterTH',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   font-family:var(--m00-font); color:var(--tx);
@@ -31,8 +32,9 @@ html body.theme-m00.light{
   --bd:#E6E7E9; --bd2:#D6D8DB;
   --ac:#2C3FE1; --ac-h:#2434C0; --ac-s:rgba(44,63,225,.10); --ink:#1D2025; --m00-btn-ink:#FFFFFF;
   --m00-desktop:#EDEDEE;
-  --m00-sbbg:#FFFFFF; --m00-sbtx:#3A3F47; --m00-sbtxh:#1D2025; --m00-sbmut:#8A8F98;
-  --m00-sbbd:#E6E7E9; --m00-sbhover:#F4F4F5; --m00-sbactivebg:#EDEDEE; --m00-sbactivetx:#1D2025; --m00-sblogo:#1E1E2E;
+  /* LIGHT mode → DARK sidebar (inverse) */
+  --m00-sbbg:#1A1C22; --m00-sbtx:#C7CCD6; --m00-sbtxh:#FFFFFF; --m00-sbmut:rgba(255,255,255,.42);
+  --m00-sbbd:rgba(255,255,255,.08); --m00-sbhover:rgba(255,255,255,.06); --m00-sbactivebg:rgba(255,255,255,.10); --m00-sbactivetx:#FFFFFF; --m00-sblogo:#2C3FE1;
   --m00-cardshadow:0 1px 2px rgba(16,24,40,.04),0 4px 12px rgba(16,24,40,.05);
 }
 
