@@ -164,3 +164,7 @@ body.therum-themed.light{           /* LIGHT mode */
   --tx:#1E1E1E; --tx2:#50575E; --tx3:#6B7177;
   --bd:#E3E5E8; --bd2:#D2D5D9;
 }
+
+/* GUARANTEE: common page text uses the palette tokens in any theme/mode */
+body.therum-themed .th-cx-page-title,body.therum-themed .th-cx-title,body.therum-themed .th-lp-title{color:var(--tx)}
+body.therum-themed .th-cx-page-sub,body.therum-themed .th-cx-sub,body.therum-themed .th-lp-sub{color:var(--tx2)}

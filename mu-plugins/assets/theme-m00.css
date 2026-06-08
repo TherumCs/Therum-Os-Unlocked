@@ -98,3 +98,8 @@ body.theme-m00.content-full #th-sb::after{content:""; position:absolute; top:50%
 html body.theme-m00.content-full #th-sb:hover,html body.theme-m00.content-full #th-sb:focus-within{transform:translateX(0); box-shadow:0 24px 64px rgba(0,0,0,.30)}
 body.theme-m00.content-full #th-sb:hover::after,body.theme-m00.content-full #th-sb:focus-within::after{opacity:0}
 body.theme-m00.content-narrow #th-content{max-width:900px; margin:0 auto; padding:32px 40px}
+
+/* GUARANTEE: page text always uses the theme token (never dark-on-dark) */
+body.theme-m00 .th-cx-page-title,body.theme-m00 .th-cx-title,
+body.theme-m00 .th-cx-page-head h2,body.theme-m00 .th-lp-title{color:var(--tx) !important}
+body.theme-m00 .th-cx-page-sub,body.theme-m00 .th-cx-sub,body.theme-m00 .th-lp-sub{color:var(--tx2) !important}
