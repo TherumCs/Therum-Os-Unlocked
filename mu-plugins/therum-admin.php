@@ -884,11 +884,15 @@ function therum_get_sidebar_layout(): array {
 	return is_array( $decoded ) ? $decoded : [];
 }
 
-// IDs of "always present when applicable" curated sections. These guarantee
-// the section appears even if the user deleted it from saved layout, and that
-// gated content (e.g. Woo pages) always finds its way home.
+// IDs of "always present when applicable" curated sections. Each id is only
+// returned when its gate is satisfied — so a section that's been disabled
+// (e.g. Case Studies module off → no portfolio CPT) doesn't get force-
+// restored when the user's saved layout no longer references it.
 function therum_curated_section_ids(): array {
-	return [ 'store', 'portfolio' ];
+	$ids = [];
+	if ( defined( 'COUNTER_VERSION' ) || class_exists( 'WooCommerce' ) ) $ids[] = 'store';
+	if ( function_exists( 'therum_has_portfolio_cpt' ) && therum_has_portfolio_cpt() ) $ids[] = 'portfolio';
+	return $ids;
 }
 
 // Therum-curated structural items (Pages/Posts/Media, Themes/Menus/etc, Plugins/
@@ -973,6 +977,12 @@ function therum_apply_sidebar_layout( array $default_nav ): array {
 			}
 		}
 
+		// Skip empty sections — a saved "portfolio" section with no remaining
+		// items (e.g. Case Studies module disabled, Portfolio CPT gone) should
+		// not render a header. The user can re-enable via Studio; the section
+		// will re-appear automatically once items exist for it again.
+		if ( empty( $items ) ) continue;
+
 		$result[] = [
 			'id'    => $sid,
 			'label' => $sec['label'] ?? ( $default_sections[ $sid ]['label'] ?? ucfirst( $sid ) ),
@@ -1006,21 +1016,26 @@ function therum_apply_sidebar_layout( array $default_nav ): array {
 	}
 
 	// 4. Anything still unassigned (no default home in saved sections, not
-	// referenced anywhere) → drop into "More" so it's never lost.
+	// referenced anywhere) → drop into "Unsorted" so it's never lost.
 	$orphans = [];
 	foreach ( $pool as $id => $it ) {
 		if ( isset( $assigned[ $id ] ) || isset( $referenced[ $id ] ) ) continue;
 		$orphans[] = $it;
 	}
 	if ( $orphans ) {
-		$more_idx = null;
+		$unsorted_idx = null;
 		foreach ( $result as $i => $r ) {
-			if ( $r['id'] === 'more' ) { $more_idx = $i; break; }
+			// Accept either the new id ('unsorted') or the legacy id ('more')
+			// for back-compat with saved layouts that still reference 'more'.
+			if ( in_array( $r['id'] ?? '', [ 'unsorted', 'more' ], true ) ) { $unsorted_idx = $i; break; }
 		}
-		if ( $more_idx === null ) {
-			$result[] = [ 'id' => 'more', 'label' => 'More', 'icon' => 'plugins', 'items' => $orphans ];
+		if ( $unsorted_idx === null ) {
+			$result[] = [ 'id' => 'unsorted', 'label' => 'Unsorted', 'icon' => 'plugins', 'items' => $orphans ];
 		} else {
-			$result[ $more_idx ]['items'] = array_merge( $result[ $more_idx ]['items'], $orphans );
+			// Promote to the new id/label so legacy "More" saved layouts heal.
+			$result[ $unsorted_idx ]['id']    = 'unsorted';
+			$result[ $unsorted_idx ]['label'] = 'Unsorted';
+			$result[ $unsorted_idx ]['items'] = array_merge( $result[ $unsorted_idx ]['items'], $orphans );
 		}
 	}
 
