@@ -181,8 +181,12 @@ final class DesignDerive extends Tool {
 			'source_type' => $source,
 		] );
 
-		// Log the candidate ID so MCP clients polling via queue.status can
-		// surface it in last_error field (used here as completion data).
-		error_log( '[therum.design.derive] candidate_id=' . $candidate->id );
+		// Surface candidate id via an action hook so operators can route it
+		// (audit log, webhook, queue tag) — and only fall back to error_log
+		// on WP_DEBUG so this isn't chatty in production.
+		do_action( 'therum_design_derive_candidate', $candidate->id, $payload );
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( '[therum.design.derive] candidate_id=' . $candidate->id );
+		}
 	}
 }

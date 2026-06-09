@@ -1539,7 +1539,7 @@ function therum_heal_admin_caps() {
 
 	// If we restored manage_options specifically, log it for diagnostic value.
 	if ( in_array( 'manage_options', $missing, true ) && function_exists( 'error_log' ) ) {
-		error_log( '[Therum] Restored missing administrator capabilities: ' . implode( ', ', $missing ) );
+		error_log( '[therum-auth] restored missing administrator capabilities: ' . implode( ', ', $missing ) );
 	}
 }
 

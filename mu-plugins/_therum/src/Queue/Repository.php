@@ -115,7 +115,10 @@ final class Repository {
 
 		$now = current_time( 'mysql', true );
 
-		for ( $attempt = 0; $attempt < 5; $attempt++ ) {
+		// 3 retries (was 5). Under high contention all attempts otherwise fired
+		// instantly and hot-looped the DB. With a 5-20ms jitter between losses
+		// the second/third workers naturally back off into different rows.
+		for ( $attempt = 0; $attempt < 3; $attempt++ ) {
 			// 1. Pick a candidate.
 			$id = $wpdb->get_var( $wpdb->prepare(
 				"SELECT id FROM {$table}
@@ -157,7 +160,12 @@ final class Repository {
 				return is_array( $row ) ? Job::from_row( $row ) : null;
 			}
 
-			// Lost the race; try again.
+			// Lost the race — back off with jitter before the next attempt so
+			// concurrent workers don't keep colliding on the same candidate.
+			// Skip the sleep on the last loop body since we're about to return.
+			if ( $attempt < 2 ) {
+				usleep( random_int( 5000, 20000 ) );
+			}
 		}
 
 		return null;

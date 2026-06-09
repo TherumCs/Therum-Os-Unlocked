@@ -213,12 +213,12 @@ function therum_media_ajax_rename(): void {
     check_ajax_referer( 'therum_media_rename', 'nonce' );
     if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'Insufficient permissions.' ], 403 );
 
-    $renames = isset( $_POST['renames'] ) ? (array) $_POST['renames'] : [];
+    $renames = isset( $_POST['renames'] ) ? (array) wp_unslash( $_POST['renames'] ) : [];
     if ( empty( $renames ) ) wp_send_json_error( [ 'message' => 'No renames provided.' ] );
 
     $results = [];
     foreach ( $renames as $item ) {
-        $id           = (int) ( $item['id'] ?? 0 );
+        $id           = absint( $item['id'] ?? 0 );
         $new_basename = sanitize_text_field( $item['new_basename'] ?? '' );
         if ( ! $id || ! $new_basename ) {
             $results[] = [ 'id' => $id, 'success' => false, 'message' => 'Missing id or new_basename.' ];
@@ -235,10 +235,10 @@ function therum_media_ajax_rename_preview(): void {
     check_ajax_referer( 'therum_media_rename', 'nonce' );
     if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( [ 'message' => 'Insufficient permissions.' ], 403 );
 
-    $items   = isset( $_POST['items'] ) ? (array) $_POST['items'] : [];
+    $items   = isset( $_POST['items'] ) ? (array) wp_unslash( $_POST['items'] ) : [];
     $preview = [];
     foreach ( $items as $item ) {
-        $id           = (int) ( $item['id'] ?? 0 );
+        $id           = absint( $item['id'] ?? 0 );
         $new_basename = sanitize_text_field( $item['new_basename'] ?? '' );
         if ( ! $id ) continue;
         $old_file = get_attached_file( $id );
@@ -416,7 +416,7 @@ add_action( 'wp_ajax_therum_regen_thumbnail', function() {
 	$id = (int) ( $_POST['id'] ?? 0 );
 	if ( ! $id ) wp_send_json_error( 'no id' );
 
-	$nonce = $_POST['nonce'] ?? '';
+	$nonce = sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) );
 	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) && ! wp_verify_nonce( $nonce, 'therum_layout' ) ) {
 		wp_send_json_error( 'bad nonce' );
 	}
@@ -432,7 +432,7 @@ add_action( 'wp_ajax_therum_regen_thumbnail', function() {
 add_action( 'wp_ajax_therum_regen_all', function() {
 	if ( ! current_user_can( 'upload_files' ) ) wp_send_json_error( 'forbidden' );
 
-	$nonce = $_POST['nonce'] ?? '';
+	$nonce = sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) );
 	if ( ! wp_verify_nonce( $nonce, 'therum_theme' ) && ! wp_verify_nonce( $nonce, 'therum_options' ) && ! wp_verify_nonce( $nonce, 'therum_layout' ) ) {
 		wp_send_json_error( 'bad nonce' );
 	}

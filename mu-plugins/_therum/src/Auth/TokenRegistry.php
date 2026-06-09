@@ -164,7 +164,14 @@ final class TokenRegistry {
 			[ '%s' ],
 			[ '%d', '%s' ]
 		);
-		return is_int( $result ) && $result > 0;
+		// Distinguish DB error from "already revoked / not found". $wpdb->update
+		// returns false on DB error and an int (rows affected) otherwise. Log
+		// the DB error so callers don't treat a failed write as a no-op.
+		if ( $result === false ) {
+			error_log( '[therum-auth] TokenRegistry::revoke DB error for token #' . $id . ': ' . $wpdb->last_error );
+			return false;
+		}
+		return $result > 0;
 	}
 
 	public static function mark_used( int $token_id, string $ip ): void {

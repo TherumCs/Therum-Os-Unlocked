@@ -7,8 +7,34 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.37' );
+define( 'THERUM_OS_VERSION', '1.9.38' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
+
+/**
+ * Cron teardown — mu-plugins don't have an activation/deactivation lifecycle,
+ * so the only way to clean up Therum's scheduled events is:
+ *   (1) call this helper from a removal script, OR
+ *   (2) define THERUM_OS_DISABLE in wp-config.php — Therum then unschedules
+ *       its events on the next pageview and short-circuits its mu-plugin
+ *       loaders (each mu-plugin already checks its own *_DISABLE constant).
+ *
+ * Lists every cron hook Therum schedules so a single sweep clears them all.
+ */
+function therum_unschedule_all_cron_events(): void {
+	$hooks = [
+		'therum_queue_maintenance',     // therum-core.php
+		'therum_redirects_flush',       // therum-tools.php
+		'therum_backup_run',            // therum-perf.php
+	];
+	foreach ( $hooks as $hook ) {
+		// wp_clear_scheduled_hook removes every scheduled instance including
+		// the recurring base, regardless of args.
+		wp_clear_scheduled_hook( $hook );
+	}
+}
+if ( defined( 'THERUM_OS_DISABLE' ) && THERUM_OS_DISABLE ) {
+	add_action( 'init', 'therum_unschedule_all_cron_events', 1 );
+}
 
 // ── Therum lib autoloader (Phase 5 — Composer-first packaging) ───────────────
 // Namespaced Therum\* classes live under _therum/src/ with PSR-4 mapping.

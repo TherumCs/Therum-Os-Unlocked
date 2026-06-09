@@ -406,7 +406,7 @@ add_action( 'therum_webhook_dispatch', function( $id, $event, $payload ) {
 	// roles). Refuse to transmit that over plaintext HTTP — require HTTPS so the
 	// data is encrypted in transit regardless of whether HMAC signing is set up.
 	if ( stripos( (string) ( $hook['url'] ?? '' ), 'https://' ) !== 0 ) {
-		error_log( sprintf( 'Therum webhook %s skipped: endpoint must use HTTPS to receive event "%s".', $id, $event ) );
+		error_log( sprintf( '[therum-api] webhook %s skipped: endpoint must use HTTPS to receive event "%s".', $id, $event ) );
 		return;
 	}
 
@@ -414,7 +414,7 @@ add_action( 'therum_webhook_dispatch', function( $id, $event, $payload ) {
 	// metadata targets. Prevents an admin from pointing the dispatcher at
 	// 169.254.169.254 or 10.x and exfiltrating event data inside the LAN.
 	if ( ! therum_webhook_url_safe( (string) $hook['url'] ) ) {
-		error_log( sprintf( 'Therum webhook %s skipped: URL refused by SSRF guard.', $id ) );
+		error_log( sprintf( '[therum-api] webhook %s skipped: URL refused by SSRF guard.', $id ) );
 		return;
 	}
 
@@ -428,7 +428,7 @@ add_action( 'therum_webhook_dispatch', function( $id, $event, $payload ) {
 	// Payload size cap. wp_json_encode returns false on encoding failure (e.g.
 	// non-UTF8 binary in the payload); bail in that case too.
 	if ( $body === false || strlen( $body ) > THERUM_WEBHOOK_MAX_BODY ) {
-		error_log( sprintf( 'Therum webhook %s skipped: payload %d bytes exceeds cap.', $id, $body === false ? 0 : strlen( $body ) ) );
+		error_log( sprintf( '[therum-api] webhook %s skipped: payload %d bytes exceeds cap.', $id, $body === false ? 0 : strlen( $body ) ) );
 		return;
 	}
 

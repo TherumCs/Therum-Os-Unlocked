@@ -504,9 +504,23 @@ function therum_send_notification( $subject, $body, $tone = 'info' ) {
 	$site_name = get_bloginfo( 'name' );
 	$full_subject = "[{$site_name}] {$subject}";
 
-	// Email
+	// Email — wp_mail is synchronous so a stalled SMTP can block the request
+	// that triggered this notification. Register a one-shot failure listener
+	// per call so the error_log line says "this specific notification failed",
+	// not a generic mail-failed bag — operators can see which notification
+	// type is failing without tailing the queue.
 	if ( $admin_email && get_option( 'th_notify_email', true ) ) {
-		wp_mail( $admin_email, $full_subject, $body );
+		$listener = static function ( $wp_error ) use ( $full_subject ) {
+			if ( is_wp_error( $wp_error ) ) {
+				error_log( '[therum-perf] wp_mail failed for "' . $full_subject . '": ' . $wp_error->get_error_message() );
+			}
+		};
+		add_action( 'wp_mail_failed', $listener );
+		try {
+			wp_mail( $admin_email, $full_subject, $body );
+		} finally {
+			remove_action( 'wp_mail_failed', $listener );
+		}
 	}
 
 	// Slack — cap body length. Slack rejects payloads >40KB silently with a
@@ -675,7 +689,10 @@ add_action( 'plugins_loaded', function() {
 			'when'    => current_time( 'mysql' ),
 			'applied' => $applied,
 		] );
-		if ( function_exists( 'error_log' ) ) {
+		// Only log on WP_DEBUG — tune-applied is a normal operation, not an
+		// error path, and on a hook that fires across admin requests this would
+		// quickly fill production logs.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && function_exists( 'error_log' ) ) {
 			error_log( '[therum-lscache-tune] applied: ' . wp_json_encode( array_keys( $applied ) ) );
 		}
 	}
