@@ -1062,7 +1062,14 @@ add_action( 'in_admin_header', function() {
           <div class="<?php echo esc_attr( $wrap_classes ); ?>" data-item-id="<?php echo esc_attr( $it['match'] ?? '' ); ?>">
             <a class="th-sb-item<?php echo $is_active ? ' active' : ''; ?>" href="<?php echo esc_url( $href ); ?>"<?php if ( $is_external ): ?> target="_blank" rel="noopener"<?php endif; ?>>
               <span class="th-sb-grip" data-sb-grip="item" title="Drag to reorder"><?php echo therum_i('grip'); ?></span>
-              <?php echo therum_i( $it['icon'] ?? 'chevron' ); ?>
+              <?php
+              // Every sidebar entry needs a visible icon. If the named icon
+              // isn't in therum_i()'s registry the helper returns '' — we
+              // fall back to a generic dot so the row layout doesn't shift.
+              $icon_svg = therum_i( $it['icon'] ?? '' );
+              if ( $icon_svg === '' ) $icon_svg = therum_i( 'chevron' );
+              echo $icon_svg; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG from internal registry
+              ?>
               <span><?php echo esc_html( $it['label'] ?? '' ); ?></span>
               <?php if ( $is_external && ! $has_kids ): ?><span class="th-sb-item-ext"><?php echo therum_i('external'); ?></span><?php endif; ?>
               <?php if ( $has_kids ): ?><span class="th-sb-item-chev" data-toggle-children role="button" aria-label="Toggle subpages"><?php echo therum_i('chevron'); ?></span><?php endif; ?>
