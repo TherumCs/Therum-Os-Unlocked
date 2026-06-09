@@ -73,6 +73,21 @@ class Therum_Studio_Page {
 				'open_url'    => admin_url( 'admin.php?page=shop' ),
 				'category'    => 'commerce',
 			],
+			[
+				// Modules are built-in Therum features that are off by default —
+				// the merchant opts in from Studio. Differs from `built_in` apps
+				// (always on, can only "Open") and `plugin_file` apps (install
+				// from GitHub). State driven by an option key.
+				'slug'        => 'case-studies',
+				'name'        => 'Case Studies',
+				'tagline'     => 'Portfolio CPT + sidebar section.',
+				'description' => 'Registers the `case_study` custom post type and surfaces a Portfolio entry in the Therum sidebar. Enable only on sites that publish a portfolio.',
+				'color'       => '#e83b3b',
+				'module'      => true,
+				'option'      => 'therum_case_studies_enabled',
+				'open_url'    => admin_url( 'edit.php?post_type=case_study' ),
+				'category'    => 'site',
+			],
 		];
 	}
 
@@ -80,6 +95,13 @@ class Therum_Studio_Page {
 	private static function status( array $app ): array {
 		if ( ! empty( $app['built_in'] ) ) {
 			return [ 'state' => 'included', 'label' => 'Included', 'version' => defined( 'THERUM_OS_VERSION' ) ? THERUM_OS_VERSION : '' ];
+		}
+		// Modules — built-in features gated on an option. State is enabled/disabled.
+		if ( ! empty( $app['module'] ) ) {
+			$enabled = ! empty( $app['option'] ) ? (bool) get_option( $app['option'], false ) : false;
+			return $enabled
+				? [ 'state' => 'enabled',  'label' => 'Enabled',  'version' => defined( 'THERUM_OS_VERSION' ) ? THERUM_OS_VERSION : '' ]
+				: [ 'state' => 'disabled', 'label' => 'Disabled', 'version' => '' ];
 		}
 		if ( ! function_exists( 'is_plugin_active' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -106,6 +128,23 @@ class Therum_Studio_Page {
 		switch ( $status['state'] ) {
 			case 'included':
 				return [ 'label' => 'Open', 'url' => $app['open_url'] ?? admin_url(), 'primary' => true ];
+			case 'enabled':
+				// Module enabled — primary action is "Open", with a secondary
+				// "Disable" rendered alongside (the JS handler wires the
+				// data-module-toggle attribute below).
+				return [
+					'label'         => 'Open',
+					'url'           => $app['open_url'] ?? admin_url(),
+					'primary'       => true,
+					'module_toggle' => 'disable',
+				];
+			case 'disabled':
+				return [
+					'label'         => 'Enable',
+					'url'           => '#',
+					'primary'       => true,
+					'module_toggle' => 'enable',
+				];
 			case 'active':
 				return [ 'label' => 'Open', 'url' => $app['open_url'] ?? admin_url(), 'primary' => true ];
 			case 'inactive':
@@ -164,6 +203,10 @@ class Therum_Studio_Page {
 				  <span class="th-studio-card-badge th-studio-card-badge-active">Active</span>
 				<?php elseif ( $status['state'] === 'inactive' ): ?>
 				  <span class="th-studio-card-badge th-studio-card-badge-inactive">Inactive</span>
+				<?php elseif ( $status['state'] === 'enabled' ): ?>
+				  <span class="th-studio-card-badge th-studio-card-badge-active">Enabled</span>
+				<?php elseif ( $status['state'] === 'disabled' ): ?>
+				  <span class="th-studio-card-badge th-studio-card-badge-inactive">Disabled</span>
 				<?php endif; ?>
 			  </div>
 			  <div class="th-studio-card-body">
@@ -181,6 +224,18 @@ class Therum_Studio_Page {
 					   href="<?php echo esc_url( $action['url'] ); ?>"
 					   data-slug="<?php echo esc_attr( $app['slug'] ); ?>"
 					   target="_blank" rel="noopener"><?php echo esc_html( $action['label'] ); ?></a>
+				  <?php elseif ( ! empty( $action['module_toggle'] ) ): ?>
+					<?php // Modules render primary action + a secondary toggle. ?>
+					<?php if ( $action['module_toggle'] === 'enable' ): ?>
+					  <button type="button" class="th-btn th-btn-primary th-studio-module-toggle"
+							  data-slug="<?php echo esc_attr( $app['slug'] ); ?>"
+							  data-action="enable"><?php echo esc_html( $action['label'] ); ?></button>
+					<?php else: /* disable */ ?>
+					  <a class="th-btn th-btn-primary" href="<?php echo esc_url( $action['url'] ); ?>"><?php echo esc_html( $action['label'] ); ?></a>
+					  <button type="button" class="th-btn th-studio-module-toggle"
+							  data-slug="<?php echo esc_attr( $app['slug'] ); ?>"
+							  data-action="disable">Disable</button>
+					<?php endif; ?>
 				  <?php else: ?>
 					<a class="th-btn <?php echo $action['primary'] ? 'th-btn-primary' : ''; ?>" href="<?php echo esc_url( $action['url'] ); ?>"><?php echo esc_html( $action['label'] ); ?></a>
 				  <?php endif; ?>
@@ -224,7 +279,39 @@ class Therum_Studio_Page {
 		<script>
 		(function(){
 			var nonce = <?php echo wp_json_encode( wp_create_nonce( 'therum_studio_install' ) ); ?>;
+			var moduleNonce = <?php echo wp_json_encode( wp_create_nonce( 'therum_studio_module_toggle' ) ); ?>;
 			var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+
+			// Module enable/disable toggle. POSTs to a separate handler that
+			// flips the option key declared on the module's registry entry,
+			// then reloads so the sidebar reflects the new state.
+			document.querySelectorAll('.th-studio-module-toggle').forEach(function(btn){
+				btn.addEventListener('click', function(){
+					if (btn.classList.contains('is-busy')) return;
+					var slug = btn.dataset.slug;
+					var action = btn.dataset.action;
+					if (!slug || !action) return;
+					var oldLabel = btn.textContent;
+					btn.classList.add('is-busy');
+					btn.textContent = action === 'enable' ? 'Enabling' : 'Disabling';
+					var body = new URLSearchParams();
+					body.append('action', 'therum_studio_module_toggle');
+					body.append('_nonce', moduleNonce);
+					body.append('slug', slug);
+					body.append('toggle', action);
+					fetch(ajaxUrl, { method:'POST', credentials:'same-origin', body: body })
+						.then(function(r){ return r.json().catch(function(){ return {success:false}; }); })
+						.then(function(json){
+							if (json && json.success) { window.location.reload(); return; }
+							throw new Error((json && json.data && json.data.message) || 'Toggle failed.');
+						})
+						.catch(function(err){
+							btn.classList.remove('is-busy');
+							btn.textContent = oldLabel;
+							alert(err.message || String(err));
+						});
+				});
+			});
 			document.querySelectorAll('.th-studio-install').forEach(function(btn){
 				btn.addEventListener('click', function(e){
 					// Allow modifier/middle clicks to open GitHub fallback in a tab.

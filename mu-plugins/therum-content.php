@@ -398,8 +398,37 @@ Therum_View_Links::init();
 // CASE STUDY CPT — from therum-case-study-cpt.php
 // ════════════════════════════════════════════════════════════════════════
 
+/**
+ * Is the Case Studies module turned on for this install?
+ *
+ * Returns true ONLY when the merchant has opted in via Studio (or there are
+ * already case_study posts in the DB — auto-on for legacy continuity). New
+ * installs default to false so the Portfolio sidebar section doesn't appear
+ * by accident on sites that don't need it.
+ *
+ * The first time we resolve, we cache the auto-on decision into the option
+ * so subsequent reads skip the DB probe.
+ */
+function therum_case_studies_enabled(): bool {
+	$opt = get_option( 'therum_case_studies_enabled', null );
+	if ( $opt !== null ) return (bool) $opt;
+
+	// Not set yet — auto-on iff there are existing case_study posts in the DB.
+	global $wpdb;
+	$has_existing = (int) $wpdb->get_var(
+		"SELECT 1 FROM {$wpdb->posts} WHERE post_type='case_study' LIMIT 1"
+	) === 1;
+	update_option( 'therum_case_studies_enabled', $has_existing ? '1' : '', false );
+	return $has_existing;
+}
+
 
 add_action( 'init', function () {
+
+	// Case Studies is a Studio-toggleable module — bail out unless explicitly
+	// enabled (or auto-enabled by therum_case_studies_enabled() for legacy
+	// sites that already have case_study posts).
+	if ( ! therum_case_studies_enabled() ) return;
 
 	// ── Case Study CPT ──────────────────────────────────────────────────
 	register_post_type( 'case_study', [

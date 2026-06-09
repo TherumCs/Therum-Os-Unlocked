@@ -2163,6 +2163,49 @@ add_action( 'wp_ajax_therum_studio_install', function() {
 	wp_send_json_success( [ 'message' => ( $app['name'] ?? 'Module' ) . ' installed.' ] );
 } );
 
+/**
+ * Studio module toggle — flips the option key declared on the module's
+ * registry entry. Separate from the install handler because modules ship
+ * inside Therum OS; they're feature flags, not downloads.
+ *
+ * Body params: slug (module slug), toggle ('enable'|'disable').
+ */
+add_action( 'wp_ajax_therum_studio_module_toggle', function() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( [ 'message' => 'Insufficient permissions.' ], 403 );
+	}
+	if ( ! check_ajax_referer( 'therum_studio_module_toggle', '_nonce', false ) ) {
+		wp_send_json_error( [ 'message' => 'Invalid request (nonce).' ], 403 );
+	}
+
+	$slug   = sanitize_key( wp_unslash( $_POST['slug'] ?? '' ) );
+	$toggle = sanitize_key( wp_unslash( $_POST['toggle'] ?? '' ) );
+	if ( ! $slug )                                    wp_send_json_error( [ 'message' => 'Missing slug.' ] );
+	if ( ! in_array( $toggle, [ 'enable', 'disable' ], true ) ) wp_send_json_error( [ 'message' => 'Invalid toggle.' ] );
+
+	if ( ! class_exists( 'Therum_Studio_Page' ) ) wp_send_json_error( [ 'message' => 'Studio registry unavailable.' ] );
+	$apps = Therum_Studio_Page::apps();
+	$app  = null;
+	foreach ( $apps as $a ) {
+		if ( ( $a['slug'] ?? '' ) === $slug ) { $app = $a; break; }
+	}
+	if ( ! $app || empty( $app['module'] ) || empty( $app['option'] ) ) {
+		wp_send_json_error( [ 'message' => 'Not a toggleable module.' ] );
+	}
+
+	$enabled = ( $toggle === 'enable' ) ? '1' : '';
+	update_option( $app['option'], $enabled, false );
+
+	// Module-specific side effects: refresh rewrite rules for modules that
+	// register a CPT (the new post-type-archive permalinks need to land in
+	// WP's compiled rules cache).
+	if ( $slug === 'case-studies' ) {
+		flush_rewrite_rules( false );
+	}
+
+	wp_send_json_success( [ 'message' => $app['name'] . ' ' . $toggle . 'd.', 'state' => $toggle === 'enable' ? 'enabled' : 'disabled' ] );
+} );
+
 // Repoint sidebar nav at the new Therum list pages.
 // Keys are CASE-INSENSITIVE on the label. The sidebar URL slugs are passed to
 // `match` so the sidebar's active-state highlighter still resolves correctly.
