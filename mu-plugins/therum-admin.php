@@ -299,14 +299,18 @@ function therum_nav(): array {
 function therum_curated_sections(): array {
 	$list = [];
 
-	if ( class_exists( 'WooCommerce' ) ) {
+	// Store section: Counter is the e-commerce engine going forward, but
+	// keep a WooCommerce gate too so legacy Woo sites still see the
+	// section. Both gates use the same id 'store' so either engine's
+	// pages land under one section.
+	if ( defined( 'COUNTER_VERSION' ) || class_exists( 'WooCommerce' ) ) {
 		$list[] = [
 			'id'        => 'store',
 			'label'     => 'Store',
 			'icon'      => 'store',
-			'desc'      => 'WooCommerce shop pages.',
-			'is_member' => 'therum_is_woo_item',
-			'flatten'   => 'page=woocommerce',
+			'desc'      => defined( 'COUNTER_VERSION' ) ? 'Counter — products, orders, customers.' : 'WooCommerce shop pages.',
+			'is_member' => 'therum_is_store_item',
+			'flatten'   => defined( 'COUNTER_VERSION' ) ? 'page=counter' : 'page=woocommerce',
 		];
 	}
 
@@ -336,6 +340,19 @@ function therum_has_portfolio_cpt(): bool {
 		if ( post_type_exists( $pt ) ) return true;
 	}
 	return false;
+}
+
+// Store section membership — recognizes Counter pages (counter-* slugs) AND
+// any WooCommerce admin page. Either engine's pages land under the unified
+// "Store" sidebar section.
+function therum_is_store_item( array $it ): bool {
+	$match  = $it['match']  ?? '';
+	$parent = $it['parent'] ?? '';
+	$slug   = ( strpos( $match, 'page=' ) === 0 ) ? substr( $match, 5 ) : $match;
+	$slug   = strtok( $slug, '&' ) ?: $slug;
+	if ( $slug === 'counter' || strpos( $slug, 'counter-' ) === 0 ) return true;
+	if ( $parent === 'counter' || strpos( $parent, 'counter-' ) === 0 ) return true;
+	return therum_is_woo_item( $it );
 }
 
 // Heuristic: is this auto-detected item part of WooCommerce / wc-admin?
