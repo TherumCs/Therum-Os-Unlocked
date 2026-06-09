@@ -253,12 +253,17 @@ function therum_nav(): array {
 		if ( ! $placed ) $other_items[] = $it;
 	}
 
-	// Insert curated sections at the top of the sidebar, in declaration order.
-	// Empty sections are skipped so we don't render headers for absent plugins.
+	// Two-phase placement:
+	//   1. Sections marked 'merge' fold their items into the matching built-in
+	//      section ($s) by id — Content/Site/System absorb plugin pages into
+	//      the existing top-level section rather than duplicating headers.
+	//   2. Sections without 'merge' get prepended as new top-level sections
+	//      (Store, Portfolio).
 	$prepend = [];
 	foreach ( $curated as $sec ) {
 		$items = $buckets[ $sec['id'] ] ?? [];
 		if ( empty( $items ) ) continue;
+
 		// Optional: flatten a parent item so its children become top-level.
 		// Used by Store to promote WooCommerce's Home/Orders/Customers/etc.
 		if ( ! empty( $sec['flatten'] ) ) {
@@ -272,6 +277,22 @@ function therum_nav(): array {
 			}
 			$items = $flat;
 		}
+
+		if ( ! empty( $sec['merge'] ) ) {
+			// Find matching built-in section by id and append items there.
+			$merged = false;
+			foreach ( $s as &$bs ) {
+				if ( ( $bs['id'] ?? '' ) === $sec['id'] ) {
+					$bs['items'] = array_merge( $bs['items'] ?? [], $items );
+					$merged = true;
+					break;
+				}
+			}
+			unset( $bs );
+			// No matching built-in — fall through to prepend so the items still appear.
+			if ( $merged ) continue;
+		}
+
 		$prepend[] = [
 			'id'    => $sec['id'],
 			'label' => $sec['label'],
@@ -283,7 +304,13 @@ function therum_nav(): array {
 	if ( $prepend ) $s = array_merge( $prepend, $s );
 
 	if ( ! empty( $other_items ) ) {
-		$s[] = [ 'id' => 'more', 'label' => 'More', 'icon' => 'plugins', 'desc' => 'Plugin pages awaiting sorting into sections.', 'items' => $other_items ];
+		$s[] = [
+			'id'    => 'unsorted',
+			'label' => 'Unsorted',
+			'icon'  => 'plugins',
+			'desc'  => "Plugin pages we couldn't auto-categorize. Drag-reorder into the right section.",
+			'items' => $other_items,
+		];
 	}
 
 	return $s;
@@ -328,6 +355,39 @@ function therum_curated_sections(): array {
 		];
 	}
 
+	// Content / Site / System are classifiers without their own header — the
+	// bucketing layer merges items into the matching built-in section. Plugin
+	// pages get pulled into the natural top-level section by topic instead of
+	// dumped into "Unsorted". Order matters: most-specific predicates first
+	// so e.g. a "Yoast SEO" page hits site (SEO) before system (Settings).
+	$list[] = [
+		'id'        => 'content',
+		'label'     => 'Content',
+		'icon'      => 'content',
+		'desc'      => 'Pages, posts and media.',
+		'is_member' => 'therum_is_content_item',
+		'flatten'   => null,
+		'merge'     => true, // merge into the built-in 'content' section, don't create a new one
+	];
+	$list[] = [
+		'id'        => 'site',
+		'label'     => 'Site',
+		'icon'      => 'design',
+		'desc'      => 'Front-end design, SEO, navigation.',
+		'is_member' => 'therum_is_site_item',
+		'flatten'   => null,
+		'merge'     => true,
+	];
+	$list[] = [
+		'id'        => 'system',
+		'label'     => 'System',
+		'icon'      => 'admin',
+		'desc'      => 'Security, backup, performance, integrations.',
+		'is_member' => 'therum_is_system_item',
+		'flatten'   => null,
+		'merge'     => true,
+	];
+
 	return $list;
 }
 
@@ -338,6 +398,101 @@ function therum_has_portfolio_cpt(): bool {
 	// any of them are installed.
 	foreach ( [ 'case_study', 'portfolio', 'jetpack-portfolio', 'avada_portfolio', 'project', 'projects' ] as $pt ) {
 		if ( post_type_exists( $pt ) ) return true;
+	}
+	return false;
+}
+
+/**
+ * Shared helpers for the classifier predicates below. Each curated section's
+ * is_member callback gets an item shape like:
+ *   [ 'label' => 'Yoast SEO', 'match' => 'page=wpseo_dashboard', 'parent' => '', 'children' => [...] ]
+ * and returns true if the item belongs in that section.
+ */
+function therum_nav_item_slug( array $it ): string {
+	$match = (string) ( $it['match'] ?? '' );
+	$slug  = ( strpos( $match, 'page=' ) === 0 ) ? substr( $match, 5 ) : $match;
+	return strtok( $slug, '&' ) ?: $slug;
+}
+
+/** Lowercase the label + the parent slug into one searchable haystack. */
+function therum_nav_item_haystack( array $it ): string {
+	$label  = strtolower( (string) ( $it['label']  ?? '' ) );
+	$parent = strtolower( (string) ( $it['parent'] ?? '' ) );
+	$slug   = strtolower( therum_nav_item_slug( $it ) );
+	return $label . '|' . $parent . '|' . $slug;
+}
+
+// Content classifier — anything that edits content types or media. CPT
+// archives (edit.php?post_type=X), forms, comments-management plugins,
+// download/file/document plugins.
+function therum_is_content_item( array $it ): bool {
+	$slug = therum_nav_item_slug( $it );
+	$hay  = therum_nav_item_haystack( $it );
+
+	// edit.php?post_type=X (any CPT archive)
+	if ( strpos( $slug, 'edit.php?post_type=' ) === 0 ) {
+		// Exclude woo product (Store), case_study (Portfolio) — those have their own sections.
+		if ( strpos( $slug, 'post_type=product' )    !== false ) return false;
+		if ( strpos( $slug, 'post_type=case_study' ) !== false ) return false;
+		return true;
+	}
+	// Forms / form-builders typically belong in Content
+	foreach ( [ 'wpforms', 'gravityforms', 'ninja-forms', 'formidable', 'cf7', 'contact-form-7', 'fluentform', 'forminator', 'mailpoet' ] as $needle ) {
+		if ( strpos( $hay, $needle ) !== false ) return true;
+	}
+	// Generic content-editing categories
+	foreach ( [ 'comments', 'reviews', 'testimonials', 'faq', 'glossary', 'document', 'download', 'gallery', 'newsletter' ] as $needle ) {
+		if ( strpos( $hay, $needle ) !== false ) return true;
+	}
+	return false;
+}
+
+// Site classifier — design system, themes, navigation, SEO, schema, redirects,
+// sitemap, page builders that aren't Bricks (Bricks is in Design natively).
+function therum_is_site_item( array $it ): bool {
+	$hay = therum_nav_item_haystack( $it );
+
+	foreach ( [
+		// SEO / schema / sitemap
+		'seo', 'yoast', 'rank-math', 'rankmath', 'aioseo', 'all-in-one-seo', 'sitemap', 'schema',
+		// Redirects / 404 / link tools
+		'redirect', '404', 'link-checker', 'broken-link',
+		// Design adjuncts
+		'elementor', 'beaver-builder', 'oxygen', 'divi', 'breakdance', 'cwicly',
+		// Theme tools (NOT Bricks — handled natively)
+		'theme-builder', 'kadence', 'astra', 'generatepress', 'blocksy',
+		// Navigation / menu enhancements
+		'menu-icons', 'max-mega-menu', 'ubermenu',
+	] as $needle ) {
+		if ( strpos( $hay, $needle ) !== false ) return true;
+	}
+	return false;
+}
+
+// System classifier — security, backup, performance, dev/integration tooling,
+// analytics, anything operational.
+function therum_is_system_item( array $it ): bool {
+	$hay = therum_nav_item_haystack( $it );
+
+	foreach ( [
+		// Security
+		'security', 'wordfence', 'sucuri', 'ithemes-security', 'solid-security', 'firewall', 'login-lockdown', 'limit-login',
+		// Backup / migration
+		'backup', 'updraft', 'duplicator', 'migration', 'all-in-one-wp-migration', 'wpvivid', 'blogvault',
+		// Performance / cache
+		'cache', 'litespeed', 'wp-rocket', 'w3-total', 'wp-super-cache', 'autoptimize', 'flying', 'perfmatters',
+		// Image / file optimization
+		'imagify', 'smush', 'shortpixel', 'webp', 'ewww',
+		// Analytics / tag managers
+		'analytics', 'google-site-kit', 'gtag', 'tag-manager', 'matomo', 'gtm',
+		// Dev / debug
+		'query-monitor', 'debug-bar', 'wp-cli', 'wp-mail-log', 'mail-smtp', 'fluent-smtp',
+		// Updates / integrations
+		'update', 'health-check', 'webhook', 'zapier', 'ifttt', 'make.com', 'integrately',
+		// Admin / users / roles
+		'role', 'capability', 'user-role',
+	] as $needle ) {
+		if ( strpos( $hay, $needle ) !== false ) return true;
 	}
 	return false;
 }
