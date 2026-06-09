@@ -33,6 +33,9 @@ class Therum_Studio_Page {
 				'tagline'     => 'Connections + credentials vault.',
 				'description' => 'Encrypted credential storage for every external service Therum can talk to. AES-256-GCM at rest, scoped tokens, custom providers. The backbone every other Therum app rides on.',
 				'color'       => '#6366f1',
+				// Hub-and-spoke: a central node with three radiating connections.
+				// Reads as "connections" without leaning on a literal padlock.
+				'icon_svg'    => '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="12" cy="20" r="2"/><line x1="14.1" y1="10" x2="17.4" y2="6.6"/><line x1="9.9" y1="10" x2="6.6" y2="6.6"/><line x1="12" y1="15" x2="12" y2="18"/></svg>',
 				'built_in'    => true,
 				'open_url'    => admin_url( 'admin.php?page=therum-connections' ),
 				'category'    => 'infrastructure',
@@ -43,6 +46,8 @@ class Therum_Studio_Page {
 				'tagline'     => 'Group + organize content at scale.',
 				'description' => 'Sort posts, pages, and custom post types into clusters with cross-linking, shared meta, and bulk operations. Designed for sites that grow past a few hundred entries.',
 				'color'       => '#06b6d4',
+				// Three offset rectangles — the "stack of grouped items" metaphor.
+				'icon_svg'    => '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 21h12a2 2 0 0 0 2-2V9"/><path d="M11 7h2"/><path d="M9 11h6"/></svg>',
 				'built_in'    => false,
 				'plugin_file' => 'cluster/cluster.php',
 				'repo'        => 'TherumCs/Cluster',
@@ -55,6 +60,8 @@ class Therum_Studio_Page {
 				'tagline'     => 'Environment + audience targeting.',
 				'description' => 'Conditional content blocks gated by environment, device, geo, role, or arbitrary audience rules. Built on top of Bricks so any element gets a Milieus toggle.',
 				'color'       => '#10b981',
+				// Globe with a crosshair target overlay — environment + targeting.
+				'icon_svg'    => '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 4 9 14 14 0 0 1-4 9 14 14 0 0 1-4-9 14 14 0 0 1 4-9z"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>',
 				'built_in'    => false,
 				'plugin_file' => 'milieus/milieus.php',
 				'repo'        => 'TherumCs/Milieus',
@@ -67,6 +74,8 @@ class Therum_Studio_Page {
 				'tagline'     => 'Lightweight commerce for Therum.',
 				'description' => 'A WooCommerce alternative tuned for digital goods, services, and lightweight catalogs. Stripe + PayPal out of the box, no checkout bloat, no React. Therum-native.',
 				'color'       => '#f59e0b',
+				// Shopping bag with strap — commerce without being a clichéd cart.
+				'icon_svg'    => '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.1a2 2 0 0 1-2 1.9H8.2a2 2 0 0 1-2-1.9z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
 				'built_in'    => false,
 				'plugin_file' => 'shop/shop.php',
 				'repo'        => 'TherumCs/Shop',
@@ -83,6 +92,8 @@ class Therum_Studio_Page {
 				'tagline'     => 'Portfolio CPT + sidebar section.',
 				'description' => 'Registers the `case_study` custom post type and surfaces a Portfolio entry in the Therum sidebar. Enable only on sites that publish a portfolio.',
 				'color'       => '#e83b3b',
+				// Briefcase-style folio — the standard "portfolio" mark.
+				'icon_svg'    => '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>',
 				'module'      => true,
 				'option'      => 'therum_case_studies_enabled',
 				'open_url'    => admin_url( 'edit.php?post_type=case_study' ),
@@ -196,7 +207,15 @@ class Therum_Studio_Page {
 			?>
 			<article class="th-studio-card <?php echo esc_attr( $state_cls ); ?>" data-app="<?php echo esc_attr( $app['slug'] ); ?>">
 			  <div class="th-studio-card-hero" style="background:linear-gradient(135deg, <?php echo esc_attr( $app['color'] ); ?> 0%, color-mix(in srgb, <?php echo esc_attr( $app['color'] ); ?> 60%, #000) 100%);">
-				<span class="th-studio-card-mark"><?php echo esc_html( strtoupper( substr( $app['name'], 0, 1 ) ) ); ?></span>
+				<?php if ( ! empty( $app['icon_svg'] ) ): ?>
+					<span class="th-studio-card-glyph" aria-hidden="true"><?php
+						// Trusted internal markup — every icon_svg in apps() is hand-authored,
+						// no user input flows here.
+						echo $app['icon_svg']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					?></span>
+				<?php else: ?>
+					<span class="th-studio-card-mark"><?php echo esc_html( strtoupper( substr( $app['name'], 0, 1 ) ) ); ?></span>
+				<?php endif; ?>
 				<?php if ( ! empty( $app['built_in'] ) ): ?>
 				  <span class="th-studio-card-badge th-studio-card-badge-included">Included</span>
 				<?php elseif ( $status['state'] === 'active' ): ?>
@@ -257,6 +276,8 @@ class Therum_Studio_Page {
 		.th-studio-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--tx) 14%,transparent);box-shadow:0 8px 24px rgba(0,0,0,.06)}
 		.th-studio-card-hero{position:relative;height:120px;display:flex;align-items:center;justify-content:center;color:#fff}
 		.th-studio-card-mark{font-family:var(--f);font-size:48px;font-weight:700;letter-spacing:-.04em;line-height:1;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+		.th-studio-card-glyph{display:flex;align-items:center;justify-content:center;color:#fff;filter:drop-shadow(0 2px 10px rgba(0,0,0,.18))}
+		.th-studio-card-glyph svg{width:52px;height:52px;display:block}
 		.th-studio-card-badge{position:absolute;top:12px;right:12px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:20px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px)}
 		.th-studio-card-badge-included{color:#6366f1}
 		.th-studio-card-badge-active{color:#10b981}

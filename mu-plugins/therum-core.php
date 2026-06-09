@@ -7,7 +7,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'THERUM_OS_VERSION', '1.9.43' );
+define( 'THERUM_OS_VERSION', '1.9.44' );
 define( 'THERUM_OS_FORK',    'WordPress 6.7' );
 
 /**
